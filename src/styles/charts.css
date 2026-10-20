@@ -1,12 +1,13 @@
 /*
- * Chart series colors: validated categorical slots (blue, orange, aqua) for each mode.
+ * Chart series colors: validated categorical slots (blue, orange, aqua, yellow) for each mode.
  * Light vs #ffffff and dark vs #0c111d both pass CVD (ΔE ≥ 9) and normal-vision (ΔE ≥ 26) checks.
- * Aqua is < 3:1 on white, so every chart is paired with a data table.
+ * Aqua and yellow are < 3:1 on white, so every chart is paired with a data table.
  */
 :root {
     --series-1: #2a78d6; /* DeepSeek / expenses */
     --series-2: #eb6834; /* Grok / income */
-    --series-3: #1baf7a; /* Ollama */
+    --series-3: #1baf7a;
+    --series-4: #eda100;
     --chart-grid: var(--color-border-secondary);
     --chart-surface: var(--color-bg-primary);
 }
@@ -14,4 +15,5 @@
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
+    --series-4: #c98500;
 }

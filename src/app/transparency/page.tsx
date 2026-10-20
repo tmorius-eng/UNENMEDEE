@@ -4,9 +4,11 @@ import { Suspense } from "react";
 
 import { DailySpendChart, LedgerChart } from "@/components/iltod/charts";
 import { PageHeader } from "@/components/iltod/page-header";
+import { budgetConfig } from "@/lib/ai/limits";
 import { getPrice } from "@/lib/ai/pricing";
 import { formatNumber, formatUsd } from "@/lib/format";
 import { getSiteStats, getTransparency } from "@/lib/queries";
+import type { AIProvider } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Ил Тод Байдлын Тайлан",
@@ -37,10 +39,19 @@ function Panel({ title, description, children }: { title: string; description?: 
   );
 }
 
-const PROVIDER_LABEL: Record<string, string> = { deepseek: "DeepSeek (Tier 1)", grok: "xAI Grok (Tier 2)", ollama: "Ollama (локал, 0$)" };
+const PROVIDER_LABEL: Record<string, string> = {
+  deepseek: "DeepSeek (Tier 1)",
+  grok: "xAI Grok (Tier 2)",
+  gemini: "Google Gemini (үнэгүй хувилбар)",
+  nvidia: "NVIDIA NIM · Gemma (үнэгүй)",
+  groq: "Groq · Qwen (үнэгүй)",
+  requesty: "Requesty · Gemma (үнэгүй загвар)",
+  ollama: "Ollama (локал, 0$)",
+};
 
 async function Dashboard() {
   const [data, stats] = await Promise.all([getTransparency(), getSiteStats()]);
+  const limits = budgetConfig();
   const ledgerRows = [...data.ledger].reverse().map((l) => ({
     month: l.month,
     expenses: l.infraCostUsd + l.aiCostUsd,
@@ -52,11 +63,23 @@ async function Dashboard() {
         <Tile icon={Server03} label="Серверийн зардал" value="$0.00" hint="Vercel Hobby + Supabase Free + GitHub Actions (нээлттэй репо)" />
         <Tile icon={CpuChip01} label="Нийт AI зардал" value={formatUsd(data.totals.costUsd)} hint={`${formatNumber(data.totals.calls)} дуудлага · ${formatNumber(data.totals.tokens)} токен`} />
         <Tile icon={Database01} label="Уншсан төрийн хуудас" value={formatNumber(stats.articles)} hint={`${formatNumber(stats.analyzed)} нь AI-аар шүүгдсэн`} />
-        <Tile icon={ShieldTick} label="Энэ сарын AI зардал" value={formatUsd(stats.aiCostThisMonthUsd)} hint="ai_usage_logs хүснэгтээс шууд тооцоолсон" />
+        <Tile
+          icon={ShieldTick}
+          label="Энэ сарын AI зардал"
+          value={formatUsd(stats.aiCostThisMonthUsd)}
+          hint={`Хатуу хязгаар: сард ${formatUsd(limits.monthlyUsd)}, өдөрт ${formatUsd(limits.dailyUsd)}. Хэтэрвэл зөвхөн үнэгүй AI ажиллана.`}
+        />
       </div>
 
-      <Panel title="Өдөр бүрийн AI зардал" description="Сүүлийн 30 хоног. Токен бүрийн бодит үнээр тооцсон.">
-        {data.dailySpend.length ? <DailySpendChart data={data.dailySpend} /> : <p className="text-sm text-tertiary">AI дуудлага хараахан бүртгэгдээгүй байна.</p>}
+      <Panel
+        title="Өдөр бүрийн төлбөртэй AI зардал"
+        description="Сүүлийн 30 хоног, токен бүрийн бодит үнээр. Үнэгүй AI (Groq, Gemini, NVIDIA, Ollama) $0 тул графикт биш, доорх хүснэгтэд харагдана."
+      >
+        {data.dailySpend.length ? (
+          <DailySpendChart data={data.dailySpend} />
+        ) : (
+          <p className="text-sm text-tertiary">Төлбөртэй AI ашиглаагүй байна: бүх шинжилгээ үнэгүй AI-аар хийгдсэн.</p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <caption className="sr-only">AI үйлчилгээ үзүүлэгчээр задалсан зардал</caption>
@@ -72,7 +95,7 @@ async function Dashboard() {
             </thead>
             <tbody className="divide-y divide-secondary">
               {data.byProvider.map((p) => {
-                const price = getPrice(p.provider as "deepseek" | "grok" | "ollama");
+                const price = getPrice(p.provider as AIProvider);
                 return (
                   <tr key={p.provider}>
                     <td className="py-2 pr-4 font-medium text-primary">{PROVIDER_LABEL[p.provider] ?? p.provider}</td>

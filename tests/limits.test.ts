@@ -1,0 +1,186 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { after, before, beforeEach, describe, it } from "node:test";
+
+import { analyzeArticle, ruleBasedAnalysis } from "@/lib/ai/analyze";
+import { budgetConfig, checkAllowance, createBudgetGuard, type BudgetGuard, type UsageSnapshot } from "@/lib/ai/limits";
+import { AIUnavailableError, callAIWithFallback, chainFor, type UsageRecord } from "@/lib/ai/router";
+import { Tier1Schema, Tier2Schema } from "@/lib/ai/schemas";
+import { opendataItemToScraped, parseOpendataResponse } from "@/lib/scraper/adapters/opendata";
+
+import { startMockLLM, TIER1_OK, TIER2_OK } from "./helpers/mock-llm";
+
+const cfg = budgetConfig({ AI_MONTHLY_BUDGET_USD: "3", AI_DAILY_BUDGET_USD: "0.3", GROK_DAILY_MAX_CALLS: "5", GEMINI_DAILY_MAX_CALLS: "800" });
+const usage = (u: Partial<UsageSnapshot> = {}): UsageSnapshot => ({ monthUsd: 0, dayUsd: 0, dayCalls: {}, ...u });
+
+describe("budget limits", () => {
+  it("uses safe defaults when env vars are missing", () => {
+    const d = budgetConfig({});
+    assert.equal(d.monthlyUsd, 3);
+    assert.equal(d.dailyUsd, 0.3);
+    assert.equal(d.dailyMaxCalls.grok, 5);
+    assert.equal(d.requestsPerMinute.gemini, 10);
+  });
+
+  it("blocks paid providers once the monthly or daily budget is spent", () => {
+    assert.equal(checkAllowance("deepseek", usage({ monthUsd: 2.99 }), cfg).ok, true);
+    assert.equal(checkAllowance("deepseek", usage({ monthUsd: 3 }), cfg).ok, false);
+    assert.equal(checkAllowance("grok", usage({ dayUsd: 0.31 }), cfg).ok, false);
+  });
+
+  it("keeps free Gemini working after the money budget is gone, until its call quota", () => {
+    assert.equal(checkAllowance("gemini", usage({ monthUsd: 99, dayUsd: 99 }), cfg).ok, true);
+    const r = checkAllowance("gemini", usage({ dayCalls: { gemini: 800 } }), cfg);
+    assert.equal(r.ok, false);
+  });
+
+  it("caps Grok calls per day even when money is left", () => {
+    assert.equal(checkAllowance("grok", usage({ dayCalls: { grok: 4 } }), cfg).ok, true);
+    assert.equal(checkAllowance("grok", usage({ dayCalls: { grok: 5 } }), cfg).ok, false);
+  });
+
+  it("tracks new calls in memory between DB refreshes", async () => {
+    let loads = 0;
+    const guard = createBudgetGuard(async () => {
+      loads++;
+      return usage({ monthUsd: 2.9 });
+    }, cfg);
+    assert.equal((await guard.check("deepseek")).ok, true);
+    guard.record("deepseek", 0.15);
+    assert.equal((await guard.check("deepseek")).ok, false, "2.9 + 0.15 crosses $3");
+    assert.equal(loads, 1, "snapshot cached");
+  });
+
+  it("parses chain overrides and ignores unknown providers", () => {
+    assert.deepEqual(chainFor("tier1", {}), ["groq", "gemini", "requesty", "nvidia", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier2", { AI_TIER2_CHAIN: "gemini, openai ,deepseek,gemini" }), ["gemini", "deepseek"]);
+  });
+});
+
+describe("router with Gemini + budget guard (mock server)", () => {
+  let mock: Awaited<ReturnType<typeof startMockLLM>>;
+  let script: (model: string, i: number) => { status?: number; content?: string };
+  const logs: UsageRecord[] = [];
+  const log = async (r: UsageRecord) => void logs.push(r);
+  const KEYS = ["GROQ_API_KEY", "NVIDIA_API_KEY", "REQUESTY_API_KEY", "REQUESTY_BASE_URL", "REQUESTY_MODEL", "REQUESTY_RPM", "GEMINI_API_KEY", "GEMINI_BASE_URL", "GEMINI_MODEL", "GEMINI_DEEP_MODEL", "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL", "GROK_API_KEY", "GROK_BASE_URL", "GROK_MODEL", "GEMINI_RPM", "AI_RATE_LIMIT_WAIT_MS"];
+
+  before(async () => {
+    mock = await startMockLLM((model, i) => script(model, i));
+    Object.assign(process.env, {
+      GEMINI_API_KEY: "test",
+      GEMINI_BASE_URL: mock.geminiBaseURL,
+      GEMINI_MODEL: "mock-gemini-lite",
+      GEMINI_DEEP_MODEL: "mock-gemini-flash",
+      GEMINI_RPM: "0",
+      AI_RATE_LIMIT_WAIT_MS: "10",
+      DEEPSEEK_API_KEY: "test",
+      DEEPSEEK_BASE_URL: mock.baseURL,
+      DEEPSEEK_MODEL: "mock-deepseek",
+      GROK_API_KEY: "test",
+      GROK_BASE_URL: mock.baseURL,
+      GROK_MODEL: "mock-grok",
+    });
+    delete process.env.OLLAMA_BASE_URL;
+    delete process.env.GROQ_API_KEY;
+    delete process.env.NVIDIA_API_KEY;
+    delete process.env.REQUESTY_API_KEY;
+  });
+  after(async () => {
+    await mock.close();
+    for (const k of KEYS) delete process.env[k];
+  });
+  beforeEach(() => {
+    logs.length = 0;
+    mock.calls.length = 0;
+  });
+
+  const article = { title: "Шууд гэрээ", sourceName: "Жишээ", sourceDomain: "example.gov.mn", url: "https://example.gov.mn/1", publishedAt: null, text: "48.5 тэрбум төгрөг ..." };
+
+  it("uses free Gemini first for Tier 1 and logs $0", async () => {
+    script = (model) => ({ content: model.startsWith("mock-gemini") ? TIER1_OK : "{}" });
+    const out = await analyzeArticle(article, { log, budget: undefined, forceDeep: false });
+    assert.equal(out.tier1Provider, "gemini/mock-gemini-lite");
+    assert.equal(logs[0].provider, "gemini");
+    assert.equal(logs[0].estimatedCostUsd, 0);
+    // TIER1_OK has risk 100 → deep tier: Grok first (mock returns "{}" → invalid twice), then Gemini Flash.
+  });
+
+  it("skips Grok when its daily cap is reached and uses Gemini for the deep analysis", async () => {
+    script = (model) => ({ content: model === "mock-gemini-flash" ? TIER2_OK : TIER1_OK });
+    const guard: BudgetGuard = createBudgetGuard(async () => usage({ dayCalls: { grok: 5 } }), cfg);
+    const out = await analyzeArticle(article, { log, budget: guard });
+    assert.equal(out.tier2Provider, "gemini/mock-gemini-flash");
+    assert.ok(!mock.calls.some((c) => c.model === "mock-grok"), "Grok never called");
+  });
+
+  it("keeps the Tier-1 result when every deep provider fails", async () => {
+    script = (model) => (model === "mock-gemini-lite" ? { content: TIER1_OK } : { status: 400 });
+    const out = await analyzeArticle(article, { log });
+    assert.equal(out.tier1.risk_flag, true);
+    assert.equal(out.tier2, null);
+    assert.match(out.tier2Error ?? "", /All AI providers failed/);
+  });
+
+  it("reports budgetExhausted when every provider is blocked by limits", async () => {
+    const blocked: BudgetGuard = { check: async () => ({ ok: false, reason: "monthly AI budget $3 reached" }), record: () => {} };
+    const err = await callAIWithFallback({ tier: "tier2", purpose: "tier2", messages: [{ role: "user", content: "x" }], schema: Tier2Schema, budget: blocked }).catch((e) => e);
+    assert.ok(err instanceof AIUnavailableError);
+    assert.equal(err.budgetExhausted, true);
+    assert.equal(mock.calls.length, 0, "nothing was sent");
+  });
+
+  it("retries Gemini once after a 429 instead of jumping to a paid provider", async () => {
+    const lowRisk = JSON.stringify({ ...JSON.parse(TIER1_OK), risk_score: 10 });
+    script = (model, i) => (model === "mock-gemini-lite" && i === 0 ? { status: 429 } : { content: lowRisk });
+    const out = await analyzeArticle({ ...article, text: "жижиг мэдээ" }, { log });
+    assert.equal(out.tier1Provider, "gemini/mock-gemini-lite");
+    assert.deepEqual(mock.calls.map((c) => c.model), ["mock-gemini-lite", "mock-gemini-lite"], "429 → same free provider again, no paid call");
+  });
+});
+
+describe("Requesty gateway (mock server)", () => {
+  let mock: Awaited<ReturnType<typeof startMockLLM>>;
+  const logs: UsageRecord[] = [];
+  const KEYS = ["REQUESTY_API_KEY", "REQUESTY_BASE_URL", "REQUESTY_MODEL", "REQUESTY_RPM"];
+  before(async () => {
+    mock = await startMockLLM(() => ({ content: JSON.stringify({ ...JSON.parse(TIER1_OK), risk_score: 10 }), cost: 0.000321 }));
+    Object.assign(process.env, { REQUESTY_API_KEY: "test", REQUESTY_BASE_URL: mock.baseURL, REQUESTY_MODEL: "mock-requesty", REQUESTY_RPM: "0" });
+  });
+  after(async () => {
+    await mock.close();
+    for (const k of KEYS) delete process.env[k];
+  });
+
+  it("logs the cost Requesty reports and counts Requesty against the USD budget", async () => {
+    const out = await callAIWithFallback({
+      tier: "tier1",
+      purpose: "tier1",
+      chain: ["requesty"],
+      messages: [{ role: "user", content: "x" }],
+      schema: Tier1Schema,
+      log: async (r) => void logs.push(r),
+    });
+    assert.equal(out.provider, "requesty");
+    assert.equal(out.costUsd, 0.000321);
+    assert.equal(logs[0].estimatedCostUsd, 0.000321);
+    const body = mock.calls[0].body as { max_tokens: number };
+    assert.equal(body.max_tokens, 1_500 + 3_000, "reasoning headroom added");
+    assert.equal(checkAllowance("requesty", usage({ monthUsd: 3 }), cfg).ok, false);
+  });
+});
+
+describe("token-free analysis", () => {
+  it("summarizes opendata.gov.mn datasets by rules", async () => {
+    const item = opendataItemToScraped(parseOpendataResponse(JSON.parse(readFileSync(new URL("./fixtures/opendata-search.json", import.meta.url), "utf8")))[0]);
+    const input = { title: item.title, sourceName: "Нээлттэй өгөгдөл", sourceDomain: "opendata.gov.mn", url: item.url, publishedAt: item.publishedAt, text: item.text };
+    const r = ruleBasedAnalysis(input);
+    assert.ok(r);
+    assert.match(r.tldr_summary, /нээлттэй өгөгдлийн багц нийтэллээ/);
+    assert.ok(r.facts.some((f) => f.startsWith("Эзэмшигч: ")));
+    assert.equal(r.risk_score, 0);
+    const out = await analyzeArticle(input);
+    assert.equal(out.tier1Provider, "rule-based");
+    assert.equal(out.costUsd, 0);
+    assert.equal(ruleBasedAnalysis({ ...input, sourceDomain: "mof.gov.mn" }), null);
+  });
+});

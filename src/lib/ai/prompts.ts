@@ -3,10 +3,13 @@ import { truncate } from "@/lib/text";
 
 import type { Tier1Result } from "./schemas";
 
-/** Max characters of article text sent to the bulk model (cost control, ~3k tokens). */
-export const TIER1_MAX_CHARS = 6_000;
-/** The deep model gets more context. */
-export const TIER2_MAX_CHARS = 12_000;
+/**
+ * Max characters of article text sent to the bulk model (~1.6k tokens of Mongolian).
+ * Most government news is shorter; long reports keep their lead, where the facts are.
+ */
+export const TIER1_MAX_CHARS = 4_000;
+/** The deep model gets more context, but only for the few high-risk items. */
+export const TIER2_MAX_CHARS = 8_000;
 
 export interface ArticleForAI {
   title: string;
@@ -19,7 +22,7 @@ export interface ArticleForAI {
 }
 
 /* -------------------------------------------------------------------------- */
-/* TIER 1: DeepSeek bulk analyzer                                              */
+/* TIER 1: bulk analyzer (Groq / Gemini / Requesty / NVIDIA / DeepSeek)       */
 /* -------------------------------------------------------------------------- */
 
 export const TIER1_SYSTEM = `Чи бол "ИЛ ТОД" нээлттэй эхийн мэдээллийн платформын баримт шалгагч шинжээч.
@@ -102,7 +105,7 @@ export function tier2Messages(a: ArticleForAI, tier1: Tier1Result) {
     {
       role: "user" as const,
       content: `${header(a)}${formatMeta(a.meta)}
-Анхан шатны шинжилгээ (DeepSeek):
+Анхан шатны шинжилгээ:
 - Товч: ${tier1.tldr_summary}
 - Баримтууд: ${tier1.facts.join("; ") || "—"}
 - Пи-ар: ${tier1.spin_detected}

@@ -29,6 +29,13 @@
       "when": 1792495051398,
       "tag": "0003_usage_log_article_index",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792499991995,
+      "tag": "0004_free_ai_providers",
+      "breakpoints": true
     }
   ]
 }

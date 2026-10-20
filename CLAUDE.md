@@ -6,7 +6,7 @@
 We are building a 100% transparent, open-source investigative news and public data monitoring platform for Mongolia, designed for **young readers** (fast, visual, mobile-first).
 - **Anti-Brainwash Principle:** Separate hard verifiable facts (numbers, dates, laws, tender amounts, entities) from political PR spin.
 - **Zero-Cost Infrastructure:** Must run strictly within free tiers (Vercel Hobby, Supabase Free 500MB PostgreSQL + pgvector, GitHub Actions for cron scraping on a public repo).
-- **Dual-LLM Intelligence:** DeepSeek API for high-volume initial extraction/summarization, xAI Grok API for deep investigative analysis on high-risk items, Local Ollama as a zero-cost fallback.
+- **Dual-LLM Intelligence:** a bulk tier for extraction/summarization and a deep tier for high-risk items. Free tiers go first (Groq, Google Gemini, Requesty's free Gemma, NVIDIA NIM); paid DeepSeek / xAI Grok are optional and capped by a USD budget; local Ollama is the last fallback.
 
 ## 2. Tech Stack
 - **Framework:** Next.js 16 (App Router, Turbopack, React 19.3, Server Actions), TypeScript strict mode.
@@ -23,7 +23,7 @@ We are building a 100% transparent, open-source investigative news and public da
   - Charts: `recharts`. Icons: `@untitledui/icons` (prefer) and `lucide-react` (only where ElevenLabs code needs it).
 - **Database:** Supabase PostgreSQL with `pgvector`, managed via **Drizzle ORM** (`drizzle-orm`, `postgres`, `drizzle-kit`). Schema: `src/db/schema.ts`. Migrations: `drizzle/`.
 - **Scraping Engine:** Node.js scripts in `/scripts` using `crawlee`, `cheerio`, `@mozilla/readability`, `jsdom`. Library code in `src/lib/scraper`.
-- **AI SDK:** `openai` package with custom `baseURL` for DeepSeek (`https://api.deepseek.com/v1`), xAI Grok (`https://api.x.ai/v1`), Ollama (`OLLAMA_BASE_URL`). Library code in `src/lib/ai`.
+- **AI SDK:** `openai` package with custom `baseURL` for Groq, Requesty, NVIDIA NIM, DeepSeek, xAI Grok and Ollama; Gemini uses its native `generateContent` API via `fetch` (`src/lib/ai/gemini.ts`). Library code in `src/lib/ai`.
 - **Admin Editor:** Tiptap (`@tiptap/react`, `@tiptap/starter-kit`).
 
 ## 3. Target Data Sources (Phased Approach)
@@ -37,7 +37,9 @@ We are building a 100% transparent, open-source investigative news and public da
 - `robots.ts` + `http.ts`: our own robots parser and 8s-per-host throttle for non-Crawlee fetches.
 
 ### AI pipeline (`src/lib/ai`)
-- `router.ts`: provider chains. tier1 = DeepSeek → Ollama; tier2 = Grok → DeepSeek → Ollama. JSON mode + zod validation + one repair retry. Every call (success or failure with tokens) is logged with its USD cost via `usage-log.ts`.
+- `router.ts`: provider chains. tier1 = Groq → Gemini → Requesty → NVIDIA → DeepSeek → Ollama; tier2 = Grok → Gemini Flash → Groq → Requesty → NVIDIA → DeepSeek → Ollama (override with `AI_TIER1_CHAIN` / `AI_TIER2_CHAIN`). JSON mode + zod validation + one repair retry; one retry after a 429. Every call (success or failure with tokens) is logged with its USD cost via `usage-log.ts`; a provider-reported cost (Requesty) wins over the price table.
+- `limits.ts`: budget guard checked before every call. Paid providers (price > 0, and Requesty always) stop at `AI_MONTHLY_BUDGET_USD` ($3) / `AI_DAILY_BUDGET_USD` ($0.30); every provider has `<PROVIDER>_DAILY_MAX_CALLS` (Grok 5) and optional `<PROVIDER>_RPM` throttling. Free providers keep working when money runs out. Never call a provider without passing a guard in production code (`dbBudgetGuard(db)`).
+- Token budget: Tier-1 input is cut to 4,000 chars, Tier-2 to 8,000; opendata.gov.mn datasets are summarized by rules (`ruleBasedAnalysis`, 0 tokens).
 - `analyze.ts`: `analyzeArticle` (pure, used by admin), `processArticle` (writes DB), `assignCluster`/`refreshCluster`.
 - `risk_flag` is derived from `risk_score >= 65`, never trusted from the model. Regex MNT amounts are merged into entities.
 - Clustering: stem Jaccard + entity overlap, threshold 0.45, cross-source only, 7-day window; synthesis only at growth milestones.

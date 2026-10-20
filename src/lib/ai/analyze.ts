@@ -6,6 +6,7 @@ import { extractMntAmounts } from "@/lib/scraper/adapters/tender";
 
 import { CLUSTER_WINDOW_DAYS, findBestMatch, type ClusterDoc } from "./clustering";
 import { clusterMessages, tier1Messages, tier2Messages, type ArticleForAI, type ClusterMember } from "./prompts";
+import type { BudgetGuard } from "./limits";
 import { callAIWithFallback, type Purpose, type UsageLogger } from "./router";
 import { ClusterSchema, Tier1Schema, Tier2Schema, type Tier1Result, type Tier2Result } from "./schemas";
 
@@ -14,7 +15,51 @@ export interface AnalysisOutcome {
   tier1Provider: string;
   tier2: Tier2Result | null;
   tier2Provider: string | null;
+  /** Why the deep analysis is missing although it was wanted (limit reached, provider down). */
+  tier2Error: string | null;
   costUsd: number;
+}
+
+export interface AnalyzeOptions {
+  articleId?: number | null;
+  log?: UsageLogger;
+  budget?: BudgetGuard;
+  forceDeep?: boolean;
+  purpose?: Purpose;
+}
+
+/** Sources whose items are structured metadata: summarized by rules, zero AI tokens. */
+const RULE_BASED_DOMAINS = new Set(["opendata.gov.mn"]);
+
+function field(text: string, label: string): string | null {
+  const m = text.match(new RegExp(`^${label}:\\s*(.+)$`, "m"));
+  return m ? m[1].trim() : null;
+}
+
+/** Token-free analysis for opendata.gov.mn dataset entries (they carry no political text). */
+export function ruleBasedAnalysis(input: ArticleForAI): Tier1Result | null {
+  if (!RULE_BASED_DOMAINS.has(input.sourceDomain)) return null;
+  const org = field(input.text, "Эзэмшигч байгууллага");
+  const freq = field(input.text, "Шинэчлэгдэх давтамж");
+  const formats = field(input.text, "Файлын формат");
+  const updated = field(input.text, "Сүүлд шинэчлэгдсэн");
+  const lines = [
+    `${org ? `${org} ` : ""}"${input.title}" нэртэй нээлттэй өгөгдлийн багц нийтэллээ.`,
+    freq ? `Өгөгдөл ${freq.toLowerCase()} шинэчлэгдэнэ.` : null,
+    formats ? `Файлыг ${formats} форматаар татаж авах боломжтой.` : null,
+  ].filter((l): l is string => Boolean(l));
+  return {
+    tldr_summary: lines.join("\n"),
+    facts: [org && `Эзэмшигч: ${org}`, freq && `Давтамж: ${freq}`, formats && `Формат: ${formats}`, updated && `Шинэчлэгдсэн: ${updated}`].filter(
+      (f): f is string => Boolean(f),
+    ),
+    spin_detected: "Албан ёсны өгөгдлийн бүртгэл тул пи-ар агуулаагүй.",
+    neutrality_score: 100,
+    entities: { people: [], orgs: org ? [org] : [], amounts_mnt: [] },
+    risk_score: 0,
+    risk_reason: "Өгөгдлийн багцын мэдээлэл.",
+    risk_flag: false,
+  };
 }
 
 /** Regex-found MNT amounts are merged in so money tags never depend on the model alone. */
@@ -35,10 +80,10 @@ export function formatDeepAnalysis(t2: Tier2Result): string {
  * Tier 1 always; Tier 2 when the risk flag is set (or forced from the admin panel).
  * Pure function of its input + AI calls: no DB writes, so the admin "filter" reuses it.
  */
-export async function analyzeArticle(
-  input: ArticleForAI,
-  opts: { articleId?: number | null; log?: UsageLogger; forceDeep?: boolean; purpose?: Purpose } = {},
-): Promise<AnalysisOutcome> {
+export async function analyzeArticle(input: ArticleForAI, opts: AnalyzeOptions = {}): Promise<AnalysisOutcome> {
+  const rules = opts.forceDeep ? null : ruleBasedAnalysis(input);
+  if (rules) return { tier1: rules, tier1Provider: "rule-based", tier2: null, tier2Provider: null, tier2Error: null, costUsd: 0 };
+
   const t1 = await callAIWithFallback({
     tier: "tier1",
     purpose: opts.purpose ?? "tier1",
@@ -46,28 +91,36 @@ export async function analyzeArticle(
     messages: tier1Messages(input),
     schema: Tier1Schema,
     log: opts.log,
+    budget: opts.budget,
   });
   const tier1 = withRegexAmounts(t1.data, input.text);
   let costUsd = t1.costUsd;
 
   let tier2: Tier2Result | null = null;
   let tier2Provider: string | null = null;
+  let tier2Error: string | null = null;
   if (tier1.risk_flag || opts.forceDeep) {
-    const t2 = await callAIWithFallback({
-      tier: "tier2",
-      purpose: opts.purpose === "admin" ? "admin" : "tier2",
-      articleId: opts.articleId,
-      messages: tier2Messages(input, tier1),
-      schema: Tier2Schema,
-      log: opts.log,
-      maxTokens: 2_500,
-      temperature: 0.3,
-    });
-    tier2 = t2.data;
-    tier2Provider = `${t2.provider}/${t2.model}`;
-    costUsd += t2.costUsd;
+    try {
+      const t2 = await callAIWithFallback({
+        tier: "tier2",
+        purpose: opts.purpose === "admin" ? "admin" : "tier2",
+        articleId: opts.articleId,
+        messages: tier2Messages(input, tier1),
+        schema: Tier2Schema,
+        log: opts.log,
+        budget: opts.budget,
+        maxTokens: 1_800,
+        temperature: 0.3,
+      });
+      tier2 = t2.data;
+      tier2Provider = `${t2.provider}/${t2.model}`;
+      costUsd += t2.costUsd;
+    } catch (err) {
+      // Keep the (already paid) Tier-1 result; the deep analysis can be retried from /admin.
+      tier2Error = err instanceof Error ? err.message : String(err);
+    }
   }
-  return { tier1, tier1Provider: `${t1.provider}/${t1.model}`, tier2, tier2Provider, costUsd };
+  return { tier1, tier1Provider: `${t1.provider}/${t1.model}`, tier2, tier2Provider, tier2Error, costUsd };
 }
 
 /** Loads an article with its source as AI input. */
@@ -92,7 +145,7 @@ export async function loadArticleForAI(db: DB, id: number) {
 }
 
 /** Runs the full pipeline for one stored article and writes the results. */
-export async function processArticle(db: DB, id: number, opts: { log?: UsageLogger; forceDeep?: boolean; purpose?: Purpose } = {}) {
+export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptions, "articleId"> = {}) {
   const loaded = await loadArticleForAI(db, id);
   if (!loaded) throw new Error(`Article ${id} not found`);
   const outcome = await analyzeArticle(loaded.input, { ...opts, articleId: id });
@@ -110,7 +163,7 @@ export async function processArticle(db: DB, id: number, opts: { log?: UsageLogg
       aiError: null,
     })
     .where(eq(articles.id, id));
-  const clusterId = await assignCluster(db, id, opts.log);
+  const clusterId = await assignCluster(db, id, opts.log, opts.budget);
   return { ...outcome, clusterId };
 }
 
@@ -118,7 +171,7 @@ export async function processArticle(db: DB, id: number, opts: { log?: UsageLogg
  * Jaccard clustering against processed articles from the last 7 days.
  * Joins the best match's cluster (or creates one) and re-synthesizes the cluster summary.
  */
-export async function assignCluster(db: DB, id: number, log?: UsageLogger): Promise<number | null> {
+export async function assignCluster(db: DB, id: number, log?: UsageLogger, budget?: BudgetGuard): Promise<number | null> {
   const since = new Date(Date.now() - CLUSTER_WINDOW_DAYS * 86_400_000);
   const pool = await db
     .select({
@@ -154,8 +207,8 @@ export async function assignCluster(db: DB, id: number, log?: UsageLogger): Prom
     clusterId = created.id;
   }
   await db.update(articles).set({ clusterId }).where(inArray(articles.id, [id, match.doc.id]));
-  await refreshCluster(db, clusterId, log);
-  if (me.clusterId && me.clusterId !== clusterId) await refreshCluster(db, me.clusterId, log);
+  await refreshCluster(db, clusterId, log, budget);
+  if (me.clusterId && me.clusterId !== clusterId) await refreshCluster(db, me.clusterId, log, budget);
   return clusterId;
 }
 
@@ -169,7 +222,7 @@ export function shouldResynthesize(previousCount: number, newCount: number): boo
 }
 
 /** Recounts a cluster and, at growth milestones, asks the model for a neutral cross-source synthesis. */
-export async function refreshCluster(db: DB, clusterId: number, log?: UsageLogger): Promise<void> {
+export async function refreshCluster(db: DB, clusterId: number, log?: UsageLogger, budget?: BudgetGuard): Promise<void> {
   const members = await db
     .select({ title: articles.title, tldr: articles.tldrSummary, facts: articles.factVsSpin, risk: articles.riskScore, sourceName: sources.name })
     .from(articles)
@@ -189,15 +242,16 @@ export async function refreshCluster(db: DB, clusterId: number, log?: UsageLogge
   if (shouldResynthesize(current?.count ?? 0, members.length)) {
     try {
       const res = await callAIWithFallback({
-        // High-risk clusters get the deep model.
-        tier: maxRisk >= 65 ? "tier2" : "tier1",
+        // Synthesis is a summary of summaries: the cheap/free bulk tier is enough.
+        tier: "tier1",
         purpose: "cluster",
         messages: clusterMessages(
           members.map<ClusterMember>((m) => ({ title: m.title, sourceName: m.sourceName, tldr: m.tldr ?? "", facts: m.facts?.facts ?? [] })),
         ),
         schema: ClusterSchema,
         log,
-        maxTokens: 800,
+        budget,
+        maxTokens: 600,
       });
       title = res.data.title;
       synthesis = res.data.synthesis;

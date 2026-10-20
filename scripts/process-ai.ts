@@ -6,9 +6,11 @@
  *   npm run ai:process -- --id 123 --deep # re-analyze one article, force Grok
  *   npm run ai:process -- --sample        # no DB: analyze a built-in sample, print the result
  *
- * Tier 1 (DeepSeek → Ollama) for every article; Tier 2 (Grok → DeepSeek → Ollama) when
- * risk_score >= 65. Every call's tokens and USD cost go to ai_usage_logs, and this
- * month's total is synced into transparency_ledger.
+ * Tier 1 (Gemini free → DeepSeek → Ollama) for every article; Tier 2 (Grok → Gemini → DeepSeek
+ * → Ollama) when risk_score >= 65. opendata.gov.mn datasets are summarized by rules (0 tokens).
+ * Paid providers stop at AI_MONTHLY_BUDGET_USD / AI_DAILY_BUDGET_USD and per-provider daily
+ * call caps (see src/lib/ai/limits.ts). Every call's tokens and USD cost go to ai_usage_logs,
+ * and this month's total is synced into transparency_ledger.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -19,12 +21,14 @@ import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
 import { AIUnavailableError } from "@/lib/ai/router";
-import { consoleUsageLogger, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
+import { budgetConfig } from "@/lib/ai/limits";
+import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 
 const { values } = parseArgs({
   options: {
     limit: { type: "string", default: "40" },
-    batch: { type: "string", default: "5" },
+    // Parallel articles. Kept low so free tiers (Gemini ~10-15 requests/min) are not flooded.
+    batch: { type: "string", default: process.env.AI_CONCURRENCY || "2" },
     id: { type: "string" },
     deep: { type: "boolean", default: false },
     sample: { type: "boolean", default: false },
@@ -65,10 +69,16 @@ async function main() {
   }
   const db = getDb();
   const log = dbUsageLogger(db);
+  const budget = dbBudgetGuard(db);
+  const cfg = budgetConfig();
+  console.log(
+    `💰 Limits: $${cfg.monthlyUsd}/month, $${cfg.dailyUsd}/day for paid AI; Grok ≤ ${cfg.dailyMaxCalls.grok} calls/day; Gemini ≤ ${cfg.dailyMaxCalls.gemini} calls/day.`,
+  );
 
   if (values.id) {
     const id = Number(values.id);
-    const res = await processArticle(db, id, { log, forceDeep: values.deep, purpose: values.deep ? "admin" : "tier1" });
+    const res = await processArticle(db, id, { log, budget, forceDeep: values.deep, purpose: values.deep ? "admin" : "tier1" });
+    if (res.tier2Error) console.log(`  (deep analysis skipped: ${res.tier2Error.slice(0, 200)})`);
     console.log(`✓ #${id} risk=${res.tier1.risk_score} flag=${res.tier1.risk_flag} deep=${Boolean(res.tier2)} cluster=${res.clusterId ?? "—"} $${res.costUsd.toFixed(6)}`);
     await syncLedgerAiCost(db);
     return;
@@ -88,10 +98,11 @@ async function main() {
   let flagged = 0;
   let cost = 0;
   let consecutiveProviderFailures = 0;
+  let budgetStop = false;
 
-  for (let i = 0; i < pending.length; i += batchSize) {
+  for (let i = 0; i < pending.length && !budgetStop; i += batchSize) {
     const batch = pending.slice(i, i + batchSize);
-    const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log })));
+    const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log, budget })));
     for (const [j, r] of results.entries()) {
       const a = batch[j];
       if (r.status === "fulfilled") {
@@ -99,12 +110,17 @@ async function main() {
         consecutiveProviderFailures = 0;
         cost += r.value.costUsd;
         if (r.value.tier1.risk_flag) flagged++;
-        console.log(
-          `  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${r.value.tier2 ? " ⚡Grok" : ""}${r.value.clusterId ? ` 🔗${r.value.clusterId}` : ""}  ${a.title.slice(0, 70)}`,
-        );
+        const via = r.value.tier1Provider === "rule-based" ? " (0 токен)" : "";
+        const deep = r.value.tier2 ? ` ⚡${r.value.tier2Provider?.split("/")[0]}` : r.value.tier2Error ? " (гүнзгий шинжилгээ алгассан)" : "";
+        console.log(`  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${via}${deep}${r.value.clusterId ? ` 🔗${r.value.clusterId}` : ""}  ${a.title.slice(0, 70)}`);
         continue;
       }
       const err = r.reason;
+      if (err instanceof AIUnavailableError && err.budgetExhausted) {
+        console.log(`⏸  AI limit reached (${err.attempts[0]?.split("limit: ")[1]?.replace(/\)$/, "") ?? "budget"}). Remaining articles wait for the next run.`);
+        budgetStop = true;
+        break;
+      }
       if (err instanceof AIUnavailableError && err.attempts.length === 0) {
         console.error(`✗ ${err.message}`);
         process.exitCode = 1;
