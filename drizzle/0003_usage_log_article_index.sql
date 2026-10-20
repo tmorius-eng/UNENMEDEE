@@ -1,0 +1,1 @@
+CREATE INDEX "ai_usage_logs_article_id_idx" ON "ai_usage_logs" USING btree ("article_id");

@@ -98,7 +98,12 @@ export const aiUsageLogs = pgTable(
     success: boolean("success").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("ai_usage_logs_created_at_idx").on(t.createdAt), index("ai_usage_logs_provider_idx").on(t.provider)],
+  (t) => [
+    index("ai_usage_logs_created_at_idx").on(t.createdAt),
+    index("ai_usage_logs_provider_idx").on(t.provider),
+    // Covers the FK (Supabase advisor 0001): deleting an article must not scan all logs.
+    index("ai_usage_logs_article_id_idx").on(t.articleId),
+  ],
 );
 
 export const transparencyLedger = pgTable("transparency_ledger", {

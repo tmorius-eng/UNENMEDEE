@@ -2,7 +2,10 @@
 --
 -- 1) pgvector is enabled now so future semantic search can add vector(…) columns
 --    without another manual step. (Clustering currently uses Jaccard similarity.)
-CREATE EXTENSION IF NOT EXISTS vector;
+--    Installed into the `extensions` schema (Supabase best practice: keep `public` clean).
+CREATE SCHEMA IF NOT EXISTS extensions;
+--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
 --> statement-breakpoint
 -- 2) Supabase exposes the public schema through PostgREST with the anon key.
 --    Enabling RLS with NO policies denies all anon/authenticated REST access.
