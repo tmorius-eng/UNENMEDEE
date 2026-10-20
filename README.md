@@ -11,8 +11,8 @@
 ## Юу хийдэг вэ?
 
 1. **Цуглуулна.** 95+ төрийн вэбсайт (яам, агентлаг, 21 аймаг, шүүх, УИХ, Шилэн данс, Нээлттэй өгөгдөл…) 2 цаг тутам robots.txt-г хүндэтгэн, нэг домэйнд 8 секундээс доошгүй завсартай уншина. Шинэ `*.gov.mn`, `*.khural.mn` сайтыг долоо хоног бүр автоматаар илрүүлж нэмнэ.
-2. **Шүүнэ.** Мэдээ бүрийг DeepSeek уншиж 3 өгүүлбэрийн хураангуй, шалгагдах баримт, пи-арын шинж, мөнгөн дүн, эрсдэлийн оноо (0-100) гаргана.
-3. **Гүнзгий шинжилнэ.** Эрсдэлийн оноо 65+ (тендергүй шууд гэрээ, тодорхойгүй зарцуулалт…) бол xAI Grok эрэн сурвалжлах дүгнэлт, иргэдийн асуух ёстой асуултуудыг бичнэ.
+2. **Шүүнэ.** Мэдээ бүрийг үнэгүй AI (Groq, Gemini, Requesty, NVIDIA; дуусвал DeepSeek) уншиж 3 өгүүлбэрийн хураангуй, шалгагдах баримт, пи-арын шинж, мөнгөн дүн, эрсдэлийн оноо (0-100) гаргана.
+3. **Гүнзгий шинжилнэ.** Эрсдэлийн оноо 65+ (тендергүй шууд гэрээ, тодорхойгүй зарцуулалт…) бол xAI Grok (өдөрт 5 удаа) эсвэл үнэгүй Gemini Flash эрэн сурвалжлах дүгнэлт, иргэдийн асуух ёстой асуултуудыг бичнэ.
 4. **Нотолно.** Нийтлэл бүр эх `.gov.mn` холбоос болон цэвэрлэсэн эх текстийн **SHA-256 хэштэй**. Хэн ч дахин татаж шалгаж болно.
 5. **Тайлагнана.** AI дуудлага бүрийн токен, үнэ `ai_usage_logs`-д бичигдэж `/transparency` хуудсанд шууд харагдана.
 
@@ -22,16 +22,18 @@
 | Дизайн | Untitled UI React + ElevenLabs UI (Message, Response, Orb), Tailwind 4, motion | 0₮ |
 | Өгөгдлийн сан | Supabase PostgreSQL + pgvector, Drizzle ORM | 0₮ (500MB) |
 | Скрапер | GitHub Actions cron + Crawlee (HTTP + Playwright Chromium) | 0₮ (нээлттэй репо) |
-| AI 1-р шат | DeepSeek (`deepseek-chat`) | ~$1–3 |
-| AI 2-р шат | xAI Grok (зөвхөн эрсдэлтэй мэдээ) | ~$2–5 |
-| AI нөөц | Ollama (локал) | 0₮ |
+| AI 1-р шат | Groq → Gemini → Requesty (Gemma) → NVIDIA NIM, үнэгүй хувилбарууд | 0₮ |
+| AI 2-р шат | xAI Grok (өдөрт ≤5) → Gemini Flash (үнэгүй) | ≤$3 (хязгаартай) |
+| AI нөөц | DeepSeek (төлбөртэй, хязгаартай), Ollama (локал) | ≤$3 нийт |
+
+**Мөнгө шатаахгүй.** Төлбөртэй AI (DeepSeek, Grok, Requesty-ийн төлбөртэй загвар) сард `AI_MONTHLY_BUDGET_USD` (анхдагч $3), өдөрт `AI_DAILY_BUDGET_USD` ($0.30)-аас хэтэрвэл автоматаар зогсоно. Grok өдөрт 5 удаа. Үнэгүй AI-ууд үргэлжлүүлэн ажиллана. Нээлттэй өгөгдлийн багцуудыг AI-гүйгээр (0 токен) дүрмээр хураангуйлна.
 
 ## Суулгах (5 алхам)
 
 ```bash
 git clone https://github.com/tmorius-eng/UNENMEDEE && cd UNENMEDEE
 npm install
-cp .env.example .env          # DATABASE_URL, DEEPSEEK_API_KEY, GROK_API_KEY, ADMIN_SECRET_PASSWORD
+cp .env.example .env          # DATABASE_URL, GROQ_API_KEY (эсвэл өөр үнэгүй түлхүүр), ADMIN_SECRET_PASSWORD
 npm run db:migrate && npm run db:seed
 npm run dev                   # http://localhost:3000
 ```
@@ -45,7 +47,7 @@ npm run ai:process -- --sample     # API түлхүүр зөв эсэхийг ш
 
 **`DATABASE_URL` хаанаас авах вэ?** Supabase төслийн хуудасны дээд талын **Connect** товч → **Transaction pooler** (порт 6543). Шууд холбоос: `https://supabase.com/dashboard/project/<ref>?showConnect=true&method=transaction`. `[YOUR-PASSWORD]`-ийг өөрийн өгөгдлийн сангийн нууц үгээр солино (мартсан бол Database Settings → Reset database password). GitHub Actions-ийн migration-д зориулж **Session pooler** (порт 5432) хаягийг `DATABASE_URL_DIRECT` нэрээр нэмж болно.
 
-**Автоматжуулалт:** GitHub репо → Settings → Secrets → Actions хэсэгт `DATABASE_URL`, `DEEPSEEK_API_KEY`, `GROK_API_KEY` нэмэхэд `.github/workflows/autonomous-news-pipeline.yml` 2 цаг тутам ажиллана. Vercel дээр мөн адил env-үүдийг (мөн `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт) тохируулна.
+**Автоматжуулалт:** GitHub репо → Settings → Secrets → Actions хэсэгт `DATABASE_URL` болон дор хаяж нэг AI түлхүүр (`GROQ_API_KEY`, `GEMINI_API_KEY`, `REQUESTY_API_KEY`, `NVIDIA_API_KEY`; хүсвэл `DEEPSEEK_API_KEY`, `GROK_API_KEY`) нэмэхэд `.github/workflows/autonomous-news-pipeline.yml` 2 цаг тутам ажиллана. Vercel дээр мөн адил env-үүдийг (мөн `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт) тохируулна.
 
 **Админ:** `/admin` → мэдээ засах/нуух, Grok-оор дахин шинжлэх, сарын зар/хандивын орлого бүртгэх, `/admin/filter` дээр дурын URL эсвэл текстийг "тархи угаалтын шүүлтүүр"-ээр шалгаж нэг товчоор нийтлэх.
 
@@ -65,8 +67,9 @@ GitHub Actions (every 2h, free on public repos)
  │   └─ Browser pass        headless Chromium only for JavaScript-rendered sites (gov.mn, …)
  │      → SHA-256 dedup → clean text only (≤15 KB) → articles (tldr = null)
  └─ npm run ai:process
-     ├─ Tier 1  DeepSeek → (Ollama)            facts, spin, entities, MNT amounts, risk 0-100
-     ├─ Tier 2  Grok → DeepSeek → (Ollama)     only when risk ≥ 65: investigative analysis
+     ├─ Budget guard                            paid providers stop at $3/month, $0.30/day; Grok ≤ 5 calls/day
+     ├─ Tier 1  Groq → Gemini → Requesty → NVIDIA → DeepSeek → (Ollama)   free first; facts, spin, risk 0-100
+     ├─ Tier 2  Grok → Gemini Flash → Groq → … only when risk ≥ 65: investigative analysis
      ├─ Clustering                              cross-source Jaccard (Mongolian stems + entities), 7-day window
      └─ ai_usage_logs + transparency_ledger    exact tokens and USD for every call
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
@@ -99,12 +102,12 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 - **Free GitHub Actions minutes require a public repository.** A private repo gets about 2,000 free minutes a month, and a 2-hourly pipeline needs far more.
 - **GitHub disables scheduled workflows** in public repos after 60 days without commits. Re-enable them in the Actions tab.
 - **Some sites block cloud IPs or use a Cloudflare browser challenge**, notably tender.gov.mn and president.mn. They fail gracefully and back off. Running the scraper from a machine in Mongolia covers them.
-- **AI prices and model ids change.** Defaults follow the original spec. Verify them at the DeepSeek and xAI pricing pages and override them with repository variables.
+- **AI prices and model ids change.** Paid defaults follow the original spec; verify them at the DeepSeek and xAI pricing pages and override them with repository variables. Free tiers (Groq, Gemini, NVIDIA, Requesty's free models) are rate limited and may use prompts for training; we only send already-public government news.
 
 ### Contributing
 
 ```bash
-npm run check   # typecheck + lint + 39 unit tests (no secrets needed)
+npm run check   # typecheck + lint + 52 unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 

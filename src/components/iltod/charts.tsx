@@ -27,8 +27,8 @@ function LegendText(value: string) {
   return <span className="text-xs text-secondary">{value}</span>;
 }
 
-/** Stacked daily AI spend per provider (last 30 days). */
-export function DailySpendChart({ data }: { data: { day: string; deepseek: number; grok: number; ollama: number }[] }) {
+/** Stacked daily PAID AI spend (last 30 days). Free providers are $0 and listed in the table. */
+export function DailySpendChart({ data }: { data: { day: string; deepseek: number; grok: number }[] }) {
   const rows = data.map((d) => ({ ...d, label: d.day.slice(5) }));
   return (
     <div className="h-72 w-full" role="img" aria-label="Сүүлийн 30 хоногийн AI зардал, үйлчилгээ үзүүлэгчээр">
@@ -41,8 +41,7 @@ export function DailySpendChart({ data }: { data: { day: string; deepseek: numbe
           <Legend formatter={LegendText} iconType="square" iconSize={10} />
           {/* 2px surface stroke = gap between stacked segments */}
           <Bar dataKey="deepseek" name="DeepSeek" stackId="a" fill="var(--series-1)" stroke="var(--chart-surface)" strokeWidth={2} />
-          <Bar dataKey="grok" name="Grok" stackId="a" fill="var(--series-2)" stroke="var(--chart-surface)" strokeWidth={2} />
-          <Bar dataKey="ollama" name="Ollama (0$)" stackId="a" fill="var(--series-3)" stroke="var(--chart-surface)" strokeWidth={2} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="grok" name="Grok" stackId="a" fill="var(--series-2)" stroke="var(--chart-surface)" strokeWidth={2} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

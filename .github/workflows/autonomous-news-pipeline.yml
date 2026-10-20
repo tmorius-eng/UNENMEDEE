@@ -1,5 +1,5 @@
-# Zero-cost backend: scrape Mongolian government sites and run the DeepSeek/Grok
-# pipeline every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
+# Zero-cost backend: scrape Mongolian government sites and run the AI pipeline
+# (free Groq / Gemini / Requesty / NVIDIA first, paid DeepSeek / Grok capped) every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
 name: Autonomous news pipeline
 
 on:
@@ -34,8 +34,21 @@ jobs:
     timeout-minutes: 55
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Free tiers (used first). Any one of them is enough to analyze articles.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      # Paid (optional). Capped by the budget variables below.
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+      # Spending limits (repository variables). Defaults: $3/month, $0.30/day, Grok 5 calls/day.
+      AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
+      AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+      GROK_DAILY_MAX_CALLS: ${{ vars.GROK_DAILY_MAX_CALLS }}
+      DEEPSEEK_DAILY_MAX_CALLS: ${{ vars.DEEPSEEK_DAILY_MAX_CALLS }}
+      AI_TIER1_CHAIN: ${{ vars.AI_TIER1_CHAIN }}
+      AI_TIER2_CHAIN: ${{ vars.AI_TIER2_CHAIN }}
       # Optional repository variables (Settings → Variables): model ids and price overrides.
       DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
       GROK_MODEL: ${{ vars.GROK_MODEL || 'grok-4-fast' }}
@@ -43,6 +56,11 @@ jobs:
       DEEPSEEK_PRICE_OUT: ${{ vars.DEEPSEEK_PRICE_OUT }}
       GROK_PRICE_IN: ${{ vars.GROK_PRICE_IN }}
       GROK_PRICE_OUT: ${{ vars.GROK_PRICE_OUT }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_DEEP_MODEL: ${{ vars.GEMINI_DEEP_MODEL }}
+      REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
     steps:
       - uses: actions/checkout@v7
 
@@ -56,7 +74,7 @@ jobs:
       - name: Check required secrets
         run: |
           if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
-          if [ -z "$DEEPSEEK_API_KEY" ]; then echo "::warning::DEEPSEEK_API_KEY is not set: articles will be scraped but not analyzed."; fi
+          if [ -z "$GROQ_API_KEY$GEMINI_API_KEY$REQUESTY_API_KEY$NVIDIA_API_KEY$DEEPSEEK_API_KEY" ]; then echo "::warning::No AI key is set (GROQ_API_KEY, GEMINI_API_KEY, REQUESTY_API_KEY, NVIDIA_API_KEY or DEEPSEEK_API_KEY): articles will be scraped but not analyzed."; fi
 
       - name: Apply database migrations
         env:
@@ -86,8 +104,8 @@ jobs:
             npm run scrape -- --limit "$IN_LIMIT" --budget 30
           fi
 
-      - name: Analyze with DeepSeek + Grok
-        if: env.DEEPSEEK_API_KEY != ''
+      - name: Analyze with AI (free providers first, paid ones within budget)
+        if: env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != ''
         env:
           IN_AI_LIMIT: ${{ inputs.ai_limit || '60' }}
         run: |

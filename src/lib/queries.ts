@@ -343,7 +343,8 @@ export async function getSources(): Promise<SourceHealth[]> {
 }
 
 export interface TransparencyData {
-  dailySpend: { day: string; deepseek: number; grok: number; ollama: number }[];
+  /** Paid spend per day (free providers are always $0 and appear in byProvider instead). */
+  dailySpend: { day: string; deepseek: number; grok: number }[];
   byProvider: { provider: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number }[];
   ledger: { month: string; infraCostUsd: number; aiCostUsd: number; adRevenueUsd: number; donationsUsd: number; notes: string | null }[];
   totals: { costUsd: number; calls: number; tokens: number };
@@ -377,9 +378,10 @@ export async function getTransparency(): Promise<TransparencyData> {
         .groupBy(aiUsageLogs.provider),
       db.select().from(transparencyLedger).orderBy(desc(transparencyLedger.month)).limit(12),
     ]);
-    const days = new Map<string, { day: string; deepseek: number; grok: number; ollama: number }>();
+    const days = new Map<string, { day: string; deepseek: number; grok: number }>();
     for (const r of daily) {
-      const d = days.get(r.day) ?? { day: r.day, deepseek: 0, grok: 0, ollama: 0 };
+      if (r.provider !== "deepseek" && r.provider !== "grok") continue;
+      const d = days.get(r.day) ?? { day: r.day, deepseek: 0, grok: 0 };
       d[r.provider] = Number(r.usd);
       days.set(r.day, d);
     }

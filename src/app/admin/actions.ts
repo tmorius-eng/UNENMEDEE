@@ -11,7 +11,7 @@ import { articles, sources, transparencyLedger } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
 import type { ArticleForAI } from "@/lib/ai/prompts";
 import { AIUnavailableError } from "@/lib/ai/router";
-import { dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
+import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { ADMIN_COOKIE, adminConfigured, checkPassword, expectedToken, requireAdmin } from "@/lib/admin-auth";
 import { extractArticle } from "@/lib/scraper/extractor";
 import { politeFetch } from "@/lib/scraper/http";
@@ -79,11 +79,12 @@ export async function reanalyze(_prev: ActionResult | null, formData: FormData):
   const deep = formData.get("deep") === "1";
   const db = getDb();
   try {
-    const res = await processArticle(db, id, { log: dbUsageLogger(db), forceDeep: deep, purpose: "admin" });
+    const res = await processArticle(db, id, { log: dbUsageLogger(db), budget: dbBudgetGuard(db), forceDeep: deep, purpose: "admin" });
     await syncLedgerAiCost(db);
     const [row] = await db.select({ slug: articles.slug }).from(articles).where(eq(articles.id, id));
     refreshPublic(row?.slug);
-    return { ok: true, message: `Эрсдэл ${res.tier1.risk_score}/100${res.tier2 ? ` · Grok: ${res.tier2Provider}` : ""} · $${res.costUsd.toFixed(5)}` };
+    const deepNote = res.tier2 ? ` · Гүнзгий: ${res.tier2Provider}` : res.tier2Error ? ` · Гүнзгий шинжилгээ хийгдсэнгүй (${res.tier2Error.slice(0, 120)})` : "";
+    return { ok: true, message: `Эрсдэл ${res.tier1.risk_score}/100 · ${res.tier1Provider}${deepNote} · $${res.costUsd.toFixed(5)}` };
   } catch (err) {
     const msg = err instanceof AIUnavailableError ? `${err.message}: ${err.attempts.join(" | ")}` : err instanceof Error ? err.message : String(err);
     return { ok: false, message: msg.slice(0, 400) };
@@ -201,7 +202,7 @@ export async function runFilter(raw: string, forceDeep: boolean): Promise<Filter
   const ai: ArticleForAI = { title: input.title, sourceName: input.sourceDomain, sourceDomain: input.sourceDomain, url: input.url ?? "—", publishedAt: null, text: input.text };
   const db = getDb();
   try {
-    const out = await analyzeArticle(ai, { log: dbUsageLogger(db), forceDeep, purpose: "admin" });
+    const out = await analyzeArticle(ai, { log: dbUsageLogger(db), budget: dbBudgetGuard(db), forceDeep, purpose: "admin" });
     await syncLedgerAiCost(db);
     updateTag("ai");
     return {

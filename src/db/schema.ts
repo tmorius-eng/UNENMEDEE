@@ -16,7 +16,7 @@ import {
 import type { ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
-export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama"]);
+export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty"]);
 
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),
