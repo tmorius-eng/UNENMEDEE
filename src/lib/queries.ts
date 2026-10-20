@@ -208,6 +208,7 @@ export interface ArticleDetail extends ArticleListItem {
   deepAnalysis: string | null;
   scrapeMeta: ScrapeMeta | null;
   createdAt: Date;
+  editedAt: Date | null;
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
@@ -216,7 +217,7 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
   cacheTag("articles", `article-${slug}`);
   return safe("getArticleBySlug", null, async () => {
     const [r] = await getDb()
-      .select({ ...listColumns, originalUrl: articles.originalUrl, contentHash: articles.contentHash, cleanContent: articles.cleanContent, scrapeMeta: articles.scrapeMeta, createdAt: articles.createdAt })
+      .select({ ...listColumns, originalUrl: articles.originalUrl, contentHash: articles.contentHash, cleanContent: articles.cleanContent, scrapeMeta: articles.scrapeMeta, createdAt: articles.createdAt, editedAt: articles.editedAt })
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
       .where(and(visible, eq(articles.slug, slug)))
@@ -233,6 +234,7 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       deepAnalysis: r.deep,
       scrapeMeta: r.scrapeMeta,
       createdAt: r.createdAt,
+      editedAt: r.editedAt,
     };
   });
 }

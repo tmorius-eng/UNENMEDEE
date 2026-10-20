@@ -13,12 +13,24 @@ export const NAV_ITEMS = [
   { href: "/transparency", label: "Ил Тод Байдлын Тайлан" },
 ];
 
-export function NavLinks({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
-  const pathname = usePathname();
+/**
+ * Active-link highlighting needs usePathname(), which suspends on routes whose params are
+ * only known at request time (new articles served via ISR). Always render inside <Suspense>
+ * with <NavLinksFallback> (same links, no highlight) so the layout shell stays prerendered.
+ */
+export function NavLinks(props: { className?: string; onNavigate?: () => void }) {
+  return <NavList {...props} pathname={usePathname()} />;
+}
+
+export function NavLinksFallback(props: { className?: string; onNavigate?: () => void }) {
+  return <NavList {...props} pathname={null} />;
+}
+
+function NavList({ className, onNavigate, pathname }: { className?: string; onNavigate?: () => void; pathname: string | null }) {
   return (
     <nav className={className} aria-label="Үндсэн цэс">
       {NAV_ITEMS.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const active = pathname !== null && (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
         return (
           <Link
             key={item.href}

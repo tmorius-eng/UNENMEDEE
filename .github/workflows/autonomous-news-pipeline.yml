@@ -1,0 +1,95 @@
+# Zero-cost backend: scrape Mongolian government sites and run the DeepSeek/Grok
+# pipeline every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
+name: Autonomous news pipeline
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "Only these domains (comma separated, empty = all due sources)"
+        required: false
+        default: ""
+      limit:
+        description: "New articles per source"
+        required: false
+        default: "8"
+      ai_limit:
+        description: "Max articles to analyze with AI"
+        required: false
+        default: "60"
+
+# Never run two pipelines at once (same rows, same rate limits).
+concurrency:
+  group: news-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+      # Optional repository variables (Settings → Variables): model ids and price overrides.
+      DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
+      GROK_MODEL: ${{ vars.GROK_MODEL || 'grok-4-fast' }}
+      DEEPSEEK_PRICE_IN: ${{ vars.DEEPSEEK_PRICE_IN }}
+      DEEPSEEK_PRICE_OUT: ${{ vars.DEEPSEEK_PRICE_OUT }}
+      GROK_PRICE_IN: ${{ vars.GROK_PRICE_IN }}
+      GROK_PRICE_OUT: ${{ vars.GROK_PRICE_OUT }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
+          if [ -z "$DEEPSEEK_API_KEY" ]; then echo "::warning::DEEPSEEK_API_KEY is not set: articles will be scraped but not analyzed."; fi
+
+      - name: Apply database migrations
+        env:
+          # DDL is safer over a session connection (port 5432); falls back to DATABASE_URL.
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium (for JavaScript-rendered sites)
+        run: npx playwright install --with-deps chromium
+
+      - name: Scrape government sources
+        # Inputs go through env vars, never straight into the script (prevents injection).
+        env:
+          IN_SOURCES: ${{ inputs.sources }}
+          IN_LIMIT: ${{ inputs.limit || '8' }}
+        run: |
+          case "$IN_LIMIT" in ''|*[!0-9]*) IN_LIMIT=8 ;; esac
+          if [ -n "$IN_SOURCES" ]; then
+            npm run scrape -- --limit "$IN_LIMIT" --budget 30 --source "$IN_SOURCES"
+          else
+            npm run scrape -- --limit "$IN_LIMIT" --budget 30
+          fi
+
+      - name: Analyze with DeepSeek + Grok
+        if: env.DEEPSEEK_API_KEY != ''
+        env:
+          IN_AI_LIMIT: ${{ inputs.ai_limit || '60' }}
+        run: |
+          case "$IN_AI_LIMIT" in ''|*[!0-9]*) IN_AI_LIMIT=60 ;; esac
+          npm run ai:process -- --limit "$IN_AI_LIMIT"

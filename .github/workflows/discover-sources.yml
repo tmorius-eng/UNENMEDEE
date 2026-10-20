@@ -1,0 +1,38 @@
+# Weekly: find Mongolian government websites we don't monitor yet (*.gov.mn, *.khural.mn).
+name: Discover new government sources
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC (11:17 Ulaanbaatar)
+  workflow_dispatch:
+    inputs:
+      deep:
+        description: "Also scan every known source's homepage"
+        type: boolean
+        default: false
+
+concurrency:
+  group: news-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Discover
+        env:
+          IN_DEEP: ${{ inputs.deep }}
+        run: |
+          if [ "$IN_DEEP" = "true" ]; then npm run sources:discover -- --deep; else npm run sources:discover; fi

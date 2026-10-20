@@ -58,5 +58,11 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run sources:discover` (`--dry-run`, `--deep`) finds new *.gov.mn / *.khural.mn sites from hub pages
 - `npm run ai:process` (`--limit <n>`, `--id <articleId> [--deep]`, `--sample` = no-DB smoke test of the API keys)
 
-## 6. MCP
+## 6. Admin & automation
+- `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
+- `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
+- Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.
+- `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `discover-sources.yml` (weekly). `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.
+
+## 7. MCP
 `.mcp.json` registers the Supabase MCP server for project `boyhogngfxynhirkjdqb`. Authenticate once locally with `claude /mcp` → supabase → Authenticate.

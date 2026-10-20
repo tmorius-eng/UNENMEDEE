@@ -15,6 +15,13 @@
       "when": 1792482663640,
       "tag": "0001_pgvector_and_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792485808342,
+      "tag": "0002_article_edited_at",
+      "breakpoints": true
     }
   ]
 }

@@ -68,6 +68,8 @@ export const articles = pgTable(
     /** Set when the AI pipeline gave up on this article, so it is not retried forever. */
     aiError: text("ai_error"),
     isPublished: boolean("is_published").notNull().default(true),
+    /** Set when an editor changed the text in /admin. The SHA-256 still proves the ORIGINAL scraped text. */
+    editedAt: timestamp("edited_at", { withTimezone: true }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -2,9 +2,9 @@
 
 import { Menu02, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
-import { NavLinks } from "./nav-links";
+import { NavLinks, NavLinksFallback } from "./nav-links";
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
@@ -28,7 +28,9 @@ export function MobileMenu() {
             transition={{ duration: 0.18 }}
             className="absolute inset-x-0 top-full border-b border-secondary bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl"
           >
-            <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
+            <Suspense fallback={<NavLinksFallback className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />}>
+              <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

@@ -127,6 +127,11 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           </a>
         </div>
         <HashBadge hash={article.contentHash} />
+        {article.editedAt && (
+          <p className="rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary">
+            ✏️ Редакцийн засвартай ({formatDateMn(article.editedAt)}). Доорх текстийг редактор зассан; SHA-256 хэш нь анх татсан эх текстэд хамаарна.
+          </p>
+        )}
         <div className="prose max-w-none text-secondary dark:prose-invert">
           {paragraphs.slice(0, 60).map((p, i) => (
             <p key={i}>{p}</p>

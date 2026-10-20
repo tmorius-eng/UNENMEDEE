@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { getSiteStats } from "@/lib/queries";
 
 import { MobileMenu } from "./mobile-menu";
-import { NavLinks } from "./nav-links";
+import { NavLinks, NavLinksFallback } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
 
 const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE";
@@ -41,7 +41,9 @@ export function SiteHeader() {
             ИЛ&nbsp;ТОД<span className="text-brand-secondary">.</span>
           </span>
         </Link>
-        <NavLinks className="ml-4 hidden items-center gap-0.5 lg:flex" />
+        <Suspense fallback={<NavLinksFallback className="ml-4 hidden items-center gap-0.5 lg:flex" />}>
+          <NavLinks className="ml-4 hidden items-center gap-0.5 lg:flex" />
+        </Suspense>
         <div className="ml-auto flex items-center gap-1">
           <a
             href={REPO}
