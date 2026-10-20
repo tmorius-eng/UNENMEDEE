@@ -67,6 +67,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run data:sync` (`--dry-run`) syncs opendata.mn datasets and highlights for `/data`
 
 ## 6. Admin & automation
+- Vercel functions run in `sin1` (Singapore, `vercel.json`), next to the Supabase database in ap-southeast-1; keep them in the same region.
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
 - `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
 - Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.

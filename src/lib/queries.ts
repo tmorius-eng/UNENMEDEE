@@ -38,13 +38,26 @@ export interface ArticleListItem {
   clusterId: number | null;
 }
 
+/**
+ * A query that does not answer in time yields the empty state instead of hanging the render.
+ * During `next build`, a hung `'use cache'` function fails the whole deploy; at runtime the
+ * cached entry is simply refreshed on a later request.
+ */
+const QUERY_TIMEOUT_MS = Number(process.env.QUERY_TIMEOUT_MS ?? 10_000);
+
 async function safe<T>(label: string, fallback: T, fn: () => Promise<T>): Promise<T> {
   if (!hasDatabase()) return fallback;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await fn();
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`timed out after ${QUERY_TIMEOUT_MS} ms`)), QUERY_TIMEOUT_MS);
+    });
+    return await Promise.race([fn(), timeout]);
   } catch (err) {
     console.error(`[queries] ${label} failed:`, err instanceof Error ? err.message : err);
     return fallback;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
