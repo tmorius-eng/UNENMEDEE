@@ -23,6 +23,32 @@ function describe(url: string): string {
   }
 }
 
+/**
+ * Supabase pooler hosts are aws-<cluster>-<region>.pooler.supabase.com and the cluster number
+ * differs between projects. When the host is wrong, try the siblings and say which one works.
+ */
+async function suggestPoolerHost(url: string): Promise<void> {
+  const u = new URL(url);
+  const m = u.hostname.match(/^aws-(\d+)-([a-z0-9-]+)\.pooler\.supabase\.com$/);
+  if (!m) return;
+  for (const cluster of [0, 1, 2]) {
+    if (String(cluster) === m[1]) continue;
+    const candidate = new URL(url);
+    candidate.hostname = `aws-${cluster}-${m[2]}.pooler.supabase.com`;
+    const probe = postgres(candidate.toString(), { max: 1, prepare: false, ssl: "require", onnotice: () => {}, connect_timeout: 15 });
+    try {
+      await probe`select 1`;
+      console.error(`  ✓ ${candidate.hostname} works. Replace the host in the DATABASE_URL secret (GitHub and Vercel) with it.`);
+      return;
+    } catch (err) {
+      const cause = (err as { message?: string }).message ?? String(err);
+      console.error(`  ✗ ${candidate.hostname}: ${cause.slice(0, 120)}`);
+    } finally {
+      await probe.end({ timeout: 5 });
+    }
+  }
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -42,8 +68,11 @@ async function main() {
     const e = { message: [outer.message, outer.cause?.message].filter(Boolean).join(" ← "), code: outer.cause?.code ?? (err as { code?: string }).code };
     console.error(`✗ Migration failed: ${e.code ? `[${e.code}] ` : ""}${e.message || String(err)}`);
     if (/password authentication failed|28P01/.test(`${e.message} ${e.code}`)) console.error("  → The password in DATABASE_URL is wrong.");
-    if (/ENOTFOUND|getaddrinfo/.test(e.message ?? "")) console.error("  → The host in DATABASE_URL does not resolve. Copy it again from Supabase → Connect.");
-    if (/Tenant or user not found/.test(e.message ?? "")) console.error("  → Wrong pooler host or user: use the exact string from Supabase → Connect → Transaction pooler.");
+    if (/getaddrinfo ENOTFOUND/.test(e.message ?? "")) console.error("  → The host in DATABASE_URL does not resolve. Copy it again from Supabase → Connect.");
+    if (/tenant\/user .* not found|Tenant or user not found/i.test(e.message ?? "")) {
+      console.error("  → This pooler host does not know the project. Use the exact string from Supabase → Connect → Transaction pooler.");
+      await suggestPoolerHost(url);
+    }
     process.exitCode = 1;
   } finally {
     await client.end({ timeout: 5 });
