@@ -1,0 +1,165 @@
+{
+ "code": 200,
+ "status": "success",
+ "message": "Амжилттай",
+ "result": {
+  "details": {
+   "page": 1,
+   "page_size": 3,
+   "sort": "updated_at desc",
+   "total_rows": 8359,
+   "total_pages": 2787,
+   "items": [
+    {
+     "id": 8432,
+     "data": {
+      "uuid": "5dc482b0-5909-4340-af58-46dd5fff33ec",
+      "name": "Хуулийн этгээдийн улсын бүртгэлийн нээлттэй өгөгдөл"
+     },
+     "org": {
+      "reg_num": "5296722",
+      "name": "Улсын бүртгэлийн ерөнхий газар"
+     },
+     "tags": null,
+     "name": "Хуулийн этгээдийн улсын бүртгэлийн нээлттэй өгөгдөл",
+     "description": "<pre> \r\n{\r\n    \"type\": \"array\",\r\n    \"Регистрийн дугаар\": \"number\",\r\n    \"Оноосон нэр\": \"string\",\r\n    \"Бүртгэсэн огноо\": \"string\",\r\n    \"Хэлбэр\": \"string\",\r\n    \"Төрөл\": \"string\",\r\n    \"Хуулийн этгээдийн хаяг\": \"string\",\r\n    \"Хувьцаа эзэмшигч, гишүүний мэдээлэл\": {\r\n      \"type\": \"array\",\r\n      \"Ангилал\": \"string\",\r\n      \"Улсын нэр\": \"string\",\r\n      \"Эцэг/эх/-ийн нэр\": \"string\",\r\n      \"Нэр\":",
+     "frequency": {
+      "uuid": "ec3cabe1-c37c-489c-929c-da3e5c109dbd",
+      "name": "Өдөр бүр"
+     },
+     "term": "2026-10-19 08:00:00",
+     "files": [
+      {
+       "id": 23927,
+       "detail_id": 8432,
+       "data_detail": null,
+       "format_uuid": "bc2712c0-bf91-40ce-b0dd-0001c8512fc3",
+       "ext": "json",
+       "mime_type": "application/json",
+       "path": "20261019/78/78f9a937a24e98a9d5a00ffeb129acf5dbce12b6",
+       "name": "LesOutputJson",
+       "size": 459707881,
+       "status": "enabled",
+       "created_at": "2026-10-19 23:02:21",
+       "updated_at": "2026-10-19 23:02:21"
+      }
+     ],
+     "status": "enabled",
+     "created_at": "2026-10-19 23:02:01",
+     "updated_at": "2026-10-19 23:02:01"
+    },
+    {
+     "id": 8431,
+     "data": {
+      "uuid": "34f0cc2f-5b47-49a3-8412-28bc8d304761",
+      "name": "Үл хөдлөх эд хөрөнгийн газрын байршил "
+     },
+     "org": {
+      "reg_num": "5296722",
+      "name": "Улсын бүртгэлийн ерөнхий газар"
+     },
+     "tags": null,
+     "name": "Үл хөдлөх эд хөрөнгийн газрын байршил",
+     "description": "Үл хөдлөх эд хөрөнгийн газрын байршил",
+     "frequency": {
+      "uuid": "ec3cabe1-c37c-489c-929c-da3e5c109dbd",
+      "name": "Өдөр бүр"
+     },
+     "term": "2026-10-19 08:00:00",
+     "files": [
+      {
+       "id": 23926,
+       "detail_id": 8431,
+       "data_detail": null,
+       "format_uuid": "bc2712c0-bf91-40ce-b0dd-0001c8512fc3",
+       "ext": "json",
+       "mime_type": "application/json",
+       "path": "20261019/91/913c318fb7f1409bfc0c44895be45e3255a409d0",
+       "name": "EdhurunguHayag",
+       "size": 679782072,
+       "status": "enabled",
+       "created_at": "2026-10-19 23:01:13",
+       "updated_at": "2026-10-19 23:01:13"
+      }
+     ],
+     "status": "enabled",
+     "created_at": "2026-10-19 23:00:43",
+     "updated_at": "2026-10-19 23:00:43"
+    },
+    {
+     "id": 8430,
+     "data": {
+      "uuid": "1dc635ac-8b40-4c30-8ecf-42373f1f5968",
+      "name": "Үл хөдлөх эд хөрөнгийн зориулалт "
+     },
+     "org": {
+      "reg_num": "5296722",
+      "name": "Улсын бүртгэлийн ерөнхий газар"
+     },
+     "tags": null,
+     "name": "Үл хөдлөх эд хөрөнгийн зориулалт",
+     "description": "Үл хөдлөх эд хөрөнгийн зориулалт болон дэд зориулалт",
+     "frequency": {
+      "uuid": "ec3cabe1-c37c-489c-929c-da3e5c109dbd",
+      "name": "Өдөр бүр"
+     },
+     "term": "2026-10-19 08:00:00",
+     "files": [
+      {
+       "id": 23925,
+       "detail_id": 8430,
+       "data_detail": null,
+       "format_uuid": "bc2712c0-bf91-40ce-b0dd-0001c8512fc3",
+       "ext": "json",
+       "mime_type": "application/json",
+       "path": "20261019/40/40c91a73e5ca840ba87732965937404e7b64adb2",
+       "name": "zoriulalt",
+       "size": 34056,
+       "status": "enabled",
+       "created_at": "2026-10-19 23:00:10",
+       "updated_at": "2026-10-19 23:00:10"
+      }
+     ],
+     "status": "enabled",
+     "created_at": "2026-10-19 23:00:10",
+     "updated_at": "2026-10-19 23:00:10"
+    }
+   ]
+  },
+  "org_list": [
+   {
+    "org_reg_num": "6097863",
+    "org_name": "Гаалийн ерөнхий газар",
+    "cnt": 1180
+   },
+   {
+    "org_reg_num": "5919487",
+    "org_name": "Зам, тээврийн хөгжлийн яам",
+    "cnt": 28
+   },
+   {
+    "org_reg_num": "9112332",
+    "org_name": "Хүний эрхийн Үндэсний Комисс",
+    "cnt": 21
+   }
+  ],
+  "data_list": [
+   {
+    "data_uuid": "092827f8-5ee1-4690-9658-e1ae47433291",
+    "data_name": "Үүрэн холбооны нийт идэвхтэй хэрэглэгчийн тоо",
+    "cnt": 4
+   },
+   {
+    "data_uuid": "710fb4fd-5873-41ca-a84c-697aa82efedb",
+    "data_name": "Биеийн тамир, спортоор хичээллэдэг тамирчид",
+    "cnt": 1
+   },
+   {
+    "data_uuid": "b52bfbc0-5baf-4324-b3c3-6e29facea321",
+    "data_name": "Тав хүртэлх насны хүүхдийн эндэгдэл /1000 амьд төрөлтөд/",
+    "cnt": 4
+   }
+  ]
+ },
+ "valid_error": null
+}

@@ -1,0 +1,8 @@
+/*
+ * Bridge for vendored shadcn / ElevenLabs UI code.
+ * The ElevenLabs components in src/components/ui were adapted to Untitled UI class names,
+ * so only a few raw CSS variables they reference directly need values here.
+ */
+:root {
+    --radius: 0.75rem;
+}
