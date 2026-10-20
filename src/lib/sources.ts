@@ -33,11 +33,11 @@ export const SOURCE_SEEDS: SourceSeed[] = [
   s("portal", "tender.gov.mn", "Төрийн худалдан авах ажиллагааны цахим систем", "https://tender.gov.mn/mn/invitation"),
   s("portal", "legalinfo.mn", "Эрх зүйн мэдээллийн нэгдсэн систем", "https://legalinfo.mn/mn/news"),
   s("portal", "shilendans.gov.mn", "Шилэн данс", "https://shilendans.gov.mn/"),
-  s("portal", "gov.mn", "Монгол Улсын Засгийн газар (gov.mn)", "https://www.gov.mn/"),
+  s("portal", "gov.mn", "Монгол Улсын Засгийн газар (gov.mn)", "https://www.gov.mn/news"),
   s("portal", "khural.mn", "Иргэдийн Төлөөлөгчдийн Хурлын нэгдсэн портал"),
 
   // ------------------------------------------- state power & oversight bodies
-  s("agency", "parliament.mn", "Монгол Улсын Их Хурал"),
+  s("agency", "parliament.mn", "Монгол Улсын Их Хурал", "https://parliament.mn/api/news/articles/"),
   s("agency", "president.mn", "Монгол Улсын Ерөнхийлөгчийн Тамгын газар"),
   s("agency", "zasag.mn", "Монгол Улсын Засгийн газар", "https://zasag.mn/news"),
   s("agency", "cabinet.gov.mn", "Засгийн газрын Хэрэг эрхлэх газар", "https://cabinet.gov.mn/c/news"),
@@ -62,7 +62,7 @@ export const SOURCE_SEEDS: SourceSeed[] = [
   s("ministry", "mojha.gov.mn", "Хууль зүй, дотоод хэргийн яам", "https://mojha.gov.mn/news"),
   s("ministry", "mimr.gov.mn", "Аж үйлдвэр, эрдэс баялгийн яам", "https://www.mimr.gov.mn/"),
   s("ministry", "med.gov.mn", "Эдийн засаг, хөгжлийн яам", "https://med.gov.mn/news"),
-  s("ministry", "moh.gov.mn", "Эрүүл мэндийн яам", "https://moh.gov.mn/news"),
+  s("ministry", "moh.gov.mn", "Эрүүл мэндийн яам", "https://moh.gov.mn/home"),
   s("ministry", "mecc.gov.mn", "Байгаль орчин, уур амьсгалын өөрчлөлтийн яам", "https://mecc.gov.mn/posts"),
   s("ministry", "mlsp.gov.mn", "Хөдөлмөр, нийгмийн хамгааллын яам", "https://mlsp.gov.mn/content?c=1"),
   s("ministry", "mofa.gov.mn", "Хүнс, хөдөө аж ахуй, хөнгөн үйлдвэрийн яам", "https://mofa.gov.mn/news"),

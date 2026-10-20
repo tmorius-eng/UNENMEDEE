@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+
+import { extractMntAmounts, extractTenderMeta, amountToNumber, hasTenderSignals } from "@/lib/scraper/adapters/tender";
+import { cleanTitle, extractArticle, htmlFragmentToText } from "@/lib/scraper/extractor";
+import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
+
+const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
+
+describe("extractArticle on real ministry pages", () => {
+  it("extracts a WordPress article (mimr.gov.mn) with date from the URL", () => {
+    const url = "https://www.mimr.gov.mn/2026/10/19/test-slug/";
+    const a = extractArticle(fixture("mimr-article.html"), url);
+    assert.ok(a, "article should be extracted");
+    assert.match(a.title, /ШУУРХАЙ ХУРАЛДААН/);
+    assert.ok(!a.title.includes("Аж үйлдвэр, эрдэс баялгийн яам –"), "site suffix stripped");
+    assert.ok(a.text.length > 500);
+    assert.ok(!/<[a-z]+[\s>]/i.test(a.text), "no HTML left in text");
+    assert.equal(a.publishedAt?.toISOString().slice(0, 10), "2026-10-19");
+    assert.equal(a.hash, contentHash(a.text));
+  });
+
+  it("extracts a custom-CMS article (mlsp.gov.mn)", () => {
+    const a = extractArticle(fixture("mlsp-article.html"), "https://mlsp.gov.mn/content/detail/4204");
+    assert.ok(a);
+    assert.match(a.title, /Хүүхэд хамгааллын/);
+    assert.ok(a.text.length > 300);
+  });
+
+  it("returns null for pages without a real body (mecc.gov.mn phone-number notice, empty shells)", () => {
+    // This real page's only text block is the contact footer (171 chars).
+    assert.equal(extractArticle(fixture("mecc-article.html"), "https://mecc.gov.mn/posts/20250101"), null);
+    assert.equal(extractArticle("<html><body><nav>Нүүр</nav></body></html>", "https://x.gov.mn/"), null);
+  });
+});
+
+describe("text utilities", () => {
+  it("normalizes whitespace and zero-width characters so hashes are stable", () => {
+    assert.equal(normalizeText("  Сангийн яам ​\n\n\n\nмэдээ  "), "Сангийн яам\n\nмэдээ");
+    assert.equal(contentHash("a  b"), contentHash("a b"));
+    assert.equal(contentHash("x").length, 64);
+  });
+
+  it("transliterates Mongolian Cyrillic slugs with a stable unique suffix", () => {
+    const slug = slugify("Төсвийн тодотгол: 4.5 тэрбум ₮", "https://mof.gov.mn/a/1");
+    assert.match(slug, /^tusviin-todotgol-4-5-terbum-[0-9a-f]{8}$/);
+    assert.equal(slug, slugify("Төсвийн тодотгол: 4.5 тэрбум ₮", "https://mof.gov.mn/a/1"));
+    assert.notEqual(slug, slugify("Төсвийн тодотгол: 4.5 тэрбум ₮", "https://mof.gov.mn/a/2"));
+  });
+
+  it("cleans site-name suffixes from titles and truncates at sentence boundaries", () => {
+    assert.equal(cleanTitle("Шинэ хууль батлагдлаа энэ долоо хоногт | Сангийн яам"), "Шинэ хууль батлагдлаа энэ долоо хоногт");
+    assert.equal(truncate("Нэг. Хоёр. Гурав дөрөв тав", 12), "Нэг. Хоёр.");
+  });
+
+  it("converts HTML fragments to text", () => {
+    assert.equal(htmlFragmentToText("<p>Нэг</p><p>Хоёр<br>гурав</p><script>x()</script>"), "Нэг\nХоёр\nгурав");
+  });
+});
+
+describe("tender extraction", () => {
+  const text = `Худалдан авах ажиллагааны урилга
+Захиалагч: Зам, тээврийн яам
+Тендерийн дугаар: ЗТЯ/202601234
+Төсөвт өртөг: 4,500,000,000 төгрөг
+Нэмэлт ажилд 1.2 тэрбум төгрөг, бусад зардалд 350 сая ₮ зарцуулна.`;
+
+  it("pulls budget, procuring entity and tender code", () => {
+    const meta = extractTenderMeta(text);
+    assert.equal(meta.tender_code, "ЗТЯ/202601234");
+    assert.equal(meta.procuring_entity, "Зам, тээврийн яам");
+    assert.equal(meta.budget_mnt, "4,500,000,000 ₮");
+    assert.ok(hasTenderSignals(text));
+  });
+
+  it("finds MNT amounts with Mongolian magnitude words and converts them", () => {
+    const amounts = extractMntAmounts(text);
+    assert.deepEqual(amounts, ["4,500,000,000 ₮", "1.2 тэрбум ₮", "350 сая ₮"]);
+    assert.equal(amountToNumber("1.2 тэрбум ₮"), 1.2e9);
+    assert.equal(amountToNumber("4,500,000,000 ₮"), 4.5e9);
+    assert.equal(amountToNumber("350 сая ₮"), 3.5e8);
+    assert.deepEqual(extractMntAmounts("5 төгрөг"), [], "tiny bare amounts are noise");
+  });
+});

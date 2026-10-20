@@ -28,6 +28,12 @@ We are building a 100% transparent, open-source investigative news and public da
 - **Tier 1 (Structured & High-Value):** `opendata.gov.mn` (HTML scraping of dataset listings, no CKAN API), `tender.gov.mn` (procurement invitations & results), `legalinfo.mn` (new resolutions).
 - **Tier 2 (Ministries & Agencies):** `zasag.mn`, `mof.gov.mn` (Finance), `mojha.gov.mn` (Justice), `mmhi.gov.mn` (Mining), `med.gov.mn` (Economy), `mfa.gov.mn` (Foreign Affairs), `moh.gov.mn` (Health), `met.gov.mn` (Environment), `iaac.mn` (Anti-Corruption), `audit.mn` (National Audit), plus the remaining ministries seeded in `scripts/seed-sources.ts`.
 
+### Scraper architecture (`src/lib/scraper`)
+- `adapters/index.ts`: sources with a public JSON API (opendata.gov.mn, parliament.mn) skip HTML entirely.
+- `crawl.ts`: one Crawlee run for all other sources. Pass 1 = HTTP (WordPress REST API → RSS → link harvesting, homepage fallback). Pass 2 = headless Chromium (Playwright) only for sources whose news needs JavaScript.
+- Sources rotate least-recently-scraped first under a time budget; failing sources back off 2^n hours (`consecutive_failures`).
+- `robots.ts` + `http.ts`: our own robots parser and 8s-per-host throttle for non-Crawlee fetches.
+
 ## 4. Strict Scraping & Engineering Rules
 1. Always check `robots.txt` and enforce a minimum 8-10 second delay between requests to the same `.gov.mn` domain.
 2. Compute a `SHA-256` hash of cleaned article text before calling any LLM. Never process duplicate content.
@@ -40,7 +46,8 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run dev` / `npm run build` / `npm run start`
 - `npm run check` = `typecheck` + `lint` + `test` (run before every commit)
 - `npm run db:generate` (after schema changes) / `npm run db:migrate` / `npm run db:seed`
-- `npm run scrape` (`--dry-run`, `--source <domain>`, `--limit <n>`)
+- `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--no-browser`)
+- `npm run sources:discover` (`--dry-run`, `--deep`) finds new *.gov.mn / *.khural.mn sites from hub pages
 - `npm run ai:process` (`--dry-run`, `--limit <n>`, `--id <articleId>`)
 - `npm run ui:sync-elevenlabs` re-vendors ElevenLabs UI components from the registry
 
