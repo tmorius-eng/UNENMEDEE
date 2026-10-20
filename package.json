@@ -70,6 +70,6 @@
   "description": "IL-TOD (\u0418\u041b \u0422\u041e\u0414): open-source anti-spin government transparency news platform for Mongolia",
   "license": "MIT",
   "engines": {
-    "node": ">=20.9"
+    "node": "22.x"
   }
 }
