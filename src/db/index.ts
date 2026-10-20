@@ -15,6 +15,14 @@ export function hasDatabase(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
 
+export function isLocalDatabase(url: string): boolean {
+  try {
+    return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Lazy database singleton. Throws only when actually used without DATABASE_URL,
  * so `next build` and unit tests work without secrets.
@@ -26,6 +34,8 @@ export function getDb(): DB {
   const client = postgres(url, {
     // Supabase transaction pooler (port 6543) does not support prepared statements.
     prepare: false,
+    // Supabase recommends SSL; local Postgres (dev/tests) usually has none.
+    ssl: isLocalDatabase(url) ? false : "require",
     max: Number(process.env.DB_POOL_MAX ?? 3),
     idle_timeout: 20,
     connect_timeout: 15,

@@ -43,6 +43,8 @@ npm run scrape -- --dry-run --source mlsp.gov.mn,parliament.mn --limit 2
 npm run ai:process -- --sample     # API түлхүүр зөв эсэхийг шалгана
 ```
 
+**`DATABASE_URL` хаанаас авах вэ?** Supabase төслийн хуудасны дээд талын **Connect** товч → **Transaction pooler** (порт 6543). Шууд холбоос: `https://supabase.com/dashboard/project/<ref>?showConnect=true&method=transaction`. `[YOUR-PASSWORD]`-ийг өөрийн өгөгдлийн сангийн нууц үгээр солино (мартсан бол Database Settings → Reset database password). GitHub Actions-ийн migration-д зориулж **Session pooler** (порт 5432) хаягийг `DATABASE_URL_DIRECT` нэрээр нэмж болно.
+
 **Автоматжуулалт:** GitHub репо → Settings → Secrets → Actions хэсэгт `DATABASE_URL`, `DEEPSEEK_API_KEY`, `GROK_API_KEY` нэмэхэд `.github/workflows/autonomous-news-pipeline.yml` 2 цаг тутам ажиллана. Vercel дээр мөн адил env-үүдийг (мөн `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт) тохируулна.
 
 **Админ:** `/admin` → мэдээ засах/нуух, Grok-оор дахин шинжлэх, сарын зар/хандивын орлого бүртгэх, `/admin/filter` дээр дурын URL эсвэл текстийг "тархи угаалтын шүүлтүүр"-ээр шалгаж нэг товчоор нийтлэх.
