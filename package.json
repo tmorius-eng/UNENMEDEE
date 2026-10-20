@@ -18,6 +18,7 @@
     "ai:process": "tsx scripts/process-ai.ts",
     "digest": "tsx scripts/make-digest.ts",
     "data:sync": "tsx scripts/sync-opendata-mn.ts",
+    "push:send": "tsx scripts/send-push.ts",
     "sources:discover": "tsx scripts/discover-sources.ts"
   },
   "dependencies": {
@@ -31,6 +32,8 @@
     "@tiptap/starter-kit": "^3.32.0",
     "@untitledui/file-icons": "^0.0.9",
     "@untitledui/icons": "^0.0.23",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "crawlee": "^3.18.2",
@@ -53,6 +56,7 @@
     "tailwindcss-react-aria-components": "^2.2.0",
     "three": "^0.186.1",
     "use-stick-to-bottom": "^1.1.6",
+    "web-push": "^3.6.7",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -62,6 +66,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
@@ -69,9 +74,9 @@
     "tsx": "^4.23.15",
     "typescript": "^5"
   },
-  "description": "IL-TOD (\u0418\u041b \u0422\u041e\u0414): open-source anti-spin government transparency news platform for Mongolia",
+  "description": "IL-TOD (ИЛ ТОД): open-source anti-spin government transparency news platform for Mongolia",
   "license": "MIT",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   }
 }

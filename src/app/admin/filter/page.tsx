@@ -7,7 +7,7 @@ import { FilterChat } from "@/components/admin/filter-chat";
 import { requireAdmin } from "@/lib/admin-auth";
 
 export const metadata: Metadata = { title: "Тархи угаалтын шүүлтүүр", robots: { index: false } };
-// DeepSeek + Grok can take a while on long texts.
+// The deep analysis can take a while on long texts.
 export const maxDuration = 60;
 
 async function Guarded() {
@@ -23,7 +23,7 @@ export default function FilterPage() {
       </Link>
       <div>
         <h1 className="text-display-xs font-semibold text-primary">🧠 Тархи угаалтын шүүлтүүр</h1>
-        <p className="mt-1 text-sm text-tertiary">URL эсвэл текст оруулаад DeepSeek + Grok шүүлтүүрээр шалгаж, нэг товчоор нийтэлнэ.</p>
+        <p className="mt-1 text-sm text-tertiary">URL эсвэл текст оруулаад AI шүүлтүүрээр шалгаж, нэг товчоор нийтэлнэ.</p>
       </div>
       <Suspense fallback={<div className="h-[520px] animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
         <Guarded />

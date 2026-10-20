@@ -4,7 +4,7 @@ const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 border-t border-secondary bg-secondary_alt">
+    <footer className="mt-24 border-t border-secondary bg-secondary_alt pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-3 md:px-8">
         <div className="flex flex-col gap-3">
           <p className="text-lg font-bold text-primary">ИЛ ТОД.</p>
