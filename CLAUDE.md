@@ -66,12 +66,19 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run digest` (`--kind 12h|30d`, `--force`) writes the AI news digest
 - `npm run data:sync` (`--dry-run`) syncs opendata.mn datasets and highlights for `/data`
 
-## 6. Admin & automation
+## 6. PWA & push notifications
+- `src/app/manifest.ts` + `public/icons/*` + `src/app/apple-icon.png`: installable app. `public/sw.js` handles push, notification clicks and an offline page; it never caches pages (`/sw.js` is served `no-store`, see `next.config.ts`).
+- `src/components/pwa/*`: 🔔 header button (subscribe/unsubscribe) and the phone install banner. iOS only allows push in an app added to the home screen, so the UI explains that first. Sheets are portaled to `<body>` (the sticky header's backdrop-filter traps `position: fixed`).
+- Subscriptions: `push_subscriptions` via public server actions in `src/app/push-actions.ts` (zod + push-service host allowlist). The VAPID key pair lives in `app_settings` (read by GitHub Actions through DATABASE_URL); the public key is also `NEXT_PUBLIC_VAPID_PUBLIC_KEY` on Vercel. Never regenerate the pair: subscriptions are bound to it.
+- `npm run push:send -- --mode news` (after ai:process): importance >= 75 or risk flag, published < 24 h, `notified_at` null; max 3 single alerts + one "N more". `--mode digest` after each digest. Dead subscriptions (404/410) are deleted.
+
+## 7. Admin & automation
+- Public queries (`src/lib/queries.ts`) time out after `QUERY_TIMEOUT_MS` (10 s) and render the empty state: a hung `'use cache'` function would otherwise fail `next build`.
 - Vercel functions run in `sin1` (Singapore, `vercel.json`), next to the Supabase database in ap-southeast-1; keep them in the same region.
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
 - `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
 - Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.
 - `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `news-digest.yml` (08:07 / 20:07 Ulaanbaatar): opendata.mn sync + 12h digest; manual run with `kind=30d` for a monthly review. `discover-sources.yml` (weekly). The pipeline's manual run takes `days` for a backfill. `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.
 
-## 7. MCP
+## 8. MCP
 `.mcp.json` registers the Supabase MCP server for project `boyhogngfxynhirkjdqb`. Authenticate once locally with `claude /mcp` → supabase → Authenticate.

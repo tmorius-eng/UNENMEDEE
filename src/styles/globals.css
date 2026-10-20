@@ -72,3 +72,17 @@ input[type="search"]::-webkit-search-cancel-button {
 .recharts-surface path {
     outline: none;
 }
+
+/* Mobile polish: no grey flash on tap, no font inflation on rotate, momentum scrolling
+   for horizontal tab strips, and no pull-to-refresh bounce in the installed app. */
+html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+@media (display-mode: standalone) {
+    html,
+    body {
+        overscroll-behavior-y: none;
+    }
+}

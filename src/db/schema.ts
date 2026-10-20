@@ -66,6 +66,8 @@ export const articles = pgTable(
     riskScore: integer("risk_score").notNull().default(0),
     /** 0-100: how much the news matters nationally (AI Tier 1). Null for articles analyzed before it existed. */
     importanceScore: integer("importance_score"),
+    /** When a push notification went out for this article (never notify twice). */
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
     grokDeepAnalysis: text("grok_deep_analysis"),
     clusterId: integer("cluster_id").references(() => clusters.id, { onDelete: "set null" }),
     /** Set when the AI pipeline gave up on this article, so it is not retried forever. */
@@ -162,6 +164,27 @@ export const openDatasets = pgTable(
   (t) => [uniqueIndex("open_datasets_portal_external_id_idx").on(t.portal, t.externalId)],
 );
 
+/** Browser push subscriptions (Web Push). Only the endpoint and its keys: no personal data. */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  failures: integer("failures").notNull().default(0),
+});
+
+/**
+ * Server-side settings shared by Vercel and GitHub Actions (both already hold DATABASE_URL),
+ * e.g. the VAPID key pair for Web Push. RLS on, never exposed through the REST API.
+ */
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const transparencyLedger = pgTable("transparency_ledger", {
   id: serial("id").primaryKey(),
   /** e.g. "2026-10" */
@@ -194,4 +217,5 @@ export type Cluster = typeof clusters.$inferSelect;
 export type AIUsageLog = typeof aiUsageLogs.$inferSelect;
 export type Digest = typeof digests.$inferSelect;
 export type OpenDataset = typeof openDatasets.$inferSelect;
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type LedgerRow = typeof transparencyLedger.$inferSelect;

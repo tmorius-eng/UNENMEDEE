@@ -96,7 +96,7 @@ export function BentoHero({ stats, topRisk, topClusters }: { stats: SiteStats; t
             <p className="max-w-xl text-md text-secondary">
               {formatNumber(stats.activeSources)} төрийн сайтыг автоматаар уншиж, баримтыг пи-араас салгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг ил тод платформ.
             </p>
-            <ShimmeringText text="DeepSeek + Grok шинжилгээ идэвхтэй…" className="text-sm font-medium" duration={2.5} />
+            <ShimmeringText text="AI шинжилгээ идэвхтэй…" className="text-sm font-medium" duration={2.5} />
           </div>
           <OrbAccent className="mx-auto size-40 shrink-0 md:size-56" state="thinking" />
         </div>

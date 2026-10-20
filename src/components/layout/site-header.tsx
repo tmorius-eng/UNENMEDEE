@@ -4,6 +4,8 @@ import { Suspense } from "react";
 
 import { getSiteStats } from "@/lib/queries";
 
+import { NotifyButton } from "@/components/pwa/pwa-controls";
+
 import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
@@ -25,7 +27,7 @@ async function LiveStatus() {
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-secondary bg-primary/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-secondary bg-primary/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="border-b border-secondary bg-secondary_alt">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-1.5 text-xs font-medium text-tertiary md:px-8">
           <Suspense fallback={<span>Систем ачаалж байна…</span>}>
@@ -53,6 +55,7 @@ export function SiteHeader() {
           >
             <GitBranch01 className="size-4" /> GitHub
           </a>
+          <NotifyButton />
           <ThemeToggle />
           <MobileMenu />
         </div>

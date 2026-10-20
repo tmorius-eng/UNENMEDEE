@@ -71,7 +71,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
@@ -118,3 +118,8 @@ jobs:
           case "$IN_AI_LIMIT" in ''|*[!0-9]*) IN_AI_LIMIT=60 ;; esac
           # Stop starting new articles after 75 min; the rest wait for the next run.
           npm run ai:process -- --limit "$IN_AI_LIMIT" --budget 75
+
+      - name: Notify subscribers about important news
+        # Push problems must never fail the pipeline.
+        continue-on-error: true
+        run: npm run push:send -- --mode news

@@ -43,6 +43,13 @@
       "when": 1792501247723,
       "tag": "0005_digests_and_open_data",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792505300322,
+      "tag": "0006_push_notifications",
+      "breakpoints": true
     }
   ]
 }
