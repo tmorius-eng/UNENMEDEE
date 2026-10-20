@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
 
 import { formatUsd } from "@/lib/format";
 
@@ -62,6 +62,28 @@ export function LedgerChart({ data }: { data: { month: string; expenses: number;
           <Bar dataKey="expenses" name="Зардал" fill="var(--series-1)" radius={[4, 4, 0, 0]} />
           <Bar dataKey="income" name="Орлого (зар + хандив)" fill="var(--series-2)" radius={[4, 4, 0, 0]} />
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** One series over time (exchange rate, wages). Always paired with a table on the page. */
+export function SeriesLineChart({ data, name, unit, ariaLabel }: { data: { label: string; value: number }[]; name: string; unit: string; ariaLabel: string }) {
+  const fmt = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return (
+    <div className="h-64 w-full" role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer>
+        <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+          <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={32} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} tickFormatter={fmt} />
+          <Tooltip
+            formatter={(v) => [`${fmt(Number(v))} ${unit}`, name]}
+            contentStyle={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: "var(--color-text-primary)", fontWeight: 600 }}
+          />
+          <Line type="monotone" dataKey="value" name={name} stroke="var(--series-1)" strokeWidth={2} dot={false} />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

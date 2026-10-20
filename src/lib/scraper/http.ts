@@ -11,7 +11,10 @@ export class RobotsDisallowedError extends Error {
 
 export interface PoliteFetchOptions extends Omit<RequestInit, "signal"> {
   timeoutMs?: number;
-  /** Skip the robots.txt check (only for robots.txt itself). */
+  /**
+   * Skip the robots.txt check: only for robots.txt itself and for APIs the publisher
+   * documents for developers (see src/lib/opendata-mn/client.ts). The host delay still applies.
+   */
   skipRobots?: boolean;
 }
 

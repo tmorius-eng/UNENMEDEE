@@ -1,0 +1,82 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { planDigest, rankScore } from "@/lib/ai/digest";
+import { digestMessages } from "@/lib/ai/prompts";
+import { DigestSchema, Tier1Schema } from "@/lib/ai/schemas";
+import { formatPeriodMn } from "@/lib/format";
+
+import { TIER1_OK } from "./helpers/mock-llm";
+
+const H = 3_600_000;
+
+describe("digest planning", () => {
+  const now = new Date("2026-10-20T12:05:00Z");
+
+  it("covers the last 12 hours by default", () => {
+    const p = planDigest("12h", now, null);
+    assert.equal(p.periodEnd.getTime() - p.periodStart.getTime(), 12 * H);
+    assert.equal(p.pick, 10);
+  });
+
+  it("continues from the previous edition after a missed run, at most 36 hours back", () => {
+    assert.equal(planDigest("12h", now, new Date(now.getTime() - 20 * H)).periodStart.getTime(), now.getTime() - 20 * H);
+    assert.equal(planDigest("12h", now, new Date(now.getTime() - 100 * H)).periodStart.getTime(), now.getTime() - 36 * H);
+    // A recent manual edition does not shrink the window below 12 hours.
+    assert.equal(planDigest("12h", now, new Date(now.getTime() - 3 * H)).periodStart.getTime(), now.getTime() - 12 * H);
+  });
+
+  it("plans a 30-day review with more stories", () => {
+    const p = planDigest("30d", now, null);
+    assert.equal(p.periodEnd.getTime() - p.periodStart.getTime(), 30 * 24 * H);
+    assert.equal(p.pick, 20);
+  });
+});
+
+describe("digest ranking", () => {
+  const base = { importanceScore: 50, riskScore: 0, otherSources: 0, sourceDomain: "mlsp.gov.mn", sourceCategory: "ministry" as const };
+
+  it("puts national decisions and cross-source stories above routine news", () => {
+    const routine = rankScore({ ...base, importanceScore: 10 });
+    const law = rankScore({ ...base, importanceScore: 90, sourceDomain: "parliament.mn", sourceCategory: "portal" });
+    const widelyReported = rankScore({ ...base, otherSources: 3 });
+    assert.ok(law > widelyReported && widelyReported > rankScore(base) && rankScore(base) > routine);
+  });
+
+  it("treats articles without an importance score as average", () => {
+    assert.equal(rankScore({ ...base, importanceScore: null }), rankScore({ ...base, importanceScore: 40 }));
+  });
+});
+
+describe("digest schemas and prompt", () => {
+  it("reads importance_score from Tier 1 and leaves it null when missing", () => {
+    assert.equal(Tier1Schema.parse({ ...JSON.parse(TIER1_OK), importance_score: "87" }).importance_score, 87);
+    assert.equal(Tier1Schema.parse(JSON.parse(TIER1_OK)).importance_score, null);
+    assert.equal(Tier1Schema.parse({ ...JSON.parse(TIER1_OK), importance_score: 400 }).importance_score, 100);
+  });
+
+  it("validates the editor's reply", () => {
+    const ok = DigestSchema.parse({
+      title: "Төсөв ба тариф",
+      intro: "Энэ 12 цагт улсын төсөв, эрчим хүчний тарифын шийдвэрүүд гол байр эзэллээ.",
+      items: [{ id: "12", headline: "УИХ 2027 оны төсвийг хэлэлцэж эхэллээ", why: "Нийт зарлага 32.4 их наяд төгрөг." }],
+    });
+    assert.equal(ok.items[0].id, 12);
+    assert.throws(() => DigestSchema.parse({ title: "Т", intro: "богино", items: [] }));
+  });
+
+  it("lists candidates with their id, source, amounts and coverage", () => {
+    const [, user] = digestMessages(
+      [{ id: 7, title: "Төсвийн төсөл", sourceName: "Сангийн яам", publishedAt: new Date("2026-10-20T03:00:00Z"), tldr: "Нийт зарлага\n32.4 их наяд.", amounts: ["32.4 их наяд ₮"], riskScore: 70, otherSources: 2 }],
+      "10-р сарын 20",
+      10,
+    );
+    assert.match(user.content, /\[7\] Төсвийн төсөл \(Сангийн яам, 2026-10-20; дүн: 32\.4 их наяд ₮; эрсдэл 70; \+2 эх сурвалж\)/);
+    assert.match(user.content, /Нийт зарлага 32\.4 их наяд\./);
+  });
+
+  it("formats the period in Ulaanbaatar time", () => {
+    assert.equal(formatPeriodMn(new Date("2026-10-20T00:00:00Z"), new Date("2026-10-20T12:00:00Z")), "10-р сарын 20, 08:00 – 20:00");
+    assert.equal(formatPeriodMn(new Date("2026-10-19T12:00:00Z"), new Date("2026-10-20T00:00:00Z")), "10-р сарын 19 20:00 – 10-р сарын 20 08:00");
+  });
+});

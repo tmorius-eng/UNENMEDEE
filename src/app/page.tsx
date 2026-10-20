@@ -2,14 +2,29 @@ import { Suspense } from "react";
 
 import { ArticleGrid } from "@/components/iltod/article-grid";
 import { BentoHero } from "@/components/iltod/bento-hero";
+import { DigestView } from "@/components/iltod/digest-view";
 import { Empty } from "@/components/iltod/empty";
 import { FeedTabs } from "@/components/iltod/feed-tabs";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
-import { getClusters, getFeed, getSiteStats, parseFilter } from "@/lib/queries";
+import { getClusters, getDigests, getFeed, getSiteStats, parseFilter } from "@/lib/queries";
 
 async function Hero() {
   const [stats, topRisk, topClusters] = await Promise.all([getSiteStats(), getFeed("risk", 3), getClusters(3, 7)]);
   return <BentoHero stats={stats} topRisk={topRisk} topClusters={topClusters} />;
+}
+
+async function LatestDigest() {
+  const [[edition], [review]] = await Promise.all([getDigests("12h", 1), getDigests("30d", 1)]);
+  const digest = edition ?? review;
+  if (!digest) return null;
+  return (
+    <section aria-labelledby="digest-title" className="flex flex-col gap-4">
+      <h2 id="digest-title" className="text-display-xs font-semibold text-primary">
+        📰 Онцлох тойм
+      </h2>
+      <DigestView digest={digest} compact />
+    </section>
+  );
 }
 
 async function Feed({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
@@ -37,6 +52,9 @@ export default function HomePage(props: PageProps<"/">) {
     <div className="flex flex-col gap-12">
       <Suspense fallback={<div className="h-[420px] animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
         <Hero />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LatestDigest />
       </Suspense>
       <section aria-labelledby="feed-title" className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-4">

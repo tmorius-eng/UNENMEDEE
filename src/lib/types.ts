@@ -30,3 +30,65 @@ export interface ScrapeMeta {
 }
 
 export const RISK_FLAG_THRESHOLD = 65;
+
+/** One story in an AI news digest (denormalized: the digest page needs no joins). */
+export interface DigestItem {
+  articleId: number;
+  slug: string;
+  title: string;
+  sourceName: string;
+  publishedAt: string | null;
+  riskScore: number;
+  /** Fact-based headline written by the editor model. */
+  headline: string;
+  /** 1-2 sentences: why this matters to citizens. */
+  whyItMatters: string;
+  /** Other sources that reported the same story (cluster size - 1). */
+  otherSources: number;
+}
+
+/* opendata.mn highlights: compact summaries computed by `npm run data:sync`. */
+export interface SeriesPoint {
+  label: string;
+  value: number;
+}
+
+export type DatasetHighlight =
+  | {
+      kind: "fx";
+      asOf: string;
+      rates: { code: string; name: string; rate: number; changePct: number | null }[];
+      usdSeries: SeriesPoint[];
+    }
+  | { kind: "macro"; indicators: { name: string; unit: string; latest: SeriesPoint; series: SeriesPoint[] }[] }
+  | {
+      kind: "salary";
+      unit: string;
+      latestQuarter: string;
+      national: number | null;
+      series: SeriesPoint[];
+      top: SeriesPoint[];
+      bottom: SeriesPoint[];
+    }
+  | {
+      kind: "blacklist";
+      total: number;
+      activeCount: number;
+      items: { name: string; registry: string; reason: string; note: string; start: string; end: string }[];
+    }
+  | {
+      kind: "tenders";
+      latestYear: number;
+      byYear: { year: number; count: number; budget: number }[];
+      statuses: SeriesPoint[];
+      largest: { number: string; name: string; budget: number; status: string; type: string }[];
+    }
+  | {
+      kind: "attendance";
+      sessions: number;
+      from: string;
+      to: string;
+      members: number;
+      records: number;
+      top: { name: string; records: number; present: number; travel: number; medical: number; leave: number; unexplained: number }[];
+    };

@@ -62,3 +62,21 @@ export const CATEGORY_LABEL: Record<string, string> = {
   agency: "Агентлаг",
   local: "Орон нутаг",
 };
+
+/** "10-р сарын 20, 08:00 – 20:00" in Ulaanbaatar time (UTC+8, no DST). */
+export function formatPeriodMn(start: Date | string, end: Date | string): string {
+  const ub = (d: Date | string) => new Date(new Date(d).getTime() + 8 * 3_600_000);
+  const day = (d: Date | string) => `${ub(d).getUTCMonth() + 1}-р сарын ${ub(d).getUTCDate()}`;
+  const time = (d: Date | string) => `${String(ub(d).getUTCHours()).padStart(2, "0")}:${String(ub(d).getUTCMinutes()).padStart(2, "0")}`;
+  return day(start) === day(end) ? `${day(start)}, ${time(start)} – ${time(end)}` : `${day(start)} ${time(start)} – ${day(end)} ${time(end)}`;
+}
+
+/** Large MNT amounts in words young readers know: 43.96 их наяд ₮, 2.1 тэрбум ₮. */
+export function formatMntShort(value: number): string {
+  const abs = Math.abs(value);
+  const fmt = (n: number, unit: string) => `${(value < 0 ? -n : n).toLocaleString("en-US", { maximumFractionDigits: n < 100 ? 2 : 1 })} ${unit} ₮`;
+  if (abs >= 1e12) return fmt(abs / 1e12, "их наяд");
+  if (abs >= 1e9) return fmt(abs / 1e9, "тэрбум");
+  if (abs >= 1e6) return fmt(abs / 1e6, "сая");
+  return `${formatNumber(Math.round(value))} ₮`;
+}

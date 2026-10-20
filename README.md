@@ -14,7 +14,9 @@
 2. **Шүүнэ.** Мэдээ бүрийг үнэгүй AI (Groq, Gemini, Requesty, NVIDIA; дуусвал DeepSeek) уншиж 3 өгүүлбэрийн хураангуй, шалгагдах баримт, пи-арын шинж, мөнгөн дүн, эрсдэлийн оноо (0-100) гаргана.
 3. **Гүнзгий шинжилнэ.** Эрсдэлийн оноо 65+ (тендергүй шууд гэрээ, тодорхойгүй зарцуулалт…) бол xAI Grok (өдөрт 5 удаа) эсвэл үнэгүй Gemini Flash эрэн сурвалжлах дүгнэлт, иргэдийн асуух ёстой асуултуудыг бичнэ.
 4. **Нотолно.** Нийтлэл бүр эх `.gov.mn` холбоос болон цэвэрлэсэн эх текстийн **SHA-256 хэштэй**. Хэн ч дахин татаж шалгаж болно.
-5. **Тайлагнана.** AI дуудлага бүрийн токен, үнэ `ai_usage_logs`-д бичигдэж `/transparency` хуудсанд шууд харагдана.
+5. **Тоймлоно.** Өглөө 08:00, орой 20:00 цагт AI редактор сүүлийн 12 цагийн бүх мэдээнээс улс орны хэмжээнд хамгийн чухал 10-ыг сонгож "Онцлох тойм" бичнэ (`/digest`). Сүүлийн 30 хоногийн тоймыг гараар ажиллуулж болно.
+6. **Тоогоор нотолно.** opendata.mn-ийн бүх өгөгдлийн багцыг өдөрт 2 удаа API-аар татаж Монголбанкны ханш, инфляци, цалин, тендер, тендерийн хар жагсаалт, УИХ-ын ирцийг `/data` хуудсанд харуулна.
+7. **Тайлагнана.** AI дуудлага бүрийн токен, үнэ `ai_usage_logs`-д бичигдэж `/transparency` хуудсанд шууд харагдана.
 
 | Давхарга | Технологи | Сарын зардал |
 |---|---|---|
@@ -72,6 +74,9 @@ GitHub Actions (every 2h, free on public repos)
      ├─ Tier 2  Grok → Gemini Flash → Groq → … only when risk ≥ 65: investigative analysis
      ├─ Clustering                              cross-source Jaccard (Mongolian stems + entities), 7-day window
      └─ ai_usage_logs + transparency_ledger    exact tokens and USD for every call
+GitHub Actions (08:07 and 20:07 Ulaanbaatar)
+ ├─ npm run data:sync       opendata.mn catalogue (36+ datasets) → small highlights for /data
+ └─ npm run digest          rank the last 12 h without AI → editor model picks 10 stories → /digest
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
 ```
 
@@ -83,12 +88,13 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 | `src/db/schema.ts`, `drizzle/` | Drizzle schema and SQL migrations (RLS on, pgvector enabled) |
 | `src/lib/sources.ts` | Curated source list, discovery hubs |
 | `src/lib/scraper/` | robots.txt parser, polite fetch, extractor, adapters, two-pass crawler, discovery |
-| `src/lib/ai/` | Router (fallback chains, cost logging), prompts, schemas, clustering, pricing |
+| `src/lib/ai/` | Router (fallback chains, cost logging), budget guard, prompts, schemas, clustering, digest, pricing |
+| `src/lib/opendata-mn/` | opendata.mn API client and dataset highlights (FX, macro, wages, tenders, blacklist, parliament attendance) |
 | `src/lib/queries.ts` | Cached read model for the public site |
-| `src/app/` | Pages: `/`, `/article/[slug]`, `/risk`, `/clusters`, `/sources`, `/transparency`, `/admin` |
+| `src/app/` | Pages: `/`, `/article/[slug]`, `/digest`, `/data`, `/risk`, `/clusters`, `/sources`, `/transparency`, `/admin` |
 | `src/components/ui/` | ElevenLabs UI (via shadcn), adapted to Untitled UI tokens |
 | `src/components/base`, `application` | Untitled UI React components (via `untitledui` CLI) |
-| `.github/workflows/` | Pipeline (2h), source discovery (weekly), CI |
+| `.github/workflows/` | Pipeline (2h, manual 30-day backfill), news digest + data sync (12h), source discovery (weekly), CI |
 
 ### Audit it yourself
 
@@ -107,7 +113,7 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 ### Contributing
 
 ```bash
-npm run check   # typecheck + lint + 52 unit tests (no secrets needed)
+npm run check   # typecheck + lint + 69 unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 

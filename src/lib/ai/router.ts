@@ -5,11 +5,11 @@ import type { AIProvider } from "@/lib/types";
 
 import { geminiGenerate, GeminiError, type ChatMessage } from "./gemini";
 import { throttleProvider, unlimitedGuard, type BudgetGuard } from "./limits";
-import { estimateCostUsd } from "./pricing";
+import { estimateCostUsd, getPrice } from "./pricing";
 import { parseJsonLoose } from "./schemas";
 
 export type Tier = "tier1" | "tier2";
-export type Purpose = "tier1" | "tier2" | "cluster" | "admin";
+export type Purpose = "tier1" | "tier2" | "cluster" | "admin" | "digest";
 
 export interface UsageRecord {
   provider: AIProvider;
@@ -232,7 +232,7 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
   }
 
   const attempts: string[] = [];
-  for (const p of chain) {
+  for (const [index, p] of chain.entries()) {
     const allowance = await budget.check(p.provider);
     if (!allowance.ok) {
       attempts.push(`${p.provider}/${p.model}: skipped (limit: ${allowance.reason})`);
@@ -273,7 +273,9 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
           continue;
         }
         if (isRetryableRateLimit(err) && attempt === 0) {
-          // Free-tier per-minute quota: wait once, then retry the same provider.
+          // Free-tier per-minute quota. Another $0 provider next in line: switch now.
+          // Only paid ones left: wait once and retry this free one instead of paying.
+          if (chain.slice(index + 1).some((next) => getPrice(next.provider).input === 0 && getPrice(next.provider).output === 0)) break;
           await new Promise((r) => setTimeout(r, Number(process.env.AI_RATE_LIMIT_WAIT_MS ?? 20_000)));
           continue;
         }

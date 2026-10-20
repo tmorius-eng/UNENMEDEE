@@ -20,6 +20,8 @@ export interface CrawlOptions {
   budgetMs: number;
   /** Parallel requests across different domains. Same-domain requests are always >= 8s apart. */
   concurrency: number;
+  /** Backfill mode: keep only items with a known publication date after this one. */
+  since?: Date;
   /** Second pass with headless Chromium for JavaScript-rendered sites. Default true. */
   browser?: boolean;
   onProgress?: (msg: string) => void;
@@ -91,6 +93,13 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
 
   // ---------------------------------------------------------------- shared logic
   async function saveItem(state: SourceState, item: ScrapedItem) {
+    if (opts.since && (!item.publishedAt || item.publishedAt < opts.since)) {
+      // Backfill: older than the window, or undated (it would be stored as "today" and show up
+      // as fresh news). Give the slot back to a newer article.
+      state.queuedArticles -= 1;
+      state.found -= 1;
+      return;
+    }
     if (hasTenderSignals(item.text)) {
       const meta = extractTenderMeta(item.text);
       if (Object.keys(meta).length) item.meta = { ...item.meta, ...meta };
@@ -250,7 +259,9 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
     const origin = new URL(pageUrl).origin;
 
     if (mode === "http" && isWordPress(html)) {
-      const api = `${origin}/wp-json/wp/v2/posts?per_page=${Math.min(opts.perSourceLimit * 2, 50)}&_fields=link,title,date_gmt,content`;
+      const perPage = opts.since ? 100 : Math.min(opts.perSourceLimit * 2, 50);
+      const after = opts.since ? `&after=${opts.since.toISOString().slice(0, 19)}` : "";
+      const api = `${origin}/wp-json/wp/v2/posts?per_page=${perPage}${after}&_fields=link,title,date_gmt,content`;
       await add([{ url: api, userData: { label: "WP_API", sourceId: state.sourceId, fallbackLinks: links } satisfies UserData }]);
       return;
     }
@@ -310,6 +321,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
 
   async function handleFeed(state: SourceState, data: UserData, body: string, add: Adder) {
     const items = parseFeed(body).filter((i) => {
+      if (opts.since && i.publishedAt && i.publishedAt < opts.since) return false;
       try {
         return sameSite(new URL(i.url).hostname, state.domain);
       } catch {

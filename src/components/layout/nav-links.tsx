@@ -7,6 +7,8 @@ import { cx } from "@/utils/cx";
 
 export const NAV_ITEMS = [
   { href: "/", label: "Нүүр" },
+  { href: "/digest", label: "Онцлох тойм" },
+  { href: "/data", label: "Өгөгдөл" },
   { href: "/risk", label: "Эрсдэлтэй Тендер & Төсөв" },
   { href: "/clusters", label: "Кластер Сэдвүүд" },
   { href: "/sources", label: "Эх сурвалжууд" },
