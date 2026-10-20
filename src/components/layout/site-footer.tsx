@@ -1,0 +1,38 @@
+import Link from "next/link";
+
+const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE";
+
+export function SiteFooter() {
+  return (
+    <footer className="mt-24 border-t border-secondary bg-secondary_alt">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-3 md:px-8">
+        <div className="flex flex-col gap-3">
+          <p className="text-lg font-bold text-primary">ИЛ ТОД.</p>
+          <p className="text-sm text-tertiary">
+            Төрийн албан ёсны мэдээг баримт, пи-ар гэж ялгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг нээлттэй эхийн платформ.
+          </p>
+          <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-success-primary">🟢 0₮ дэд бүтэц</span>
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="font-semibold text-primary">Шалгах боломжтой</p>
+          <Link className="text-tertiary hover:text-secondary" href="/transparency">
+            Зардлын тайлан (AI токен бүрээр)
+          </Link>
+          <Link className="text-tertiary hover:text-secondary" href="/sources">
+            Хянаж буй бүх эх сурвалж
+          </Link>
+          <a className="text-tertiary hover:text-secondary" href={REPO} target="_blank" rel="noreferrer">
+            Эх код (GitHub)
+          </a>
+        </div>
+        <div className="flex flex-col gap-2 text-sm text-tertiary">
+          <p className="font-semibold text-primary">Анхааруулга</p>
+          <p>
+            AI шинжилгээ нь алдаа гаргаж болно. Нийтлэл бүр эх .gov.mn холбоос болон SHA-256 хэштэй тул анхны тексттэй шууд тулгаж шалгана уу.
+            Эрсдэлийн оноо нь буруутгал биш, анхаарах дохио юм.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}

@@ -16,7 +16,9 @@ We are building a 100% transparent, open-source investigative news and public da
   - Lint with `eslint .` (`next lint` no longer exists).
 - **Design system (mandatory):**
   - **Untitled UI React** (https://www.untitledui.com/react) is the primary component library: React Aria Components + Tailwind CSS v4. Theme tokens live in `src/styles/theme.css`; base components in `src/components/base/**`, application components in `src/components/application/**`. Merge classes with `cx()` from `src/utils/cx.ts`.
-  - **ElevenLabs UI** (https://ui.elevenlabs.io) for conversational/AI surfaces: `Message`, `MessageContent`, `MessageAvatar`, `Response`, `Conversation`, `ShimmeringText`, `Orb`. Vendored under `src/components/elevenlabs/` via `npm run ui:sync-elevenlabs`; every AI-generated text block (TL;DR, Grok analysis, admin filter chat) renders through `Message` + `Response`.
+  - **ElevenLabs UI** (https://ui.elevenlabs.io) for conversational/AI surfaces: `Message`, `MessageContent`, `MessageAvatar`, `Response`, `Conversation`, `ShimmeringText`, `Orb`. Installed with the shadcn CLI (`components.json`, e.g. `npx shadcn@latest add https://ui.elevenlabs.io/r/message.json`) into `src/components/ui/`. Every AI-generated text block (TL;DR, Grok analysis, cluster synthesis, admin filter chat) renders through `Message` + `Response` (see `src/components/iltod/ai-message.tsx`).
+  - The vendored ElevenLabs files were **adapted to Untitled UI tokens** (Untitled's `bg-primary` is the page background, not shadcn's brand color). `avatar.tsx` / `button.tsx` are local, dependency-free shims and `cn()` lives in `src/lib/utils.ts`. Re-running `shadcn add` overwrites these edits: re-apply them, and never let it add the unrelated `cn` npm package.
+  - Chart colors: `src/styles/charts.css` (validated categorical slots; every chart has a table view).
   - Animation: `motion` package (`import { motion } from "motion/react"`), the successor to framer-motion.
   - Charts: `recharts`. Icons: `@untitledui/icons` (prefer) and `lucide-react` (only where ElevenLabs code needs it).
 - **Database:** Supabase PostgreSQL with `pgvector`, managed via **Drizzle ORM** (`drizzle-orm`, `postgres`, `drizzle-kit`). Schema: `src/db/schema.ts`. Migrations: `drizzle/`.
@@ -55,7 +57,6 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--no-browser`)
 - `npm run sources:discover` (`--dry-run`, `--deep`) finds new *.gov.mn / *.khural.mn sites from hub pages
 - `npm run ai:process` (`--limit <n>`, `--id <articleId> [--deep]`, `--sample` = no-DB smoke test of the API keys)
-- `npm run ui:sync-elevenlabs` re-vendors ElevenLabs UI components from the registry
 
 ## 6. MCP
 `.mcp.json` registers the Supabase MCP server for project `boyhogngfxynhirkjdqb`. Authenticate once locally with `claude /mcp` → supabase → Authenticate.

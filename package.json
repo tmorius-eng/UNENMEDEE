@@ -16,14 +16,18 @@
     "db:seed": "tsx scripts/seed-sources.ts",
     "scrape": "tsx scripts/run-scraper.ts",
     "ai:process": "tsx scripts/process-ai.ts",
-    "ui:sync-elevenlabs": "tsx scripts/sync-elevenlabs-ui.ts",
     "sources:discover": "tsx scripts/discover-sources.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "@react-stately/utils": "^3.12.1",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "@tailwindcss/typography": "^0.5.20",
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
+    "@untitledui/file-icons": "^0.0.9",
     "@untitledui/icons": "^0.0.23",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
@@ -45,6 +49,7 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
     "tailwindcss-react-aria-components": "^2.2.0",
+    "three": "^0.186.1",
     "use-stick-to-bottom": "^1.1.6",
     "zod": "^4.6.7"
   },
@@ -54,6 +59,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
@@ -61,7 +67,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5"
   },
-  "description": "IL-TOD (ИЛ ТОД): open-source anti-spin government transparency news platform for Mongolia",
+  "description": "IL-TOD (\u0418\u041b \u0422\u041e\u0414): open-source anti-spin government transparency news platform for Mongolia",
   "license": "MIT",
   "engines": {
     "node": ">=20.9"
