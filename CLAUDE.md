@@ -34,6 +34,12 @@ We are building a 100% transparent, open-source investigative news and public da
 - Sources rotate least-recently-scraped first under a time budget; failing sources back off 2^n hours (`consecutive_failures`).
 - `robots.ts` + `http.ts`: our own robots parser and 8s-per-host throttle for non-Crawlee fetches.
 
+### AI pipeline (`src/lib/ai`)
+- `router.ts`: provider chains. tier1 = DeepSeek → Ollama; tier2 = Grok → DeepSeek → Ollama. JSON mode + zod validation + one repair retry. Every call (success or failure with tokens) is logged with its USD cost via `usage-log.ts`.
+- `analyze.ts`: `analyzeArticle` (pure, used by admin), `processArticle` (writes DB), `assignCluster`/`refreshCluster`.
+- `risk_flag` is derived from `risk_score >= 65`, never trusted from the model. Regex MNT amounts are merged into entities.
+- Clustering: stem Jaccard + entity overlap, threshold 0.45, cross-source only, 7-day window; synthesis only at growth milestones.
+
 ## 4. Strict Scraping & Engineering Rules
 1. Always check `robots.txt` and enforce a minimum 8-10 second delay between requests to the same `.gov.mn` domain.
 2. Compute a `SHA-256` hash of cleaned article text before calling any LLM. Never process duplicate content.
@@ -48,7 +54,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run db:generate` (after schema changes) / `npm run db:migrate` / `npm run db:seed`
 - `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--no-browser`)
 - `npm run sources:discover` (`--dry-run`, `--deep`) finds new *.gov.mn / *.khural.mn sites from hub pages
-- `npm run ai:process` (`--dry-run`, `--limit <n>`, `--id <articleId>`)
+- `npm run ai:process` (`--limit <n>`, `--id <articleId> [--deep]`, `--sample` = no-DB smoke test of the API keys)
 - `npm run ui:sync-elevenlabs` re-vendors ElevenLabs UI components from the registry
 
 ## 6. MCP

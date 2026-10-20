@@ -1,0 +1,146 @@
+/**
+ * Dual-LLM "anti-brainwash" pipeline.
+ *
+ *   npm run ai:process                    # analyze unprocessed articles (default 40)
+ *   npm run ai:process -- --limit 10
+ *   npm run ai:process -- --id 123 --deep # re-analyze one article, force Grok
+ *   npm run ai:process -- --sample        # no DB: analyze a built-in sample, print the result
+ *
+ * Tier 1 (DeepSeek → Ollama) for every article; Tier 2 (Grok → DeepSeek → Ollama) when
+ * risk_score >= 65. Every call's tokens and USD cost go to ai_usage_logs, and this
+ * month's total is synced into transparency_ledger.
+ */
+import "dotenv/config";
+import { parseArgs } from "node:util";
+
+import { and, asc, eq, isNull } from "drizzle-orm";
+
+import { closeDb, getDb, hasDatabase } from "@/db";
+import { articles } from "@/db/schema";
+import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
+import { AIUnavailableError } from "@/lib/ai/router";
+import { consoleUsageLogger, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
+
+const { values } = parseArgs({
+  options: {
+    limit: { type: "string", default: "40" },
+    batch: { type: "string", default: "5" },
+    id: { type: "string" },
+    deep: { type: "boolean", default: false },
+    sample: { type: "boolean", default: false },
+  },
+});
+
+const SAMPLE = {
+  title: "Улаанбаатар хотын замын засварт 48.5 тэрбум төгрөгийг шууд гэрээгээр олгохоор шийдвэрлэлээ",
+  sourceName: "Жишээ эх сурвалж",
+  sourceDomain: "example.gov.mn",
+  url: "https://example.gov.mn/news/1",
+  publishedAt: new Date(),
+  text: `Нийслэлийн Засаг даргын захирамжаар 2026 онд хийгдэх авто замын засварын ажилд 48.5 тэрбум төгрөгийг
+"Түргэн Зам" ХХК-тай шууд гэрээ байгуулах замаар олгохоор боллоо. Худалдан авах ажиллагааг тендер зарлахгүйгээр,
+онцгой нөхцөл байдлын улмаас шууд гэрээгээр шийдвэрлэсэн гэж албаны хүмүүс тайлбарлав. Энэхүү түүхэн, урьд өмнө
+байгаагүй бүтээн байгуулалт нь хотын иргэдийн амьдралыг эрс сайжруулах болно хэмээн Нийслэлийн Засаг дарга онцоллоо.
+Засварын ажлын хамрах километр, нэгж өртгийн тооцоог одоогоор олон нийтэд ил болгоогүй байна.`,
+};
+
+async function runSample() {
+  console.log("🧪 Sample analysis (no database). Usage is printed, not stored.\n");
+  const out = await analyzeArticle(SAMPLE, { log: consoleUsageLogger, forceDeep: values.deep });
+  console.log(`\nTier 1 via ${out.tier1Provider}:`);
+  console.log(JSON.stringify(out.tier1, null, 2));
+  if (out.tier2) {
+    console.log(`\nTier 2 via ${out.tier2Provider}:\n`);
+    console.log(formatDeepAnalysis(out.tier2));
+  }
+  console.log(`\nTotal cost: $${out.costUsd.toFixed(6)}`);
+}
+
+async function main() {
+  if (values.sample) return runSample();
+  if (!hasDatabase()) {
+    console.error("✗ DATABASE_URL is not set. Use --sample to test the AI providers without a database.");
+    process.exitCode = 1;
+    return;
+  }
+  const db = getDb();
+  const log = dbUsageLogger(db);
+
+  if (values.id) {
+    const id = Number(values.id);
+    const res = await processArticle(db, id, { log, forceDeep: values.deep, purpose: values.deep ? "admin" : "tier1" });
+    console.log(`✓ #${id} risk=${res.tier1.risk_score} flag=${res.tier1.risk_flag} deep=${Boolean(res.tier2)} cluster=${res.clusterId ?? "—"} $${res.costUsd.toFixed(6)}`);
+    await syncLedgerAiCost(db);
+    return;
+  }
+
+  const limit = Math.max(1, Number(values.limit));
+  const batchSize = Math.max(1, Number(values.batch));
+  const pending = await db
+    .select({ id: articles.id, title: articles.title })
+    .from(articles)
+    .where(and(isNull(articles.tldrSummary), isNull(articles.aiError)))
+    .orderBy(asc(articles.createdAt))
+    .limit(limit);
+
+  console.log(`🧠 ${pending.length} article(s) to analyze, in batches of ${batchSize}.`);
+  let done = 0;
+  let flagged = 0;
+  let cost = 0;
+  let consecutiveProviderFailures = 0;
+
+  for (let i = 0; i < pending.length; i += batchSize) {
+    const batch = pending.slice(i, i + batchSize);
+    const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log })));
+    for (const [j, r] of results.entries()) {
+      const a = batch[j];
+      if (r.status === "fulfilled") {
+        done++;
+        consecutiveProviderFailures = 0;
+        cost += r.value.costUsd;
+        if (r.value.tier1.risk_flag) flagged++;
+        console.log(
+          `  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${r.value.tier2 ? " ⚡Grok" : ""}${r.value.clusterId ? ` 🔗${r.value.clusterId}` : ""}  ${a.title.slice(0, 70)}`,
+        );
+        continue;
+      }
+      const err = r.reason;
+      if (err instanceof AIUnavailableError && err.attempts.length === 0) {
+        console.error(`✗ ${err.message}`);
+        process.exitCode = 1;
+        await syncLedgerAiCost(db);
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      const details = err instanceof AIUnavailableError ? err.attempts.join(" | ") : message;
+      const badOutput = /Invalid JSON|no JSON object/.test(details) && !/40[13]|429|5\d\d|ECONN|timeout/i.test(details);
+      if (badOutput) {
+        // The model cannot handle this text: park it so we do not pay for it every run.
+        await db.update(articles).set({ aiError: details.slice(0, 500) }).where(eq(articles.id, a.id));
+      } else {
+        consecutiveProviderFailures++;
+      }
+      console.log(`  ✗ #${a.id} ${details.slice(0, 160)}`);
+    }
+    if (consecutiveProviderFailures >= batchSize * 2) {
+      console.error("✗ AI providers keep failing (network, auth or rate limit). Stopping this run; articles stay queued.");
+      process.exitCode = 1;
+      break;
+    }
+  }
+
+  const monthTotal = await syncLedgerAiCost(db);
+  console.log(`\n📊 Analyzed ${done}/${pending.length}; ${flagged} high-risk (Grok). Run cost $${cost.toFixed(6)}; month total $${monthTotal.toFixed(6)}.`);
+}
+
+main()
+  .catch((err) => {
+    if (err instanceof AIUnavailableError) {
+      console.error(`✗ ${err.message}`);
+      for (const a of err.attempts) console.error(`   - ${a}`);
+    } else {
+      console.error("✗ AI pipeline crashed:", err);
+    }
+    process.exitCode = 1;
+  })
+  .finally(closeDb);
