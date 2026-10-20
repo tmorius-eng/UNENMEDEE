@@ -21,7 +21,7 @@ We are building a 100% transparent, open-source investigative news and public da
   - Chart colors: `src/styles/charts.css` (validated categorical slots; every chart has a table view).
   - Animation: `motion` package (`import { motion } from "motion/react"`), the successor to framer-motion.
   - Charts: `recharts`. Icons: `@untitledui/icons` (prefer) and `lucide-react` (only where ElevenLabs code needs it).
-- **Database:** Supabase PostgreSQL with `pgvector`, managed via **Drizzle ORM** (`drizzle-orm`, `postgres`, `drizzle-kit`). Schema: `src/db/schema.ts`. Migrations: `drizzle/`.
+- **Database:** Supabase PostgreSQL with `pgvector`, managed via **Drizzle ORM** (`drizzle-orm` + `pg` node-postgres pool, `drizzle-kit`). Never use postgres.js for app queries: its pipelining hangs behind the Supabase transaction pooler (only `scripts/migrate.ts` uses it, sequentially). Schema: `src/db/schema.ts`. Migrations: `drizzle/`.
 - **Scraping Engine:** Node.js scripts in `/scripts` using `crawlee`, `cheerio`, `@mozilla/readability`, `jsdom`. Library code in `src/lib/scraper`.
 - **AI SDK:** `openai` package with custom `baseURL` for Groq, Requesty, NVIDIA NIM, DeepSeek, xAI Grok and Ollama; Gemini uses its native `generateContent` API via `fetch` (`src/lib/ai/gemini.ts`). Library code in `src/lib/ai`.
 - **Admin Editor:** Tiptap (`@tiptap/react`, `@tiptap/starter-kit`).

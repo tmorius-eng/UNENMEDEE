@@ -1,13 +1,14 @@
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { attachDatabasePool } from "@vercel/functions";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 import * as schema from "./schema";
 
-export type DB = PostgresJsDatabase<typeof schema>;
+export type DB = NodePgDatabase<typeof schema>;
 
 declare global {
-  // Reuse the client across Next.js dev hot reloads.
-  var __iltodDb: { db: DB; client: postgres.Sql } | undefined;
+  // Reuse the pool across Next.js dev hot reloads.
+  var __iltodDb: { db: DB; pool: Pool } | undefined;
 }
 
 /** True when a database is configured. Pages use this to render empty states without a DB. */
@@ -26,29 +27,38 @@ export function isLocalDatabase(url: string): boolean {
 /**
  * Lazy database singleton. Throws only when actually used without DATABASE_URL,
  * so `next build` and unit tests work without secrets.
+ *
+ * node-postgres runs one query per connection at a time. postgres.js pipelines concurrent
+ * queries on a connection, which the Supabase transaction pooler (Supavisor, port 6543)
+ * left hanging on Vercel (pages rendered empty after the query timeout).
  */
 export function getDb(): DB {
   if (globalThis.__iltodDb) return globalThis.__iltodDb.db;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
-  const client = postgres(url, {
-    // Supabase transaction pooler (port 6543) does not support prepared statements.
-    prepare: false,
-    // Supabase recommends SSL; local Postgres (dev/tests) usually has none.
-    ssl: isLocalDatabase(url) ? false : "require",
+  const pool = new Pool({
+    connectionString: url,
+    // Supabase requires TLS; its pooler certificate is not in Node's default CA store.
+    ssl: isLocalDatabase(url) ? false : { rejectUnauthorized: false },
     max: Number(process.env.DB_POOL_MAX ?? 3),
-    idle_timeout: 20,
-    connect_timeout: 15,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    // Client-side cap: a stuck query errors instead of holding a connection forever.
+    query_timeout: 20_000,
   });
-  const db = drizzle(client, { schema });
-  globalThis.__iltodDb = { db, client };
+  // An idle client losing its connection must not crash the process.
+  pool.on("error", (err) => console.error("[db] idle client error:", err.message));
+  // Vercel Fluid compute: keep the instance alive until idle connections are closed.
+  if (process.env.VERCEL) attachDatabasePool(pool);
+  const db = drizzle(pool, { schema });
+  globalThis.__iltodDb = { db, pool };
   return db;
 }
 
 /** Close the pool (used by CLI scripts so the process can exit). */
 export async function closeDb(): Promise<void> {
   if (globalThis.__iltodDb) {
-    await globalThis.__iltodDb.client.end({ timeout: 5 });
+    await globalThis.__iltodDb.pool.end();
     globalThis.__iltodDb = undefined;
   }
 }
