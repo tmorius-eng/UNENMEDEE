@@ -10,10 +10,11 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
-import type { ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
+import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
 export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty"]);
@@ -63,6 +64,8 @@ export const articles = pgTable(
     extractedEntities: jsonb("extracted_entities").$type<ExtractedEntities>(),
     riskFlag: boolean("risk_flag").notNull().default(false),
     riskScore: integer("risk_score").notNull().default(0),
+    /** 0-100: how much the news matters nationally (AI Tier 1). Null for articles analyzed before it existed. */
+    importanceScore: integer("importance_score"),
     grokDeepAnalysis: text("grok_deep_analysis"),
     clusterId: integer("cluster_id").references(() => clusters.id, { onDelete: "set null" }),
     /** Set when the AI pipeline gave up on this article, so it is not retried forever. */
@@ -106,6 +109,59 @@ export const aiUsageLogs = pgTable(
   ],
 );
 
+/**
+ * AI-written news digests: "12h" editions (08:00 and 20:00 Ulaanbaatar time) and longer
+ * catch-up reviews such as "30d". Items are denormalized so the page needs no joins.
+ */
+export const digests = pgTable(
+  "digests",
+  {
+    id: serial("id").primaryKey(),
+    kind: varchar("kind", { length: 16 }).notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    title: text("title").notNull(),
+    intro: text("intro").notNull(),
+    items: jsonb("items").$type<DigestItem[]>().notNull(),
+    /** Candidate articles the editor model chose from. */
+    candidateCount: integer("candidate_count").notNull().default(0),
+    /** "provider/model", or "rule-based" when no AI was available. */
+    generatedBy: varchar("generated_by", { length: 120 }).notNull(),
+    costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("digests_kind_period_end_idx").on(t.kind, t.periodEnd)],
+);
+
+/**
+ * Catalogue of external open-data portals' datasets (opendata.mn) with small computed
+ * highlights. Raw rows are never stored: only metadata and compact summaries (CLAUDE.md rule #3).
+ */
+export const openDatasets = pgTable(
+  "open_datasets",
+  {
+    id: serial("id").primaryKey(),
+    portal: varchar("portal", { length: 64 }).notNull(),
+    externalId: integer("external_id").notNull(),
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    description: text("description"),
+    /** Original publisher (e.g. Монголбанк), not the portal account that uploaded it. */
+    dataSource: text("data_source"),
+    fileType: varchar("file_type", { length: 16 }),
+    rowCount: integer("row_count").notNull().default(0),
+    columns: jsonb("columns").$type<string[]>().notNull(),
+    license: varchar("license", { length: 64 }),
+    updateFrequency: varchar("update_frequency", { length: 64 }),
+    pageUrl: text("page_url").notNull(),
+    apiUrl: text("api_url").notNull(),
+    highlight: jsonb("highlight").$type<DatasetHighlight>(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("open_datasets_portal_external_id_idx").on(t.portal, t.externalId)],
+);
+
 export const transparencyLedger = pgTable("transparency_ledger", {
   id: serial("id").primaryKey(),
   /** e.g. "2026-10" */
@@ -136,4 +192,6 @@ export type Article = typeof articles.$inferSelect;
 export type NewArticle = typeof articles.$inferInsert;
 export type Cluster = typeof clusters.$inferSelect;
 export type AIUsageLog = typeof aiUsageLogs.$inferSelect;
+export type Digest = typeof digests.$inferSelect;
+export type OpenDataset = typeof openDatasets.$inferSelect;
 export type LedgerRow = typeof transparencyLedger.$inferSelect;

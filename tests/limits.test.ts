@@ -136,6 +136,19 @@ describe("router with Gemini + budget guard (mock server)", () => {
     assert.equal(out.tier1Provider, "gemini/mock-gemini-lite");
     assert.deepEqual(mock.calls.map((c) => c.model), ["mock-gemini-lite", "mock-gemini-lite"], "429 → same free provider again, no paid call");
   });
+
+  it("moves straight to the next FREE provider on a 429 instead of waiting", async () => {
+    Object.assign(process.env, { REQUESTY_API_KEY: "test", REQUESTY_BASE_URL: mock.baseURL, REQUESTY_MODEL: "mock-requesty", REQUESTY_RPM: "0" });
+    try {
+      const lowRisk = JSON.stringify({ ...JSON.parse(TIER1_OK), risk_score: 10 });
+      script = (model) => (model === "mock-gemini-lite" ? { status: 429 } : { content: lowRisk });
+      const out = await analyzeArticle({ ...article, text: "жижиг мэдээ" }, { log });
+      assert.equal(out.tier1Provider, "requesty/mock-requesty");
+      assert.deepEqual(mock.calls.map((c) => c.model), ["mock-gemini-lite", "mock-requesty"]);
+    } finally {
+      delete process.env.REQUESTY_API_KEY;
+    }
+  });
 });
 
 describe("Requesty gateway (mock server)", () => {

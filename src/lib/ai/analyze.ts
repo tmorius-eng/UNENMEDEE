@@ -58,6 +58,7 @@ export function ruleBasedAnalysis(input: ArticleForAI): Tier1Result | null {
     entities: { people: [], orgs: org ? [org] : [], amounts_mnt: [] },
     risk_score: 0,
     risk_reason: "Өгөгдлийн багцын мэдээлэл.",
+    importance_score: 15,
     risk_flag: false,
   };
 }
@@ -158,6 +159,7 @@ export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptio
       extractedEntities: tier1.entities,
       riskScore: tier1.risk_score,
       riskFlag: tier1.risk_flag,
+      importanceScore: tier1.importance_score,
       // Keep an earlier deep analysis if this run did not produce a new one.
       ...(tier2 ? { grokDeepAnalysis: formatDeepAnalysis(tier2) } : {}),
       aiError: null,

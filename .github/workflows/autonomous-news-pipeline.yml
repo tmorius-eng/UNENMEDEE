@@ -19,6 +19,10 @@ on:
         description: "Max articles to analyze with AI"
         required: false
         default: "60"
+      days:
+        description: "Backfill: also collect posts up to N days old (e.g. 30, with limit 40 and ai_limit 600). Empty = normal run."
+        required: false
+        default: ""
 
 # Never run two pipelines at once (same rows, same rate limits).
 concurrency:
@@ -31,7 +35,8 @@ permissions:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    # Normal runs take 15-40 min; a 30-day backfill uses the extra time.
+    timeout-minutes: 150
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Free tiers (used first). Any one of them is enough to analyze articles.
@@ -96,13 +101,14 @@ jobs:
         env:
           IN_SOURCES: ${{ inputs.sources }}
           IN_LIMIT: ${{ inputs.limit || '8' }}
+          IN_DAYS: ${{ inputs.days }}
         run: |
           case "$IN_LIMIT" in ''|*[!0-9]*) IN_LIMIT=8 ;; esac
-          if [ -n "$IN_SOURCES" ]; then
-            npm run scrape -- --limit "$IN_LIMIT" --budget 30 --source "$IN_SOURCES"
-          else
-            npm run scrape -- --limit "$IN_LIMIT" --budget 30
-          fi
+          case "$IN_DAYS" in ''|*[!0-9]*) IN_DAYS="" ;; esac
+          args=(--limit "$IN_LIMIT" --budget 30)
+          if [ -n "$IN_DAYS" ]; then args=(--limit "$IN_LIMIT" --budget 50 --days "$IN_DAYS"); fi
+          if [ -n "$IN_SOURCES" ]; then args+=(--source "$IN_SOURCES"); fi
+          npm run scrape -- "${args[@]}"
 
       - name: Analyze with AI (free providers first, paid ones within budget)
         if: env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != ''
@@ -110,4 +116,5 @@ jobs:
           IN_AI_LIMIT: ${{ inputs.ai_limit || '60' }}
         run: |
           case "$IN_AI_LIMIT" in ''|*[!0-9]*) IN_AI_LIMIT=60 ;; esac
-          npm run ai:process -- --limit "$IN_AI_LIMIT"
+          # Stop starting new articles after 75 min; the rest wait for the next run.
+          npm run ai:process -- --limit "$IN_AI_LIMIT" --budget 75

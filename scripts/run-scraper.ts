@@ -7,6 +7,7 @@
  *
  * Options: --limit <n> new articles per source (default 8), --budget <minutes> (default 40),
  *          --concurrency <n> parallel domains (default 8),
+ *          --days <n> backfill: also collect older posts, up to n days back (use with a larger --limit),
  *          --no-browser skip the headless-Chromium pass for JavaScript-rendered sites.
  */
 import "dotenv/config";
@@ -27,6 +28,7 @@ const { values } = parseArgs({
     limit: { type: "string", default: "8" },
     budget: { type: "string", default: "40" },
     concurrency: { type: "string", default: "8" },
+    days: { type: "string" },
     "no-browser": { type: "boolean", default: false },
   },
 });
@@ -36,6 +38,8 @@ const domains = values.source?.split(",").map((d) => d.trim()).filter(Boolean);
 const perSourceLimit = Math.max(1, Number(values.limit));
 const budgetMs = Math.max(1, Number(values.budget)) * 60_000;
 const concurrency = Math.max(1, Number(values.concurrency));
+const backfillDays = values.days ? Math.max(1, Math.min(90, Number(values.days) || 0)) : 0;
+const since = backfillDays ? new Date(Date.now() - backfillDays * 86_400_000) : undefined;
 
 function createDryRunSink(): ArticleSink {
   const urls = new Set<string>();
@@ -62,7 +66,7 @@ function createDryRunSink(): ArticleSink {
 async function runApiSource(source: SourceRef, sink: ArticleSink, fetchItems: (limit: number) => Promise<ScrapedItem[]>): Promise<SourceRunResult> {
   const result: SourceRunResult = { sourceId: source.id, domain: source.domain, found: 0, inserted: 0, skippedDuplicates: 0, error: null, completed: true };
   try {
-    const items = await fetchItems(perSourceLimit * 3);
+    const items = (await fetchItems(perSourceLimit * 3)).filter((i) => !since || (i.publishedAt !== null && i.publishedAt >= since));
     const fresh = await sink.filterNewUrls(items.map((i) => i.url));
     result.skippedDuplicates = items.length - fresh.size;
     for (const item of items.filter((i) => fresh.has(i.url)).slice(0, perSourceLimit)) {
@@ -96,7 +100,9 @@ async function main() {
     const due = await loadDueSources(db, domains);
     sourceRefs = due.map((s) => ({ id: s.id, domain: s.domain, name: s.name, urlPattern: s.urlPattern }));
     sink = createDbSink(db);
-    console.log(`🔎 Scraping ${sourceRefs.length} due source(s); limit ${perSourceLimit}/source; budget ${budgetMs / 60000} min.`);
+    console.log(
+      `🔎 Scraping ${sourceRefs.length} due source(s); limit ${perSourceLimit}/source; budget ${budgetMs / 60000} min${since ? `; backfill since ${since.toISOString().slice(0, 10)}` : ""}.`,
+    );
   }
   if (sourceRefs.length === 0) {
     console.log("Nothing to scrape.");
@@ -116,6 +122,7 @@ async function main() {
         perSourceLimit,
         budgetMs: Math.max(60_000, budgetMs - (Date.now() - started)),
         concurrency,
+        since,
         browser: !values["no-browser"],
         onProgress: (m) => console.log(m),
       })),

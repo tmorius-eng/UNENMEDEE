@@ -2,9 +2,9 @@ import { and, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "dr
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, articles, clusters, sources, transparencyLedger } from "@/db/schema";
+import { aiUsageLogs, articles, clusters, digests, openDatasets, sources, transparencyLedger, type OpenDataset } from "@/db/schema";
 import { SOURCE_SEEDS } from "@/lib/sources";
-import type { ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
+import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
 
 /**
  * Read model for the public site. Every function:
@@ -410,4 +410,47 @@ export async function getTransparency(): Promise<TransparencyData> {
       },
     };
   });
+}
+
+export interface DigestView {
+  id: number;
+  kind: string;
+  periodStart: Date;
+  periodEnd: Date;
+  title: string;
+  intro: string;
+  items: DigestItem[];
+  candidateCount: number;
+  generatedBy: string;
+  costUsd: number;
+}
+
+/** Latest AI digests, newest first. `kind` = "12h" editions or "30d" reviews. */
+export async function getDigests(kind: "12h" | "30d", limit = 10): Promise<DigestView[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("digests");
+  return safe("getDigests", [], async () => {
+    const rows = await getDb().select().from(digests).where(eq(digests.kind, kind)).orderBy(desc(digests.periodEnd)).limit(limit);
+    return rows.map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      periodStart: d.periodStart,
+      periodEnd: d.periodEnd,
+      title: d.title,
+      intro: d.intro,
+      items: d.items,
+      candidateCount: d.candidateCount,
+      generatedBy: d.generatedBy,
+      costUsd: Number(d.costUsd),
+    }));
+  });
+}
+
+/** opendata.mn catalogue with computed highlights (see scripts/sync-opendata-mn.ts). */
+export async function getOpenDatasets(): Promise<OpenDataset[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("open-data");
+  return safe("getOpenDatasets", [], () => getDb().select().from(openDatasets).orderBy(openDatasets.category, openDatasets.title));
 }

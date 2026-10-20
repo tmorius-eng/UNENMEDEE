@@ -16,6 +16,8 @@
     "db:seed": "tsx scripts/seed-sources.ts",
     "scrape": "tsx scripts/run-scraper.ts",
     "ai:process": "tsx scripts/process-ai.ts",
+    "digest": "tsx scripts/make-digest.ts",
+    "data:sync": "tsx scripts/sync-opendata-mn.ts",
     "sources:discover": "tsx scripts/discover-sources.ts"
   },
   "dependencies": {

@@ -1,0 +1,81 @@
+# AI news digest ("Онцлох тойм") twice a day: 08:00 and 20:00 Ulaanbaatar time (UTC+8),
+# plus the opendata.mn data sync for /data. Runs at :07, after the pipeline's even-hour run
+# has started analyzing; it has its own concurrency group because GitHub cancels a pending
+# run when another one queues in the same group.
+name: News digest (12h)
+
+on:
+  schedule:
+    - cron: "7 0,12 * * *"
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "12h = regular edition, 30d = review of the last 30 days"
+        required: false
+        default: "12h"
+      force:
+        description: "Make a new edition even if one was made in the last hours (true/false)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: news-digest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
+      AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+      AI_TIER2_CHAIN: ${{ vars.AI_TIER2_CHAIN }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      GEMINI_DEEP_MODEL: ${{ vars.GEMINI_DEEP_MODEL }}
+      REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
+      DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Sync opendata.mn datasets
+        # Data problems must never block the news digest.
+        continue-on-error: true
+        run: npm run data:sync
+
+      - name: Write the digest
+        env:
+          IN_KIND: ${{ inputs.kind || '12h' }}
+          IN_FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          case "$IN_KIND" in 30d) ;; *) IN_KIND=12h ;; esac
+          if [ "$IN_FORCE" = "true" ]; then
+            npm run digest -- --kind "$IN_KIND" --force
+          else
+            npm run digest -- --kind "$IN_KIND"
+          fi

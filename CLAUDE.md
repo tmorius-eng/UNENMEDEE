@@ -32,6 +32,8 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ### Scraper architecture (`src/lib/scraper`)
 - `adapters/index.ts`: sources with a public JSON API (opendata.gov.mn, parliament.mn) skip HTML entirely.
+- `--days <n>` backfill: WordPress REST `after=`, feed dates, and only items with a known publication date inside the window (undated items would be stored as "today").
+- `src/lib/opendata-mn`: opendata.mn datasets via the portal's documented API (`/apiv1/file/{id}`, the URL its "API харах" button gives out). Its robots.txt disallows `/apiv1/` for crawlers; we skip the robots check for these documented API URLs only, keep the 8 s host delay, and sync at most twice a day. Only metadata and small computed highlights are stored (`open_datasets`), never raw rows.
 - `crawl.ts`: one Crawlee run for all other sources. Pass 1 = HTTP (WordPress REST API → RSS → link harvesting, homepage fallback). Pass 2 = headless Chromium (Playwright) only for sources whose news needs JavaScript.
 - Sources rotate least-recently-scraped first under a time budget; failing sources back off 2^n hours (`consecutive_failures`).
 - `robots.ts` + `http.ts`: our own robots parser and 8s-per-host throttle for non-Crawlee fetches.
@@ -43,6 +45,8 @@ We are building a 100% transparent, open-source investigative news and public da
 - `analyze.ts`: `analyzeArticle` (pure, used by admin), `processArticle` (writes DB), `assignCluster`/`refreshCluster`.
 - `risk_flag` is derived from `risk_score >= 65`, never trusted from the model. Regex MNT amounts are merged into entities.
 - Clustering: stem Jaccard + entity overlap, threshold 0.45, cross-source only, 7-day window; synthesis only at growth milestones.
+- Tier 1 also returns `importance_score` (0-100, national significance; optional, null when missing).
+- `digest.ts`: "Онцлох тойм". Articles are pre-ranked without AI (`rankScore`: importance, risk, cross-source coverage, source weight), one per cluster, top 40 (70 for "30d") go to the editor model (tier2 chain minus Grok), which picks 10 (20) and writes headlines + "why it matters". Model-invented ids are dropped; with no AI it falls back to the rule-based ranking. "12h" editions skip if one exists < 6 h old and do not repeat stories from the last 3 editions.
 
 ## 4. Strict Scraping & Engineering Rules
 1. Always check `robots.txt` and enforce a minimum 8-10 second delay between requests to the same `.gov.mn` domain.
@@ -56,15 +60,17 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run dev` / `npm run build` / `npm run start`
 - `npm run check` = `typecheck` + `lint` + `test` (run before every commit)
 - `npm run db:generate` (after schema changes) / `npm run db:migrate` / `npm run db:seed`
-- `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--no-browser`)
+- `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--days <n>` backfill, `--no-browser`)
 - `npm run sources:discover` (`--dry-run`, `--deep`) finds new *.gov.mn / *.khural.mn sites from hub pages
-- `npm run ai:process` (`--limit <n>`, `--id <articleId> [--deep]`, `--sample` = no-DB smoke test of the API keys)
+- `npm run ai:process` (`--limit <n>`, `--budget <min>`, `--id <articleId> [--deep]`, `--sample` = no-DB smoke test of the API keys)
+- `npm run digest` (`--kind 12h|30d`, `--force`) writes the AI news digest
+- `npm run data:sync` (`--dry-run`) syncs opendata.mn datasets and highlights for `/data`
 
 ## 6. Admin & automation
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
 - `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
 - Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.
-- `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `discover-sources.yml` (weekly). `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.
+- `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `news-digest.yml` (08:07 / 20:07 Ulaanbaatar): opendata.mn sync + 12h digest; manual run with `kind=30d` for a monthly review. `discover-sources.yml` (weekly). The pipeline's manual run takes `days` for a backfill. `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.
 
 ## 7. MCP
 `.mcp.json` registers the Supabase MCP server for project `boyhogngfxynhirkjdqb`. Authenticate once locally with `claude /mcp` → supabase → Authenticate.

@@ -3,11 +3,12 @@
  *
  *   npm run ai:process                    # analyze unprocessed articles (default 40)
  *   npm run ai:process -- --limit 10
+ *   npm run ai:process -- --limit 600 --budget 60   # stop starting new articles after 60 min
  *   npm run ai:process -- --id 123 --deep # re-analyze one article, force Grok
  *   npm run ai:process -- --sample        # no DB: analyze a built-in sample, print the result
  *
- * Tier 1 (Gemini free → DeepSeek → Ollama) for every article; Tier 2 (Grok → Gemini → DeepSeek
- * → Ollama) when risk_score >= 65. opendata.gov.mn datasets are summarized by rules (0 tokens).
+ * Tier 1 (free Groq / Gemini / Requesty / NVIDIA, then DeepSeek) for every article, newest first;
+ * Tier 2 (Grok → Gemini Flash → …) when risk_score >= 65. opendata.gov.mn datasets are summarized by rules (0 tokens).
  * Paid providers stop at AI_MONTHLY_BUDGET_USD / AI_DAILY_BUDGET_USD and per-provider daily
  * call caps (see src/lib/ai/limits.ts). Every call's tokens and USD cost go to ai_usage_logs,
  * and this month's total is synced into transparency_ledger.
@@ -15,7 +16,7 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
@@ -27,6 +28,8 @@ import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } fr
 const { values } = parseArgs({
   options: {
     limit: { type: "string", default: "40" },
+    // Minutes; 0 = no time limit. Keeps GitHub Actions jobs inside their timeout.
+    budget: { type: "string", default: "0" },
     // Parallel articles. Kept low so free tiers (Gemini ~10-15 requests/min) are not flooded.
     batch: { type: "string", default: process.env.AI_CONCURRENCY || "2" },
     id: { type: "string" },
@@ -90,7 +93,8 @@ async function main() {
     .select({ id: articles.id, title: articles.title })
     .from(articles)
     .where(and(isNull(articles.tldrSummary), isNull(articles.aiError)))
-    .orderBy(asc(articles.createdAt))
+    // Newest news first: after a backfill, today's stories are analyzed before last month's.
+    .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.id))
     .limit(limit);
 
   console.log(`🧠 ${pending.length} article(s) to analyze, in batches of ${batchSize}.`);
@@ -100,7 +104,13 @@ async function main() {
   let consecutiveProviderFailures = 0;
   let budgetStop = false;
 
+  const budgetMin = Math.max(0, Number(values.budget) || 0);
+  const deadline = budgetMin ? Date.now() + budgetMin * 60_000 : Infinity;
   for (let i = 0; i < pending.length && !budgetStop; i += batchSize) {
+    if (Date.now() > deadline) {
+      console.log(`⏱  Time budget of ${budgetMin} min reached; ${pending.length - i} article(s) wait for the next run.`);
+      break;
+    }
     const batch = pending.slice(i, i + batchSize);
     const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log, budget })));
     for (const [j, r] of results.entries()) {
@@ -146,7 +156,7 @@ async function main() {
   }
 
   const monthTotal = await syncLedgerAiCost(db);
-  console.log(`\n📊 Analyzed ${done}/${pending.length}; ${flagged} high-risk (Grok). Run cost $${cost.toFixed(6)}; month total $${monthTotal.toFixed(6)}.`);
+  console.log(`\n📊 Analyzed ${done}/${pending.length}; ${flagged} high-risk (deep analysis). Run cost $${cost.toFixed(6)}; month total $${monthTotal.toFixed(6)}.`);
 }
 
 main()
