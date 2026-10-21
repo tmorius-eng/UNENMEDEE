@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
+import { ShareButton } from "@/components/iltod/share-button";
 import { OfficialsTable } from "@/components/officials/officials-table";
 import { getPoliticians } from "@/lib/queries";
 
@@ -24,7 +25,9 @@ export default async function OfficialsPage() {
             дараа автоматаар солигдоно. Мэдүүлэг бол буруутгал биш; тоо бүр эх сурвалжийн холбоостой.
           </>
         }
-      />
+      >
+        <ShareButton path="/officials" title="УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг" className="w-fit" />
+      </PageHeader>
       {people.length ? <OfficialsTable people={people} /> : <Empty title="Мэдүүлэг хараахан ачаалагдаагүй" description="Гишүүдийн жагсаалт болон мэдүүлгийг долоо хоног бүр автоматаар татна." />}
     </div>
   );

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { DigestView } from "@/components/iltod/digest-view";
 import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
+import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { getDigests } from "@/lib/queries";
 
@@ -51,7 +52,9 @@ export default function DigestPage() {
         eyebrow="📰 AI редакторын тойм"
         title="Онцлох тойм"
         description="Өглөө 08:00, орой 20:00 цагт AI редактор сүүлийн 12 цагийн бүх төрийн мэдээнээс иргэдийн амьдрал, төсөв, хууль, эрүүл мэнд, авлигад хамгийн их нөлөөлөх мэдээг сонгож, пи-аргүйгээр тоймлоно."
-      />
+      >
+        <ShareButton path="/digest" title="Өнөөдрийн онцлох мэдээ · ИЛ ТОД МЭДЭЭ" className="w-fit" />
+      </PageHeader>
       <Suspense fallback={<FeedSkeleton />}>
         <Digests />
       </Suspense>
