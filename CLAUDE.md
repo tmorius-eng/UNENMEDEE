@@ -79,6 +79,10 @@ We are building a 100% transparent, open-source investigative news and public da
 - Reading habit: `src/lib/read-state.ts` holds the shared read list (`iltod-read`, used by StoryList and /digest) and the streak (`iltod-streak`, Ulaanbaatar days). The newest /digest edition (`DigestView track`) shows "N/10 уншсан", a ✓ per story and "🔥 N өдөр дараалан"; finishing an edition bumps the streak. Browser-only; the clock is read via `useSyncExternalStore` (server snapshot "") so prerendered HTML never depends on it. The home digest strip stays server-only.
 - Headlines are real `<a href="/article/…">` links (crawlable, Cmd/Ctrl-click opens a tab); a plain tap expands in place.
 
+## 6f. Search & push invite
+- `/search?q=` (🔍 in the header): `search()` in queries.ts, Postgres full-text with the `simple` config + prefix terms from `toPrefixQuery()` (`src/lib/search.ts`: words longer than 6 letters are cut to 5 because Mongolian suffixes change the stem). GIN index `articles_search_idx` (migration 0010) must use the same expression as `SEARCH_DOC`. MPs match by name (ILIKE). Result pages are `noindex, follow`.
+- `PushInvite` sits at the END of the home StoryList (below the fold: it appears after hydration, mid-list it would cause CLS); "Дараа" hides it via localStorage `iltod-push-invite`.
+
 ## 6c. Performance budget (PageSpeed mobile)
 - Keep heavy client libraries off shared and home bundles. `AIMessage` must not import streamdown (`Response`): markdown blocks use `AIMarkdownMessage` (`ai-markdown.tsx`). Header, StoryList and PWA sheets animate with CSS (`tailwindcss-animate` `animate-in …`), not `motion`. `Empty` is plain markup (Untitled's EmptyState pulled ~200 KB of illustrations; its file-icons loader ~470 KB).
 - Check with Lighthouse before merging UI work: `npx lighthouse <url> --form-factor=mobile`. Text needs 4.5:1 contrast: topic labels use `utility-*-700`, the logo's teal is `#047c78` in light mode.

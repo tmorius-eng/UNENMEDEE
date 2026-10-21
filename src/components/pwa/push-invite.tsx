@@ -1,0 +1,34 @@
+"use client";
+
+import { useLocalStorage } from "@/lib/local-store";
+
+import { usePwa } from "./use-pwa";
+
+/**
+ * One-line invite under the home story list (below the fold, so appearing after hydration
+ * shifts nothing on screen). Hidden once subscribed, dismissed, or where push is unsupported.
+ */
+export function PushInvite() {
+  const { pushSupported, needsInstallForPush, subscribed, enablePush, busy, error } = usePwa();
+  const [dismissed, setDismissed] = useLocalStorage("iltod-push-invite", "");
+  if (subscribed || dismissed || (!pushSupported && !needsInstallForPush)) return null;
+  return (
+    <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm">
+      <p className="font-semibold text-primary">🔔 Өдөрт хамгийн чухал мэдээг утсандаа аваарай</p>
+      <p className="text-tertiary">
+        {needsInstallForPush ? "iPhone дээр эхлээд Share → \"Add to Home Screen\"-ээр сайтыг нэмээд, тэндээс асаана." : "Спам биш: нэг ажиллалтад нэг л мэдэгдэл, хүссэн үедээ унтраана."}
+      </p>
+      <div className="flex gap-2">
+        {!needsInstallForPush && (
+          <button type="button" onClick={enablePush} disabled={busy} className="rounded-lg bg-brand-solid px-4 py-2 font-semibold text-white shadow-xs hover:bg-brand-solid_hover disabled:opacity-60">
+            Мэдэгдэл асаах
+          </button>
+        )}
+        <button type="button" onClick={() => setDismissed("1")} className="rounded-lg px-3 py-2 font-semibold text-tertiary hover:text-secondary">
+          Дараа
+        </button>
+      </div>
+      {error && <p className="text-xs text-error-primary">{error}</p>}
+    </div>
+  );
+}
