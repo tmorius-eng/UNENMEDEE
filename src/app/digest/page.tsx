@@ -26,8 +26,8 @@ async function Digests() {
           <h2 id="editions" className="text-lg font-semibold text-primary">
             🕗 12 цагийн тойм
           </h2>
-          {editions.map((d) => (
-            <DigestView key={d.id} digest={d} />
+          {editions.map((d, i) => (
+            <DigestView key={d.id} digest={d} track={i === 0} />
           ))}
         </section>
       )}

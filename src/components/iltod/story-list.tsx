@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { tldrSentences } from "@/lib/format";
 import { useLocalStorage } from "@/lib/local-store";
+import { parseIds, READ_KEY, READ_MAX } from "@/lib/read-state";
 import type { ArticleListItem } from "@/lib/queries";
 import { storyTag } from "@/lib/topics";
 import { cx } from "@/utils/cx";
@@ -15,18 +16,6 @@ import { MoneyTags } from "./badges";
 import { ShareButton } from "./share-button";
 import { SpinMeter } from "./spin-meter";
 import { TimeAgo } from "./time-ago";
-
-const READ_KEY = "iltod-read";
-const READ_MAX = 600;
-
-function parseIds(raw: string): Set<number> {
-  try {
-    const ids = JSON.parse(raw);
-    return new Set(Array.isArray(ids) ? ids.filter((x): x is number => typeof x === "number") : []);
-  } catch {
-    return new Set();
-  }
-}
 
 /**
  * Kagi News-style story list: colored topic label, big headline, a check to mark it read.
