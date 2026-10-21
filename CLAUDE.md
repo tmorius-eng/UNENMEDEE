@@ -106,6 +106,10 @@ We are building a 100% transparent, open-source investigative news and public da
   - `governments.ts`: Prime Ministers and parties by date, only to label budget years. The page says outright that outcomes are not attributed to a person or party.
 - opendatalab.mn is a secondary copy (its terms require checking the primary source): not used.
 
+## 6e. Donations ("Дэмжих")
+- The bank account lives in `app_settings` key `donation` (JSON `{bank, account, holder}`), edited in /admin (`saveDonation`, `requireAdmin`, IBAN `MN` + 18 digits or 8–20 digits, `updateTag("settings")` so pages update at once). `getDonation()` falls back to `DEFAULT_DONATION` in `src/lib/donation.ts` (no DB / malformed value).
+- Shown responsively: header gap below xl (sm pill → md + account + copy → lg + bank), the top strip at xl+, the mobile menu link, a footer card, and `/support` (what donations pay for; amounts go to the /transparency ledger). The copy button copies the raw account (no spaces).
+
 ## 7. PWA & push notifications
 - `src/app/manifest.ts` + `public/icons/*` + `src/app/apple-icon.png`: installable app. `public/sw.js` handles push, notification clicks and an offline page; it never caches pages (`/sw.js` is served `no-store`, see `next.config.ts`).
 - `src/components/pwa/*`: 🔔 header button (subscribe/unsubscribe) and the phone install banner. iOS only allows push in an app added to the home screen, so the UI explains that first. Sheets are portaled to `<body>` (the sticky header's backdrop-filter traps `position: fixed`).

@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu02, XClose } from "@untitledui/icons";
+import Link from "next/link";
 import { Suspense, useState } from "react";
 
 import { NavLinks, NavLinksFallback } from "./nav-links";
@@ -23,6 +24,9 @@ export function MobileMenu() {
           <Suspense fallback={<NavLinksFallback className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />}>
             <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
           </Suspense>
+          <Link href="/support" onClick={() => setOpen(false)} className="mt-2 block rounded-lg border-t border-secondary px-3 pt-3 pb-1 text-sm font-semibold text-brand-secondary">
+            💙 Ил тод мэдээг дэмжих (хандив)
+          </Link>
         </div>
       )}
     </div>

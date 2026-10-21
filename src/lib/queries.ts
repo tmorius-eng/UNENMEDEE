@@ -2,7 +2,8 @@ import { and, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "dr
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
@@ -678,5 +679,16 @@ export async function getIndicator<T>(key: string): Promise<{ data: T; asOf: str
   return safe(`getIndicator(${key})`, null, async () => {
     const [row] = await getDb().select().from(indicatorSnapshots).where(eq(indicatorSnapshots.key, key)).limit(1);
     return row ? { data: row.data as T, asOf: row.asOf, updatedAt: row.updatedAt } : null;
+  });
+}
+
+/** "Дэмжих" bank account (app_settings "donation", edited in /admin). */
+export async function getDonation(): Promise<Donation> {
+  "use cache";
+  cacheLife("days");
+  cacheTag("settings");
+  return safe("getDonation", DEFAULT_DONATION, async () => {
+    const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, DONATION_KEY)).limit(1);
+    return row ? parseDonation(row.value) : DEFAULT_DONATION;
   });
 }
