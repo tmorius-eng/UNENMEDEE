@@ -10,10 +10,14 @@ export const SITE_URL = (
 export const SITE_NAME = "ИЛ ТОД МЭДЭЭ";
 export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
 export const SITE_DESCRIPTION =
-  "Өнөөдрийн мэдээ: УИХ, Засгийн газар, яамд, тендер, төсөв, авлигын хэргийн шинэ мэдээг 90 гаруй төрийн эх сурвалжаас 2 цаг тутам цуглуулж, AI-аар баримтыг пи-араас салгасан Монголын нээлттэй мэдээний сайт.";
+  "ИЛ ТОД МЭДЭЭ (iltodmedee.mn) — өнөөдрийн мэдээ: УИХ, Засгийн газар, яамд, тендер, төсөв, авлигын хэргийн шинэ мэдээг 90 гаруй төрийн эх сурвалжаас 2 цаг тутам цуглуулж, AI-аар баримтыг пи-араас салгасан Монголын нээлттэй мэдээний сайт.";
 
 /** Mongolian search phrases people actually type (Cyrillic and common Latin spellings). */
 export const SITE_KEYWORDS = [
+  "ИЛ ТОД МЭДЭЭ",
+  "iltodmedee",
+  "iltodmedee.mn",
+  "il tod medee",
   "мэдээ",
   "шинэ мэдээ",
   "өнөөдрийн мэдээ",
@@ -44,6 +48,9 @@ export const SITE_KEYWORDS = [
   "uls tur",
   "Mongolia news",
 ];
+
+/** Every way people type the brand (Google "site name" + brand queries such as "iltodmedee"). */
+export const SITE_ALTERNATE_NAMES = ["ИЛ ТОД", "iltodmedee", "iltodmedee.mn", "IL TOD MEDEE", "Il tod medee", "Ил тод мэдээ"];
 
 export function absoluteUrl(path = "/"): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
