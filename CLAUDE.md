@@ -88,6 +88,7 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 8. Admin & automation
 - Public queries (`src/lib/queries.ts`) time out after `QUERY_TIMEOUT_MS` (10 s) and render the empty state: a hung `'use cache'` function would otherwise fail `next build`.
+- Production domain: `https://iltodmedee.mn` (Porkbun DNS: apex A records + `www` CNAME to Vercel; Let's Encrypt cert auto-renews). `www` and `unenmedee.vercel.app` 308-redirect to it; `NEXT_PUBLIC_SITE_URL` is set on Vercel. Do not proxy it through Cloudflare (orange cloud): Vercel is already the CDN, and a second proxy breaks cert renewal and caching.
 - Vercel functions run in `sin1` (Singapore, `vercel.json`), next to the Supabase database in ap-southeast-1; keep them in the same region.
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
 - Login/logout live in `src/app/admin/auth-actions.ts`, apart from the heavy actions: jsdom failed to load on Vercel (ERR_REQUIRE_ESM) and took the whole actions module, login included, down with it. jsdom is only imported lazily through `extractArticleSafe` (cheerio fallback).
