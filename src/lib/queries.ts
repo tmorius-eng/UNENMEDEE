@@ -2,7 +2,7 @@ import { and, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "dr
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, articles, clusters, digests, openDatasets, sources, transparencyLedger, type OpenDataset } from "@/db/schema";
+import { aiUsageLogs, articles, assetDeclarations, clusters, digests, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
@@ -580,4 +580,90 @@ export async function getOpenDatasets(): Promise<OpenDataset[]> {
   cacheLife("hours");
   cacheTag("open-data");
   return safe("getOpenDatasets", [], () => getDb().select().from(openDatasets).orderBy(openDatasets.category, openDatasets.title));
+}
+
+/* ------------------------------------------------------------------ officials */
+
+export interface PoliticianSummary {
+  id: number;
+  fullName: string;
+  shortName: string;
+  party: string | null;
+  constituency: string | null;
+  photoUrl: string | null;
+  latestYear: number | null;
+  latestIncome: number | null;
+  latestAssets: number | null;
+  previousAssets: number | null;
+}
+
+/** Active members with their latest declared income and assets (from ХАСХОМ). */
+export async function getPoliticians(): Promise<PoliticianSummary[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("officials");
+  return safe("getPoliticians", [], async () => {
+    const db = getDb();
+    const people = await db.select().from(politicians).where(eq(politicians.isActive, true)).orderBy(politicians.fullName);
+    if (people.length === 0) return [];
+    const decl = await db
+      .select({ politicianId: assetDeclarations.politicianId, year: assetDeclarations.year, incomeOwn: assetDeclarations.incomeOwn, totalAssets: assetDeclarations.totalAssets })
+      .from(assetDeclarations)
+      .where(inArray(assetDeclarations.politicianId, people.map((p) => p.id)))
+      .orderBy(desc(assetDeclarations.year));
+    return people.map((p) => {
+      const mine = decl.filter((d) => d.politicianId === p.id);
+      return {
+        id: p.id,
+        fullName: p.fullName,
+        shortName: p.shortName,
+        party: p.party,
+        constituency: p.constituency,
+        photoUrl: p.photoUrl,
+        latestYear: mine[0]?.year ?? null,
+        latestIncome: mine[0]?.incomeOwn ?? null,
+        latestAssets: mine[0]?.totalAssets ?? null,
+        previousAssets: mine[1]?.totalAssets ?? null,
+      };
+    });
+  });
+}
+
+export async function getPoliticianIds(): Promise<number[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("officials");
+  return safe("getPoliticianIds", [], async () => {
+    const rows = await getDb().select({ id: politicians.id }).from(politicians).where(eq(politicians.isActive, true));
+    return rows.map((r) => r.id);
+  });
+}
+
+export interface PoliticianDetail {
+  politician: Politician;
+  declarations: AssetDeclaration[];
+  mentions: { slug: string; title: string; publishedAt: Date | null; sourceName: string }[];
+}
+
+export async function getPolitician(id: number): Promise<PoliticianDetail | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("officials", `politician-${id}`);
+  return safe("getPolitician", null, async () => {
+    const db = getDb();
+    const [politician] = await db.select().from(politicians).where(eq(politicians.id, id)).limit(1);
+    if (!politician) return null;
+    const [declarations, mentions] = await Promise.all([
+      db.select().from(assetDeclarations).where(eq(assetDeclarations.politicianId, id)).orderBy(assetDeclarations.year),
+      // News that names the person the way Mongolian text does ("Ж.Алдаржавхлан").
+      db
+        .select({ slug: articles.slug, title: articles.title, publishedAt: articles.publishedAt, sourceName: sources.name })
+        .from(articles)
+        .innerJoin(sources, eq(articles.sourceId, sources.id))
+        .where(and(visible, sql`jsonb_exists(coalesce(${articles.extractedEntities}->'people', '[]'::jsonb), ${politician.shortName})`))
+        .orderBy(desc(articles.publishedAt))
+        .limit(20),
+    ]);
+    return { politician, declarations, mentions };
+  });
 }
