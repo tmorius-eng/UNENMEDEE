@@ -71,9 +71,9 @@ async function runApiSource(source: SourceRef, sink: ArticleSink, fetchItems: (l
     result.skippedDuplicates = items.length - fresh.size;
     for (const listed of items.filter((i) => fresh.has(i.url)).slice(0, perSourceLimit)) {
       result.found += 1;
-      const text = listed.loadText ? await listed.loadText() : listed.text;
-      if (!text) continue;
-      const item = { ...listed, text, loadText: undefined };
+      const loaded = listed.loadText ? await listed.loadText() : listed.text;
+      if (!loaded) continue;
+      const item = { ...listed, ...(typeof loaded === "string" ? { text: loaded } : loaded), loadText: undefined };
       if ((await sink.save(source, item)) === "inserted") result.inserted += 1;
       else result.skippedDuplicates += 1;
     }

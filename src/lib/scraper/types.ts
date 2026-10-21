@@ -10,8 +10,9 @@ export interface ScrapedItem {
   /**
    * API adapters whose list has no body (legalinfo.mn) fetch the text lazily: the runner calls
    * this only for URLs not stored yet, so known items cost no request. Null = skip the item.
+   * A detail page with a more exact date returns it too (police.gov.mn lists only the day).
    */
-  loadText?: () => Promise<string | null>;
+  loadText?: () => Promise<string | { text: string; publishedAt: Date | null } | null>;
 }
 
 export interface SourceRef {
