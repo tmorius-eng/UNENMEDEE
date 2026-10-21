@@ -13,7 +13,7 @@ export const NAV_ITEMS = [
   { href: "/tax", label: "Миний татвар" },
   { href: "/data", label: "Өгөгдөл" },
   { href: "/risk", label: "Эрсдэл" },
-  { href: "/clusters", label: "Сэдвүүд" },
+  { href: "/laws", label: "Хууль" },
   { href: "/sources", label: "Эх сурвалж" },
   { href: "/transparency", label: "Ил тод тайлан" },
 ];
