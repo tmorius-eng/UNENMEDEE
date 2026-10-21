@@ -86,3 +86,21 @@ html {
         overscroll-behavior-y: none;
     }
 }
+
+/* Kagi-style story list. The "Tт" toggle scales every rem-based size at once. */
+.story-headline {
+    font-size: 1.3125rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+}
+@media (min-width: 768px) {
+    .story-headline {
+        font-size: 1.5rem;
+    }
+}
+html[data-text-size="lg"] {
+    font-size: 112.5%;
+}
+html[data-text-size="xl"] {
+    font-size: 125%;
+}

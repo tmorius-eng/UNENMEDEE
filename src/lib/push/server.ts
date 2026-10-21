@@ -42,6 +42,23 @@ export async function ensureVapidKeys(db: DB): Promise<{ publicKey: string; priv
   return ensureVapidKeys(db);
 }
 
+/** Sends one payload to one stored subscription (the "test" button). */
+export async function sendToEndpoint(db: DB, endpoint: string, payload: PushPayload): Promise<{ ok: boolean; status?: number }> {
+  const [s] = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint)).limit(1);
+  if (!s) return { ok: false, status: 404 };
+  const { publicKey, privateKey } = await ensureVapidKeys(db);
+  webpush.setVapidDetails(SUBJECT, publicKey, privateKey);
+  try {
+    await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload), { TTL: 600, urgency: "high" });
+    await db.update(pushSubscriptions).set({ lastSuccessAt: new Date(), failures: 0 }).where(eq(pushSubscriptions.id, s.id));
+    return { ok: true };
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode;
+    if (status === 404 || status === 410) await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, s.id));
+    return { ok: false, status };
+  }
+}
+
 export interface SendResult {
   sent: number;
   removed: number;
@@ -81,6 +98,9 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
             }
             ok = false;
             result.failed++;
+            // Host only: the endpoint path identifies a device.
+            const body = (err as { body?: string }).body ?? (err as Error).message;
+            console.warn(`  ✗ push to ${new URL(s.endpoint).host} failed: ${status ?? "?"} ${String(body).slice(0, 200)}`);
           }
         }
         await db

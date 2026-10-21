@@ -59,10 +59,25 @@ export function articlePayload(a: NotifiableArticle): PushPayload {
   };
 }
 
-/** The extra stories of one run collapse into a single "and N more" notification. */
-export function moreNewsPayload(count: number): PushPayload {
-  return { title: `ИЛ ТОД: ${count} чухал мэдээ нэмэгдлээ`, body: "Сүүлийн мэдээг нээж харна уу.", url: "/", tag: "more-news" };
+/**
+ * One notification per run: the most important story, with the rest counted in the body.
+ * Several pushes in a burst were partly rejected by Apple and are noisy on any phone.
+ */
+export function newsPayload(stories: NotifiableArticle[]): PushPayload | null {
+  const [top, ...rest] = stories;
+  if (!top) return null;
+  const p = articlePayload(top);
+  if (rest.length === 0) return p;
+  const firstLine = (top.tldr ?? "").split("\n")[0] ?? "";
+  return { ...p, body: clip(`${firstLine ? `${firstLine} ` : ""}+${rest.length} чухал мэдээ`, 160), tag: "news" };
 }
+
+export const TEST_PAYLOAD: PushPayload = {
+  title: "🔔 ИЛ ТОД мэдэгдэл ажиллаж байна",
+  body: "Чухал шинэ мэдээ гарахад ингэж мэдэгдэнэ.",
+  url: "/",
+  tag: "test",
+};
 
 export function digestPayload(d: { title: string; intro: string; kind: string }): PushPayload {
   return {

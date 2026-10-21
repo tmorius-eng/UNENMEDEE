@@ -9,10 +9,10 @@ export const NAV_ITEMS = [
   { href: "/", label: "Нүүр" },
   { href: "/digest", label: "Онцлох тойм" },
   { href: "/data", label: "Өгөгдөл" },
-  { href: "/risk", label: "Эрсдэлтэй Тендер & Төсөв" },
-  { href: "/clusters", label: "Кластер Сэдвүүд" },
-  { href: "/sources", label: "Эх сурвалжууд" },
-  { href: "/transparency", label: "Ил Тод Байдлын Тайлан" },
+  { href: "/risk", label: "Эрсдэл" },
+  { href: "/clusters", label: "Сэдвүүд" },
+  { href: "/sources", label: "Эх сурвалж" },
+  { href: "/transparency", label: "Ил тод тайлан" },
 ];
 
 /**

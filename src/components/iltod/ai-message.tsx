@@ -10,11 +10,14 @@ export function AIMessage({
   title,
   children,
   markdown,
+  compact = false,
 }: {
   tier: "tier1" | "tier2";
   title: string;
   children?: React.ReactNode;
   markdown?: string;
+  /** Full width, no avatar column (inline summaries in the story list on phones). */
+  compact?: boolean;
 }) {
   return (
     <Message from="assistant" className="py-2">
@@ -22,7 +25,7 @@ export function AIMessage({
         <p className="text-xs font-semibold tracking-wide text-tertiary uppercase">{title}</p>
         {markdown ? <Response className="prose prose-sm max-w-none text-secondary dark:prose-invert">{markdown}</Response> : children}
       </MessageContent>
-      <MessageAvatar src={tier === "tier2" ? "/avatars/ai-tier2.svg" : "/avatars/ai-tier1.svg"} name={tier === "tier2" ? "Gk" : "DS"} />
+      {!compact && <MessageAvatar src={tier === "tier2" ? "/avatars/ai-tier2.svg" : "/avatars/ai-tier1.svg"} name="AI" />}
     </Message>
   );
 }

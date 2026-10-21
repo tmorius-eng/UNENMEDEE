@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, articles, clusters, digests, openDatasets, sources, transparencyLedger, type OpenDataset } from "@/db/schema";
 import { SOURCE_SEEDS } from "@/lib/sources";
+import { findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
 
 /**
@@ -13,7 +14,7 @@ import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCateg
  *    so `next build` and contributors never need secrets (CLAUDE.md rule #6).
  */
 
-export const FEED_FILTERS = ["all", "risk", "budget", "ministry", "local"] as const;
+export const FEED_FILTERS = ["all", "risk", "budget", "ministry", "local", ...TOPICS.map((t) => t.key)] as const;
 export type FeedFilter = (typeof FEED_FILTERS)[number];
 
 export function parseFilter(value: string | string[] | undefined): FeedFilter {
@@ -36,6 +37,9 @@ export interface ArticleListItem {
   amounts: string[];
   hasDeepAnalysis: boolean;
   clusterId: number | null;
+  originalUrl: string;
+  /** Articles in the same cross-source story (1 = only this one). */
+  clusterSize: number;
 }
 
 /**
@@ -76,6 +80,8 @@ const listColumns = {
   entities: articles.extractedEntities,
   deep: articles.grokDeepAnalysis,
   clusterId: articles.clusterId,
+  originalUrl: articles.originalUrl,
+  clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
 };
 
 type ListRow = {
@@ -93,6 +99,8 @@ type ListRow = {
   entities: ExtractedEntities | null;
   deep: string | null;
   clusterId: number | null;
+  originalUrl: string;
+  clusterSize: number | null;
 };
 
 function toListItem(r: ListRow): ArticleListItem {
@@ -111,6 +119,8 @@ function toListItem(r: ListRow): ArticleListItem {
     amounts: r.entities?.amounts_mnt ?? [],
     hasDeepAnalysis: Boolean(r.deep),
     clusterId: r.clusterId,
+    originalUrl: r.originalUrl,
+    clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
   };
 }
 
@@ -131,8 +141,10 @@ function filterCondition(filter: FeedFilter): SQL | undefined {
       return eq(sources.category, "ministry");
     case "local":
       return eq(sources.category, "local");
-    default:
-      return undefined;
+    default: {
+      const topic = findTopic(filter);
+      return topic?.domains.length ? inArray(sources.domain, topic.domains) : undefined;
+    }
   }
 }
 

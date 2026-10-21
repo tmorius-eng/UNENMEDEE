@@ -94,12 +94,11 @@ export function NotifyButton() {
   if (!pwa.pushSupported && !pwa.needsInstallForPush) return null;
 
   const onClick = async () => {
-    if (pwa.needsInstallForPush) return setSheet(true);
-    if (pwa.subscribed) return pwa.disablePush();
-    await pwa.enablePush();
+    // Subscribed: open the sheet (test / turn off) instead of silently unsubscribing.
+    if (!pwa.needsInstallForPush && !pwa.subscribed) await pwa.enablePush();
     setSheet(true);
   };
-  const label = pwa.subscribed ? "Мэдэгдэл унтраах" : "Шинэ мэдээний мэдэгдэл авах";
+  const label = pwa.subscribed ? "Мэдэгдлийн тохиргоо" : "Шинэ мэдээний мэдэгдэл авах";
 
   return (
     <>
@@ -120,19 +119,41 @@ export function NotifyButton() {
       <Sheet
         open={sheet}
         onClose={() => setSheet(false)}
-        title={pwa.needsInstallForPush ? "iPhone дээр мэдэгдэл авах" : pwa.error ? "Мэдэгдэл асаагүй" : "Мэдэгдэл асаалаа 🎉"}
+        title={pwa.needsInstallForPush ? "iPhone дээр мэдэгдэл авах" : pwa.error && !pwa.subscribed ? "Мэдэгдэл асаагүй" : pwa.subscribed ? "Мэдэгдэл асаалттай 🔔" : "Мэдэгдэл"}
       >
         {pwa.needsInstallForPush ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-tertiary">Apple зөвхөн нүүр дэлгэцэнд нэмсэн аппад мэдэгдэл зөвшөөрдөг. Нэг удаа нэмэхэд л болно:</p>
             <IosSteps />
           </div>
-        ) : pwa.error ? (
-          <p className="text-sm text-tertiary">{pwa.error}</p>
+        ) : !pwa.subscribed ? (
+          <p className="text-sm text-tertiary">{pwa.error ?? "Мэдэгдэл асаагүй байна."}</p>
         ) : (
-          <p className="text-sm text-tertiary">
-            Улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй тендер гарах болон өглөө 08:00, орой 20:00 цагийн онцлох тойм бэлэн болоход танд мэдэгдэнэ. 🔔 товчоор хүссэн үедээ унтраана.
-          </p>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-tertiary">
+              Улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ гарахад (2 цаг тутмын шалгалтаар нэг мэдэгдэл) болон өглөө 08:00, орой 20:00 цагийн онцлох тойм бэлэн болоход танд мэдэгдэнэ.
+            </p>
+            <button
+              type="button"
+              onClick={pwa.sendTest}
+              disabled={pwa.testState === "sending"}
+              className="rounded-xl bg-brand-solid py-3 text-md font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover disabled:opacity-60"
+            >
+              {pwa.testState === "sending" ? "Илгээж байна…" : "Туршилтын мэдэгдэл илгээх"}
+            </button>
+            {pwa.testState === "sent" && <p className="text-sm text-success-primary">Илгээлээ. Хэдэн секундэд утсанд тань ирнэ. Ирэхгүй бол Тохиргоо → Мэдэгдэл → ИЛ ТОД асаалттай эсэхийг шалгаарай.</p>}
+            {pwa.testState !== "idle" && pwa.testState !== "sending" && pwa.testState !== "sent" && <p className="text-sm text-error-primary">{pwa.testState}</p>}
+            <button
+              type="button"
+              onClick={async () => {
+                await pwa.disablePush();
+                setSheet(false);
+              }}
+              className="rounded-xl py-3 text-md font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
+            >
+              Мэдэгдэл унтраах
+            </button>
+          </div>
         )}
       </Sheet>
     </>
@@ -171,7 +192,7 @@ export function InstallBanner() {
       <AnimatePresence>
         {visible && eligible && (
           <motion.div
-            className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 md:hidden"
+            className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 md:hidden"
             initial={{ y: 120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 120, opacity: 0 }}
