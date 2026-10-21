@@ -14,7 +14,7 @@ import { findTopic } from "@/lib/topics";
 /** Topic pages (`/?f=politics`) get their own title, description and canonical URL. */
 export async function generateMetadata({ searchParams }: PageProps<"/">): Promise<Metadata> {
   const topic = findTopic(parseFilter((await searchParams).f));
-  if (!topic) return { alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: "ИЛ ТОД — шинэ мэдээ" }] } } };
+  if (!topic) return { alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: "ИЛ ТОД МЭДЭЭ — шинэ мэдээ" }] } } };
   const title = `${topic.label} — шинэ мэдээ`;
   const description = `${topic.label} сэдвийн өнөөдрийн шинэ мэдээ: төрийн байгууллагуудын албан мэдээг AI-аар шүүж, баримтыг пи-араас салгасан товч хураангуй.`;
   return { title, description, alternates: { canonical: `/?f=${topic.key}` }, openGraph: { title, description, url: `/?f=${topic.key}` } };

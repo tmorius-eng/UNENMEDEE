@@ -6,6 +6,7 @@ import { getSiteStats } from "@/lib/queries";
 
 import { NotifyButton } from "@/components/pwa/pwa-controls";
 
+import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
 import { TextSizeToggle } from "./text-size-toggle";
@@ -39,11 +40,8 @@ export function SiteHeader() {
         </div>
       </div>
       <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:px-8">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="ИЛ ТОД нүүр хуудас">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-linear-to-br from-brand-600 to-fuchsia-500 text-sm font-bold text-white shadow-md">ИТ</span>
-          <span className="text-lg font-bold tracking-tight text-primary">
-            ИЛ&nbsp;ТОД<span className="text-brand-secondary">.</span>
-          </span>
+        <Link href="/" className="shrink-0" aria-label="ИЛ ТОД МЭДЭЭ нүүр хуудас">
+          <Logo />
         </Link>
         <Suspense fallback={<NavLinksFallback className="ml-4 hidden items-center gap-0.5 lg:flex" />}>
           <NavLinks className="ml-4 hidden items-center gap-0.5 lg:flex" />

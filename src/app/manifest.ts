@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "ИЛ ТОД — Пи-аргүй төрийн мэдээ",
+    name: "ИЛ ТОД МЭДЭЭ",
     short_name: "ИЛ ТОД",
     description: "Монголын төрийн мэдээ, тендер, төсвийг AI-аар шүүж, баримтыг пи-араас салгадаг нээлттэй платформ.",
     lang: "mn",
@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     background_color: "#ffffff",
-    theme_color: "#155eef",
+    theme_color: "#171043",
     categories: ["news", "politics", "finance"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
