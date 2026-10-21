@@ -23,18 +23,19 @@ export const NAV_ITEMS = [
  * only known at request time (new articles served via ISR). Always render inside <Suspense>
  * with <NavLinksFallback> (same links, no highlight) so the layout shell stays prerendered.
  */
-export function NavLinks(props: { className?: string; onNavigate?: () => void }) {
+/** `skipHome`: the desktop bar leaves out "Нүүр" (the logo already links home) so every item fits at 1280 px. */
+export function NavLinks(props: { className?: string; onNavigate?: () => void; skipHome?: boolean }) {
   return <NavList {...props} pathname={usePathname()} />;
 }
 
-export function NavLinksFallback(props: { className?: string; onNavigate?: () => void }) {
+export function NavLinksFallback(props: { className?: string; onNavigate?: () => void; skipHome?: boolean }) {
   return <NavList {...props} pathname={null} />;
 }
 
-function NavList({ className, onNavigate, pathname }: { className?: string; onNavigate?: () => void; pathname: string | null }) {
+function NavList({ className, onNavigate, pathname, skipHome }: { className?: string; onNavigate?: () => void; pathname: string | null; skipHome?: boolean }) {
   return (
     <nav className={className} aria-label="Үндсэн цэс">
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.filter((item) => !skipHome || item.href !== "/").map((item) => {
         const active = pathname !== null && (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
         return (
           <Link

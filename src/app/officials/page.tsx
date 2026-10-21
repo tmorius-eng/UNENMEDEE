@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
@@ -27,7 +28,12 @@ export default async function OfficialsPage() {
           </>
         }
       >
-        <ShareButton path="/officials" title="УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг" className="w-fit" />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/officials/companies" className="rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover">
+            🏢 Төрийн өмчит компаниуд
+          </Link>
+          <ShareButton path="/officials" title="УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг" />
+        </div>
       </PageHeader>
       {people.length > 0 && <MyMps people={people} />}
       {people.length ? <OfficialsTable people={people} /> : <Empty title="Мэдүүлэг хараахан ачаалагдаагүй" description="Гишүүдийн жагсаалт болон мэдүүлгийг долоо хоног бүр автоматаар татна." />}

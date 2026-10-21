@@ -5,6 +5,7 @@
  *   shilendans        this year's largest payees and spending categories (Шилэн данс)
  *   worldbank_tax     tax revenue, % of GDP (World Bank)
  *   audit_opinions    latest adverse / disclaimer / qualified audit opinions (audit.mn)
+ *   soe_finance       state-owned companies' revenue, expenses, profit, wage fund, staff (Шилэн данс)
  *
  *   npm run budget:sync [-- --dry-run]
  * audit.mn needs NODE_EXTRA_CA_CERTS=certs/rapidssl-tls-rsa-ca-g1.pem (see src/lib/budget/audit.ts).
@@ -17,6 +18,7 @@ import { indicatorSnapshots } from "@/db/schema";
 import { fetchAuditOpinions } from "@/lib/budget/audit";
 import { budgetHistory, type BudgetNsoSnapshot, fetchTable, governmentDebt, NSO_TABLES, revenueByType, spendingBreakdown } from "@/lib/budget/nso";
 import { fetchShilendans } from "@/lib/budget/shilendans";
+import { fetchSoeSnapshot } from "@/lib/soe/shilendans";
 import { fetchTaxShare } from "@/lib/budget/worldbank";
 
 const { values } = parseArgs({ options: { "dry-run": { type: "boolean", default: false } } });
@@ -47,6 +49,13 @@ const JOBS: { key: string; run: () => Promise<{ data: unknown; asOf: string | nu
     run: async () => {
       const data = await fetchTaxShare();
       return { data, asOf: data.series.at(-1)?.label ?? null, summary: `${data.series.length} years of tax/GDP` };
+    },
+  },
+  {
+    key: "soe_finance",
+    run: async () => {
+      const data = await fetchSoeSnapshot();
+      return { data, asOf: String(data.year), summary: `${data.companies.length} organisations, ${data.year}` };
     },
   },
   {

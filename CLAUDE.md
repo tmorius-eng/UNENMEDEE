@@ -109,6 +109,7 @@ We are building a 100% transparent, open-source investigative news and public da
   - Шилэн данс back-end (`back.shilendans.gov.mn/proxy/gap-integration-service/integrationECopyCredits/getTopTen|getEZAListByDateBetween`): this year's top payees and categories.
   - World Bank `GC.TAX.TOTL.GD.ZS` (tax % of GDP). audit.mn register (`/audit?audit_opinion_type=…`, HTML): adverse / disclaimer / qualified opinions. audit.mn omits its RapidSSL intermediate: the workflow sets `NODE_EXTRA_CA_CERTS=certs/rapidssl-tls-rsa-ca-g1.pem` (DigiCert's public intermediate, valid to 2027-11; never disable TLS verification).
   - `governments.ts`: Prime Ministers and parties by date, only to label budget years. The page says outright that outcomes are not attributed to a person or party.
+- `/officials/companies` "Төрийн өмчит компаниуд": `budget:sync` job `soe_finance` POSTs Шилэн данс open data (`gap-report-service/reportFormDatas/openData1`, form 2480, month 12 of the latest year with 100+ reports; header `address: warn` or it answers 400) → revenue, expenses, profit, wage fund, staff per organisation (self-reported, unaudited; values arrive as strings, `src/lib/soe/shilendans.ts`). No official source publishes per-company CEO pay: the page says so and cites the ҮАГ aggregate instead; never publish unsourced social-media tables. "Сарын дундаж цалин" = wage fund ÷ staff ÷ 12 and is labelled as such. Don't store `orgContacts` (personal phones).
 - opendatalab.mn is a secondary copy (its terms require checking the primary source): not used.
 
 ## 6e. Donations ("Дэмжих")
