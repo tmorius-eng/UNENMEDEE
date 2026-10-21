@@ -40,8 +40,8 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0">
           <Logo />
         </Link>
-        <Suspense fallback={<NavLinksFallback className="ml-4 hidden items-center gap-0.5 lg:flex" />}>
-          <NavLinks className="ml-4 hidden items-center gap-0.5 lg:flex" />
+        <Suspense fallback={<NavLinksFallback className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />}>
+          <NavLinks className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />
         </Suspense>
         <div className="ml-auto flex items-center gap-1">
           <NotifyButton />

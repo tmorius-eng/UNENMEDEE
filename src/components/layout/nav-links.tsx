@@ -10,6 +10,7 @@ export const NAV_ITEMS = [
   { href: "/digest", label: "Онцлох тойм" },
   { href: "/officials", label: "Улстөрчид" },
   { href: "/budget", label: "Төсөв" },
+  { href: "/tax", label: "Миний татвар" },
   { href: "/data", label: "Өгөгдөл" },
   { href: "/risk", label: "Эрсдэл" },
   { href: "/clusters", label: "Сэдвүүд" },
@@ -42,7 +43,7 @@ function NavList({ className, onNavigate, pathname }: { className?: string; onNa
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition",
+              "rounded-lg px-2 py-2 text-sm font-semibold whitespace-nowrap transition",
               active ? "bg-active text-secondary" : "text-quaternary hover:bg-primary_hover hover:text-secondary",
             )}
           >
