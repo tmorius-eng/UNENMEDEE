@@ -1,0 +1,44 @@
+# Members of parliament and their ХАСХОМ asset/income declarations, weekly (Monday 03:17
+# Ulaanbaatar time). The roster follows elections automatically: members who leave are
+# marked inactive, new ones appear. ≈126 requests per host at 8 s each, hosts in parallel.
+name: Officials & declarations sync
+
+on:
+  schedule:
+    - cron: "17 19 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: officials-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Sync members and declarations
+        run: npm run officials:sync

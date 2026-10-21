@@ -19,6 +19,7 @@
     "ai:topics": "tsx scripts/classify-topics.ts",
     "digest": "tsx scripts/make-digest.ts",
     "data:sync": "tsx scripts/sync-opendata-mn.ts",
+    "officials:sync": "tsx scripts/sync-officials.ts",
     "push:send": "tsx scripts/send-push.ts",
     "sources:discover": "tsx scripts/discover-sources.ts"
   },

@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -198,6 +200,75 @@ export const transparencyLedger = pgTable("transparency_ledger", {
   notes: text("notes"),
 });
 
+/**
+ * Members of parliament (and later other officials), synced from parliament.mn's public API.
+ * Rows are never deleted: after an election, members who left get is_active = false.
+ */
+export const politicians = pgTable(
+  "politicians",
+  {
+    id: serial("id").primaryKey(),
+    parliamentMemberId: integer("parliament_member_id").notNull().unique(),
+    /** aid_user_num in IAAC's ХАСХОМ declaration system (xacxom.iaac.mn), from the member's hom_url. */
+    xacxomId: varchar("xacxom_id", { length: 32 }),
+    fullName: varchar("full_name", { length: 160 }).notNull(),
+    /** "Ж.Алдаржавхлан": how news text names the person (matches extracted_entities.people). */
+    shortName: varchar("short_name", { length: 120 }).notNull(),
+    party: varchar("party", { length: 120 }),
+    constituency: varchar("constituency", { length: 160 }),
+    votes: integer("votes"),
+    electionSystem: varchar("election_system", { length: 32 }),
+    termStart: date("term_start"),
+    termEnd: date("term_end"),
+    isActive: boolean("is_active").notNull().default(true),
+    photoUrl: text("photo_url"),
+    profileUrl: text("profile_url").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("politicians_short_name_idx").on(t.shortName)],
+);
+
+/**
+ * Yearly asset and income declarations (ХАСХОМ, published under the Anti-Corruption Law 14.3).
+ * Amounts in ₮ (the source reports thousands; converted on sync).
+ */
+export const assetDeclarations = pgTable(
+  "asset_declarations",
+  {
+    id: serial("id").primaryKey(),
+    politicianId: integer("politician_id")
+      .notNull()
+      .references(() => politicians.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    /** Position held when declaring (e.g. "Дүүргийн Засаг дарга" before becoming an MP). */
+    positionName: varchar("position_name", { length: 200 }),
+    incomeOwn: bigint("income_own", { mode: "number" }),
+    incomeFamily: bigint("income_family", { mode: "number" }),
+    buildingsValue: bigint("buildings_value", { mode: "number" }),
+    transportValue: bigint("transport_value", { mode: "number" }),
+    landValue: bigint("land_value", { mode: "number" }),
+    savings: bigint("savings", { mode: "number" }),
+    receivables: bigint("receivables", { mode: "number" }),
+    otherAssets: bigint("other_assets", { mode: "number" }),
+    loans: bigint("loans", { mode: "number" }),
+    gifts: bigint("gifts", { mode: "number" }),
+    totalAssets: bigint("total_assets", { mode: "number" }),
+    /** Short text fields as declared (vehicles, land, lenders); never raw pages. */
+    details: jsonb("details").$type<Record<string, string>>(),
+    sourceUrl: text("source_url").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("asset_declarations_politician_year_idx").on(t.politicianId, t.year)],
+);
+
+/** Small computed snapshots from official data APIs (Mongolbank, NSO budget, Шилэн данс), one row per key. */
+export const indicatorSnapshots = pgTable("indicator_snapshots", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  data: jsonb("data").notNull(),
+  asOf: varchar("as_of", { length: 32 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const sourcesRelations = relations(sources, ({ many }) => ({
   articles: many(articles),
 }));
@@ -219,5 +290,7 @@ export type Cluster = typeof clusters.$inferSelect;
 export type AIUsageLog = typeof aiUsageLogs.$inferSelect;
 export type Digest = typeof digests.$inferSelect;
 export type OpenDataset = typeof openDatasets.$inferSelect;
+export type Politician = typeof politicians.$inferSelect;
+export type AssetDeclaration = typeof assetDeclarations.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type LedgerRow = typeof transparencyLedger.$inferSelect;
