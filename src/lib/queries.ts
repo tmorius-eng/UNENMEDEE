@@ -2,7 +2,7 @@ import { and, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "dr
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, articles, assetDeclarations, clusters, digests, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { aiUsageLogs, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
@@ -665,5 +665,18 @@ export async function getPolitician(id: number): Promise<PoliticianDetail | null
         .limit(20),
     ]);
     return { politician, declarations, mentions };
+  });
+}
+
+/* ------------------------------------------------------------------ indicators */
+
+/** A stored snapshot from an official data API (see scripts/sync-*.ts), or null. */
+export async function getIndicator<T>(key: string): Promise<{ data: T; asOf: string | null; updatedAt: Date } | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("indicators", `indicator-${key}`);
+  return safe(`getIndicator(${key})`, null, async () => {
+    const [row] = await getDb().select().from(indicatorSnapshots).where(eq(indicatorSnapshots.key, key)).limit(1);
+    return row ? { data: row.data as T, asOf: row.asOf, updatedAt: row.updatedAt } : null;
   });
 }

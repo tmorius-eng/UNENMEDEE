@@ -20,6 +20,7 @@
     "digest": "tsx scripts/make-digest.ts",
     "data:sync": "tsx scripts/sync-opendata-mn.ts",
     "officials:sync": "tsx scripts/sync-officials.ts",
+    "macro:sync": "tsx scripts/sync-macro.ts",
     "push:send": "tsx scripts/send-push.ts",
     "sources:discover": "tsx scripts/discover-sources.ts"
   },

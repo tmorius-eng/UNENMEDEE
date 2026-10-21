@@ -4,11 +4,13 @@ import { Suspense } from "react";
 import { Badge } from "@/components/base/badges/badges";
 import { SeriesLineChart } from "@/components/iltod/charts";
 import { Empty } from "@/components/iltod/empty";
+import { MacroStrip } from "@/components/iltod/macro-strip";
 import { PageHeader } from "@/components/iltod/page-header";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import type { OpenDataset } from "@/db/schema";
 import { formatDateMn, formatMntShort, formatNumber } from "@/lib/format";
-import { getOpenDatasets } from "@/lib/queries";
+import type { MacroSnapshot } from "@/lib/mongolbank/client";
+import { getIndicator, getOpenDatasets } from "@/lib/queries";
 import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 import { cx } from "@/utils/cx";
 
@@ -265,6 +267,34 @@ function Catalogue({ datasets }: { datasets: OpenDataset[] }) {
   );
 }
 
+/** Bank of Mongolia: the homepage cards plus the series behind them (each with a table view). */
+async function Mongolbank() {
+  const snap = await getIndicator<MacroSnapshot>("mongolbank");
+  if (!snap) return null;
+  const { policyRate, inflation, fx, reserves } = snap.data;
+  const charts = [
+    policyRate && { title: "Бодлогын хүү (%)", data: policyRate.history, unit: "%" },
+    inflation && { title: "Инфляц, улсын дүнгээр, жилийн (%)", data: inflation.history, unit: "%" },
+    fx && { title: "1 USD, албан ханш (₮)", data: fx.usdHistory, unit: "₮" },
+    reserves && { title: "Гадаад валютын улсын нөөц (сая $)", data: reserves.history, unit: "сая $" },
+  ].filter((c): c is { title: string; data: SeriesPoint[]; unit: string } => Boolean(c));
+  return (
+    <section className="flex flex-col gap-4 pb-10">
+      <h2 className="text-lg font-semibold text-primary">Монголбанк</h2>
+      <MacroStrip />
+      <div className="grid gap-4 lg:grid-cols-2">
+        {charts.map((c) => (
+          <div key={c.title} className="flex flex-col gap-2 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+            <h3 className="text-sm font-semibold text-primary">{c.title}</h3>
+            <SeriesLineChart data={c.data} name={c.title} unit={c.unit} ariaLabel={c.title} />
+            <SeriesTable caption={c.title} series={c.data} unit={c.unit} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 async function OpenData() {
   const datasets = await getOpenDatasets();
   if (datasets.length === 0) {
@@ -289,6 +319,9 @@ export default function DataPage() {
         title="Тоо худлаа хэлдэггүй"
         description="opendata.mn нээлттэй өгөгдлийн сангийн бүх багцыг өдөрт 2 удаа API-аар татаж, хамгийн чухал үзүүлэлтүүдийг энд харуулна: ханш, инфляци, цалин, тендер, хар жагсаалт, УИХ-ын ирц. Тоо бүр эх өгөгдөл рүүгээ холбогдоно."
       />
+      <Suspense fallback={null}>
+        <Mongolbank />
+      </Suspense>
       <Suspense fallback={<FeedSkeleton />}>
         <OpenData />
       </Suspense>

@@ -68,6 +68,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - `npm run digest` (`--kind 12h|30d`, `--force`) writes the AI news digest
 - `npm run data:sync` (`--dry-run`) syncs opendata.mn datasets and highlights for `/data`
 - `npm run officials:sync` (`--dry-run`, `--limit n`) syncs MPs and their ХАСХОМ declarations
+- `npm run macro:sync` (`--dry-run`) stores Mongolbank's policy rate, inflation, FX, gold and reserves
 
 ## 6. Home page (Kagi News style)
 - `/` is a narrow reading column: date masthead, digest strip, then `StoryList` (`src/components/iltod/story-list.tsx`): colored topic label, big headline, ✓ read toggle, tap to expand the AI summary inline (opening marks it read), "Бүгдийг уншсан болгох". One entry per cluster. Read marks and the "Tт" text size live in localStorage via `useLocalStorage` (`src/lib/local-store.ts`, useSyncExternalStore; never setState in an effect).
@@ -92,6 +93,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - Rule: show official records with their source link; never let AI or copy accuse anyone. Computed markers are neutral ("анхаарах өөрчлөлт" with numbers, `src/lib/officials/flags.ts`).
 - `npm run officials:sync` (`--dry-run`, `--limit n`): parliament.mn `api/parliament_members_list/` + `api/parliament_member/detail/{id}/` (its `hom_url` links the ХАСХОМ id) → `politicians`; IAAC `xacxom.iaac.mn/api/public/xacxom/{id}` (last 5 years, thousand ₮ → ₮) → `asset_declarations`. Name search (`/api/public/xacxom/search`) only when `hom_url` is missing and the name is unique. Weekly workflow `officials-sync.yml`. Members missing from a full roster read become `is_active=false` (kept), so elections need no code change.
 - Pages: `/officials` (party filter, sort) and `/officials/[id]` (yearly table, chart, flags, news mentions via `extracted_entities.people` = `short_name` like "Ж.Алдаржавхлан").
+- `npm run macro:sync` (`--dry-run`): Mongolbank homepage indicators from the JSON endpoints its site calls (`POST https://www.mongolbank.mn/mn/{policy-interest-rate,inflation,currency-rates,gold-and-silver-price,international-reserves}/data?startDate&endDate`, body `{}`, comma numbers) → `indicator_snapshots` key `mongolbank`. Runs in `news-digest.yml`. `MacroStrip` (server-only markup) shows it on `/` (compact, under the masthead) and `/data` (with series charts). Its "Дэлгэрэнгүй" link has `prefetch={false}`: prefetching /data pulled the chart library (111 KB) into every home visit.
 - opendatalab.mn is a secondary copy (its terms require checking the primary source): not used.
 
 ## 7. PWA & push notifications
