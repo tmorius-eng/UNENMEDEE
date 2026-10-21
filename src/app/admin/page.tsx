@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { logout } from "@/app/admin/auth-actions";
+import { DonationForm } from "@/components/admin/donation-form";
 import { LedgerForm } from "@/components/admin/ledger-form";
 import { PublishToggle, ReanalyzeButtons } from "@/components/admin/row-actions";
 import { RiskBadge, SourceBadge } from "@/components/iltod/badges";
@@ -12,6 +13,7 @@ import { articles, sources, transparencyLedger } from "@/db/schema";
 import { monthKey } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatDateMn } from "@/lib/format";
+import { getDonation } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Редакцийн самбар", robots: { index: false } };
 // AI re-analysis runs inside server actions on this page.
@@ -80,6 +82,12 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin">["
             notes: ledger?.notes ?? "",
           }}
         />
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+        <h2 className="text-md font-semibold text-primary">Дэмжих: хандивын данс</h2>
+        <p className="text-xs text-tertiary">Толгой хэсэг, хөл хэсэг болон /support хуудсанд харагдана. Хадгалсны дараа шууд шинэчлэгдэнэ.</p>
+        <DonationForm current={await getDonation()} />
       </section>
 
       <section className="flex flex-col gap-3">

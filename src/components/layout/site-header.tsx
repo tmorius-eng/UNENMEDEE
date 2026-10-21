@@ -5,6 +5,7 @@ import { getSiteStats } from "@/lib/queries";
 
 import { NotifyButton } from "@/components/pwa/pwa-controls";
 
+import { DonateChip } from "./donate";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
@@ -33,7 +34,9 @@ export function SiteHeader() {
           <Suspense fallback={<span>Систем ачаалж байна…</span>}>
             <LiveStatus />
           </Suspense>
-          <span className="hidden sm:inline">Нээлттэй эх · Бүх зардал олон нийтэд ил</span>
+          <Suspense fallback={<span className="hidden xl:inline">Нээлттэй эх · Бүх зардал олон нийтэд ил</span>}>
+            <DonateChip className="hidden xl:flex" />
+          </Suspense>
         </div>
       </div>
       <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:px-8">
@@ -42,6 +45,10 @@ export function SiteHeader() {
         </Link>
         <Suspense fallback={<NavLinksFallback className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />}>
           <NavLinks className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />
+        </Suspense>
+        {/* The nav is hidden below xl: the empty middle of the bar shows the donation chip. */}
+        <Suspense fallback={null}>
+          <DonateChip className="mx-auto hidden rounded-full bg-secondary px-3 py-1.5 sm:flex xl:hidden" />
         </Suspense>
         <div className="ml-auto flex items-center gap-1">
           <NotifyButton />

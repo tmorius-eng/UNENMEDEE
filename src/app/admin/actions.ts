@@ -5,12 +5,13 @@ import { updateTag } from "next/cache";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { articles, sources, transparencyLedger } from "@/db/schema";
+import { appSettings, articles, sources, transparencyLedger } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
 import type { ArticleForAI } from "@/lib/ai/prompts";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
+import { ACCOUNT_PATTERN, DONATION_KEY, normalizeAccount } from "@/lib/donation";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { fetchPublicUrl } from "@/lib/scraper/public-url";
 import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
@@ -118,6 +119,28 @@ export async function saveLedger(_prev: ActionResult | null, formData: FormData)
   await syncLedgerAiCost(db, v.month);
   updateTag("ledger");
   return { ok: true, message: `${v.month} сарын бүртгэлийг хадгаллаа.` };
+}
+
+/* ------------------------------------------------------------------ donation account */
+
+const DonationInput = z.object({
+  bank: z.string().trim().min(2).max(60),
+  account: z.string().transform(normalizeAccount).pipe(z.string().regex(ACCOUNT_PATTERN)),
+  holder: z.string().trim().max(80).optional().default(""),
+});
+
+/** The "Дэмжих" bank account shown on every page. */
+export async function saveDonation(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = DonationInput.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: "Банкны нэр, дансны дугаар (MN + 18 орон эсвэл 8-20 орон) шалгана уу." };
+  const value = JSON.stringify(parsed.data);
+  await getDb()
+    .insert(appSettings)
+    .values({ key: DONATION_KEY, value })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  updateTag("settings");
+  return { ok: true, message: `Хадгаллаа: ${parsed.data.bank} ${parsed.data.account}` };
 }
 
 /* ------------------------------------------------------------------ anti-brainwash filter */
