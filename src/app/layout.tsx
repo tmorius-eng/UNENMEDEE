@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Providers } from "@/components/providers";
 import { InstallBanner } from "@/components/pwa/pwa-controls";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
-import { jsonLd, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
+import { jsonLd, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 import "./globals.css";
 
@@ -45,12 +45,13 @@ const SITE_JSON_LD = {
       "@type": "NewsMediaOrganization",
       "@id": `${SITE_URL}/#org`,
       name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAMES,
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/icons/icon-512.png`, width: 512, height: 512 },
       sameAs: [process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE"],
       publishingPrinciples: `${SITE_URL}/transparency`,
     },
-    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: ["ИЛ ТОД", "IL TOD", "iltodmedee"], description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: SITE_ALTERNATE_NAMES, description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },
   ],
 };
 
