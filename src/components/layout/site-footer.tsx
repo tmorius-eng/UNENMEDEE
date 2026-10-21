@@ -13,7 +13,7 @@ export function SiteFooter() {
           <p className="text-sm text-tertiary">
             Төрийн албан ёсны мэдээг баримт, пи-ар гэж ялгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг нээлттэй эхийн платформ.
           </p>
-          <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-success-primary">🟢 0₮ дэд бүтэц</span>
+          <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-utility-green-700">🟢 0₮ дэд бүтэц</span>
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <p className="font-semibold text-primary">Шалгах боломжтой</p>

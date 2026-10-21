@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell01, BellRinging01, Download01, PlusSquare, Share01, XClose } from "@untitledui/icons";
-import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
@@ -49,7 +48,11 @@ const noopSubscribe = () => () => {};
  * uses backdrop-filter, which would otherwise trap `position: fixed` inside the header.
  */
 function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
-  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -58,31 +61,26 @@ function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () 
   }, [open, onClose]);
   if (!mounted) return null;
   return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay/50 sm:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            className="w-full max-w-md rounded-t-3xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-secondary sm:rounded-3xl sm:pb-6"
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <h2 className="text-lg font-semibold text-primary">{title}</h2>
-              <button type="button" onClick={onClose} aria-label="Хаах" className="-m-2 rounded-lg p-2 text-fg-quaternary hover:bg-primary_hover">
-                <XClose className="size-5" />
-              </button>
-            </div>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
+    open && (
+      // CSS enter animations (tailwindcss-animate): no animation library in the shared header bundle.
+      <div className="fixed inset-0 z-50 flex animate-in items-end justify-center bg-overlay/50 duration-200 fade-in sm:items-center" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          className="w-full max-w-md animate-in rounded-t-3xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-secondary duration-300 fade-in slide-in-from-bottom-10 sm:rounded-3xl sm:pb-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <h2 className="text-lg font-semibold text-primary">{title}</h2>
+            <button type="button" onClick={onClose} aria-label="Хаах" className="-m-2 rounded-lg p-2 text-fg-quaternary hover:bg-primary_hover">
+              <XClose className="size-5" />
+            </button>
+          </div>
+          {children}
+        </div>
+      </div>
+    ),
     document.body,
   );
 }
@@ -141,7 +139,9 @@ export function NotifyButton() {
             >
               {pwa.testState === "sending" ? "Илгээж байна…" : "Туршилтын мэдэгдэл илгээх"}
             </button>
-            {pwa.testState === "sent" && <p className="text-sm text-success-primary">Илгээлээ. Хэдэн секундэд утсанд тань ирнэ. Ирэхгүй бол Тохиргоо → Мэдэгдэл → ИЛ ТОД асаалттай эсэхийг шалгаарай.</p>}
+            {pwa.testState === "sent" && (
+              <p className="text-sm text-success-primary">Илгээлээ. Хэдэн секундэд утсанд тань ирнэ. Ирэхгүй бол Тохиргоо → Мэдэгдэл → ИЛ ТОД асаалттай эсэхийг шалгаарай.</p>
+            )}
             {pwa.testState !== "idle" && pwa.testState !== "sending" && pwa.testState !== "sent" && <p className="text-sm text-error-primary">{pwa.testState}</p>}
             <button
               type="button"
@@ -189,32 +189,28 @@ export function InstallBanner() {
 
   return (
     <>
-      <AnimatePresence>
-        {visible && eligible && (
-          <motion.div
-            className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 md:hidden"
-            initial={{ y: 120, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 120, opacity: 0 }}
-            transition={{ type: "spring", damping: 26, stiffness: 300 }}
-          >
-            <div className="flex items-center gap-3 rounded-2xl bg-primary p-3 shadow-xl ring-1 ring-secondary">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/icon-192.png" alt="" className="size-11 rounded-xl" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-primary">ИЛ ТОД апп</p>
-                <p className="truncate text-xs text-tertiary">Нүүр дэлгэцнээс нэг товшилтоор, шинэ мэдээний мэдэгдэлтэй</p>
-              </div>
-              <button type="button" onClick={onInstall} className="flex items-center gap-1 rounded-lg bg-brand-solid px-3 py-2 text-sm font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover">
-                <Download01 className="size-4" /> Суулгах
-              </button>
-              <button type="button" onClick={dismiss} aria-label="Хаах" className="rounded-lg p-1.5 text-fg-quaternary hover:bg-primary_hover">
-                <XClose className="size-4" />
-              </button>
+      {visible && eligible && (
+        <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 animate-in duration-300 fade-in slide-in-from-bottom-24 md:hidden">
+          <div className="flex items-center gap-3 rounded-2xl bg-primary p-3 shadow-xl ring-1 ring-secondary">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/icon-192.png" alt="" className="size-11 rounded-xl" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-primary">ИЛ ТОД апп</p>
+              <p className="truncate text-xs text-tertiary">Нүүр дэлгэцнээс нэг товшилтоор, шинэ мэдээний мэдэгдэлтэй</p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <button
+              type="button"
+              onClick={onInstall}
+              className="flex items-center gap-1 rounded-lg bg-brand-solid px-3 py-2 text-sm font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover"
+            >
+              <Download01 className="size-4" /> Суулгах
+            </button>
+            <button type="button" onClick={dismiss} aria-label="Хаах" className="rounded-lg p-1.5 text-fg-quaternary hover:bg-primary_hover">
+              <XClose className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <Sheet open={iosSheet} onClose={() => setIosSheet(false)} title="iPhone-д суулгах">
         <IosSteps />
       </Sheet>

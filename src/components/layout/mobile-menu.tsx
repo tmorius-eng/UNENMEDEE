@@ -1,7 +1,6 @@
 "use client";
 
 import { Menu02, XClose } from "@untitledui/icons";
-import { AnimatePresence, motion } from "motion/react";
 import { Suspense, useState } from "react";
 
 import { NavLinks, NavLinksFallback } from "./nav-links";
@@ -19,21 +18,13 @@ export function MobileMenu() {
       >
         {open ? <XClose className="size-5" /> : <Menu02 className="size-5" />}
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="absolute inset-x-0 top-full border-b border-secondary bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl"
-          >
-            <Suspense fallback={<NavLinksFallback className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />}>
-              <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
-            </Suspense>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && (
+        <div className="absolute inset-x-0 top-full animate-in border-b border-secondary bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl duration-200 fade-in slide-in-from-top-2">
+          <Suspense fallback={<NavLinksFallback className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />}>
+            <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 }

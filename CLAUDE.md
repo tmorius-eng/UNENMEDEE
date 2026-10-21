@@ -68,13 +68,18 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 6. Home page (Kagi News style)
 - `/` is a narrow reading column: date masthead, digest strip, then `StoryList` (`src/components/iltod/story-list.tsx`): colored topic label, big headline, ✓ read toggle, tap to expand the AI summary inline (opening marks it read), "Бүгдийг уншсан болгох". One entry per cluster. Read marks and the "Tт" text size live in localStorage via `useLocalStorage` (`src/lib/local-store.ts`, useSyncExternalStore; never setState in an effect).
-- Topics come from the source domain, not the model (`src/lib/topics.ts`): every seeded domain maps to one topic; aimag/district sites show their own name. `/?f=<topic>` filters the feed. `TopicBar` is pinned to the bottom on phones and inline on desktop.
-- The date heading reads the clock, so it must stay inside the request-time part (after `await searchParams` + `await connection()`): Cache Components refuses `Date.now()` in prerendered parts.
+- Topics come from the source domain, not the model (`src/lib/topics.ts`): every seeded domain maps to one topic; aimag/district sites show their own name. Each feed filter is its own prerendered page `/topic/<key>` (old `/?f=<key>` links 308-redirect in `next.config.ts`). `TopicBar` is pinned to the bottom on phones and inline on desktop.
+- `/` and `/topic/<key>` render `HomeFeed` (`src/components/iltod/home-feed.tsx`) from cached queries only, so they are fully static (CDN, metadata in `<head>`). Never read `searchParams`, `cookies()` or the clock outside `'use cache'` there: the date heading is a `'use cache'` function.
 - Headlines are real `<a href="/article/…">` links (crawlable, Cmd/Ctrl-click opens a tab); a plain tap expands in place.
+
+## 6c. Performance budget (PageSpeed mobile)
+- Keep heavy client libraries off shared and home bundles. `AIMessage` must not import streamdown (`Response`): markdown blocks use `AIMarkdownMessage` (`ai-markdown.tsx`). Header, StoryList and PWA sheets animate with CSS (`tailwindcss-animate` `animate-in …`), not `motion`. `Empty` is plain markup (Untitled's EmptyState pulled ~200 KB of illustrations; its file-icons loader ~470 KB).
+- Check with Lighthouse before merging UI work: `npx lighthouse <url> --form-factor=mobile`. Text needs 4.5:1 contrast: topic labels use `utility-*-700`, the logo's teal is `#047c78` in light mode.
+- `experimental.inlineCss` was measured and rejected: the 197 KB theme CSS was inlined three times (670 KB HTML).
 
 ## 6b. SEO
 - `src/lib/site.ts` is the one source for `SITE_URL` (`NEXT_PUBLIC_SITE_URL` → `VERCEL_PROJECT_PRODUCTION_URL`), title, description and Mongolian keywords.
-- `robots.ts` (disallows `/admin`), `sitemap.ts` (pages, topics `/?f=<topic>`, every article), `news-sitemap.xml` (Google News, last 48 h), `feed.xml` (RSS).
+- `robots.ts` (disallows `/admin`), `sitemap.ts` (pages, topics `/topic/<key>`, every article), `news-sitemap.xml` (Google News, last 48 h), `feed.xml` (RSS).
 - Every public page sets its own `alternates.canonical`. Never put a canonical or `openGraph.url` in the root layout: children inherit it and every page would point at `/`.
 - JSON-LD: `NewsMediaOrganization` + `WebSite` in the layout, `NewsArticle` + `BreadcrumbList` on articles (`jsonLd()` escapes `<`).
 - OG images: `src/lib/og.tsx` (next/og) with Inter 700 WOFF subsets in `src/assets/fonts`. Satori keeps one font per family name, so each subset has its own name.

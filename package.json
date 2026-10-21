@@ -30,7 +30,6 @@
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
-    "@untitledui/file-icons": "^0.0.9",
     "@untitledui/icons": "^0.0.23",
     "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.10.1",
