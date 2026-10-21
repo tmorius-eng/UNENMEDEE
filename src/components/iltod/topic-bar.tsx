@@ -9,8 +9,8 @@ import { cx } from "@/utils/cx";
 const ITEMS: { key: string; label: string; href: string }[] = [
   { key: "all", label: "Бүгд", href: "/" },
   { key: "digest", label: "Онцлох тойм", href: "/digest" },
-  { key: "risk", label: "🚨 Эрсдэл", href: "/?f=risk" },
-  ...TOPICS.filter((t) => t.key !== "data").map((t) => ({ key: t.key, label: t.label, href: `/?f=${t.key}` })),
+  { key: "risk", label: "🚨 Эрсдэл", href: "/topic/risk" },
+  ...TOPICS.filter((t) => t.key !== "data").map((t) => ({ key: t.key, label: t.label, href: `/topic/${t.key}` })),
   { key: "data", label: "Тоо баримт", href: "/data" },
 ];
 
@@ -41,7 +41,6 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
               <Link
                 ref={isActive ? activeRef : undefined}
                 href={it.href}
-                scroll={it.href.startsWith("/?") ? false : undefined}
                 aria-current={isActive ? "page" : undefined}
                 className={cx(
                   "relative block px-3 py-3.5 text-md whitespace-nowrap transition-colors",

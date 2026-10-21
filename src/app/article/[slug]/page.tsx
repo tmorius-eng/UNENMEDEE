@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { AIMarkdownMessage } from "@/components/iltod/ai-markdown";
 import { AIMessage } from "@/components/iltod/ai-message";
 import { ArticleGrid } from "@/components/iltod/article-grid";
 import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod/badges";
@@ -86,7 +87,7 @@ function articleJsonLd(article: ArticleDetail) {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Мэдээ", item: absoluteUrl("/") },
-          { "@type": "ListItem", position: 2, name: topic.label, item: absoluteUrl(topic.key === "other" ? "/" : `/?f=${topic.key}`) },
+          { "@type": "ListItem", position: 2, name: topic.label, item: absoluteUrl(topic.key === "other" ? "/" : `/topic/${topic.key}`) },
           { "@type": "ListItem", position: 3, name: article.title, item: url },
         ],
       },
@@ -153,7 +154,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
 
       {article.deepAnalysis && (
         <section className="rounded-3xl bg-linear-to-br from-purple-500/10 via-transparent to-fuchsia-500/10 p-1">
-          <AIMessage tier="tier2" title="⚡ Grok Эрэн Сурвалжлах Дүгнэлт" markdown={article.deepAnalysis} />
+          <AIMarkdownMessage tier="tier2" title="⚡ Grok Эрэн Сурвалжлах Дүгнэлт" markdown={article.deepAnalysis} />
         </section>
       )}
 

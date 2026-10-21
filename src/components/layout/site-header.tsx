@@ -40,7 +40,7 @@ export function SiteHeader() {
         </div>
       </div>
       <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:px-8">
-        <Link href="/" className="shrink-0" aria-label="ИЛ ТОД МЭДЭЭ нүүр хуудас">
+        <Link href="/" className="shrink-0">
           <Logo />
         </Link>
         <Suspense fallback={<NavLinksFallback className="ml-4 hidden items-center gap-0.5 lg:flex" />}>

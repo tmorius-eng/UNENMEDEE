@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { AIMessage } from "@/components/iltod/ai-message";
+import { AIMarkdownMessage } from "@/components/iltod/ai-markdown";
 import { ArticleGrid } from "@/components/iltod/article-grid";
 import { RiskBadge } from "@/components/iltod/badges";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
@@ -39,7 +39,7 @@ async function ClusterView({ params }: { params: PageProps<"/clusters/[id]">["pa
         <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{cluster.title}</h1>
       </header>
       {cluster.synthesisSummary && (
-        <AIMessage tier={cluster.maxRiskScore >= 65 ? "tier2" : "tier1"} title="Эх сурвалжуудыг нэгтгэсэн дүгнэлт" markdown={cluster.synthesisSummary} />
+        <AIMarkdownMessage tier={cluster.maxRiskScore >= 65 ? "tier2" : "tier1"} title="Эх сурвалжуудыг нэгтгэсэн дүгнэлт" markdown={cluster.synthesisSummary} />
       )}
       <ArticleGrid articles={articles} />
     </div>

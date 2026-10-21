@@ -1,9 +1,17 @@
 import type { NextConfig } from "next";
 
+import { TOPICS } from "./src/lib/topics";
+
+// Feed filters that moved from "/?f=<key>" to static "/topic/<key>" pages.
+const TOPIC_KEYS = ["risk", "budget", "ministry", ...TOPICS.map((t) => t.key)];
+
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  async redirects() {
+    return [{ source: "/", has: [{ type: "query", key: "f", value: `(?<f>${TOPIC_KEYS.join("|")})` }], destination: "/topic/:f", permanent: true }];
+  },
   async headers() {
     return [
       {
