@@ -1,4 +1,3 @@
-import { GitBranch01 } from "@untitledui/icons";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -11,8 +10,6 @@ import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
 import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
-
-const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE";
 
 async function LiveStatus() {
   const stats = await getSiteStats();
@@ -47,14 +44,6 @@ export function SiteHeader() {
           <NavLinks className="ml-4 hidden items-center gap-0.5 lg:flex" />
         </Suspense>
         <div className="ml-auto flex items-center gap-1">
-          <a
-            href={REPO}
-            target="_blank"
-            rel="noreferrer"
-            className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-quaternary transition hover:bg-primary_hover hover:text-secondary sm:flex"
-          >
-            <GitBranch01 className="size-4" /> GitHub
-          </a>
           <NotifyButton />
           <TextSizeToggle />
           <ThemeToggle />

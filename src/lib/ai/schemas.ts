@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isAiTopic } from "@/lib/topics";
 import { RISK_FLAG_THRESHOLD } from "@/lib/types";
 
 /** LLMs sometimes return numbers as strings or out of range: coerce and clamp. */
@@ -37,10 +38,15 @@ export const Tier1Schema = z
     risk_score: score,
     risk_reason: z.coerce.string().catch(""),
     importance_score: optionalScore.optional(),
+    /** Unknown or missing topics become null (the source domain decides). */
+    topic: z
+      .unknown()
+      .transform((v) => (typeof v === "string" && isAiTopic(v.trim().toLowerCase()) ? v.trim().toLowerCase() : null))
+      .optional(),
     risk_flag: z.unknown().optional(),
   })
   // risk_flag is derived deterministically, never trusted from the model.
-  .transform((v) => ({ ...v, importance_score: v.importance_score ?? null, risk_flag: v.risk_score >= RISK_FLAG_THRESHOLD }))
+  .transform((v) => ({ ...v, importance_score: v.importance_score ?? null, topic: v.topic ?? null, risk_flag: v.risk_score >= RISK_FLAG_THRESHOLD }))
   .refine((v) => v.tldr_summary.length >= 20, { message: "tldr_summary is empty" });
 
 export type Tier1Result = z.output<typeof Tier1Schema>;

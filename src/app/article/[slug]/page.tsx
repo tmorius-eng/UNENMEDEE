@@ -11,6 +11,7 @@ import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { HashBadge } from "@/components/iltod/hash-badge";
 import { TimeAgo } from "@/components/iltod/time-ago";
+import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { type ArticleDetail, getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
 import { absoluteUrl, jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -32,7 +33,7 @@ function summaryOf(article: ArticleDetail): string {
 export async function generateMetadata({ params }: PageProps<"/article/[slug]">): Promise<Metadata> {
   const article = await getArticleBySlug((await params).slug);
   if (!article) return { title: "Мэдээ олдсонгүй", robots: { index: false } };
-  const topic = topicFor(article.sourceDomain, article.sourceCategory);
+  const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
   const description = summaryOf(article);
   const url = `/article/${article.slug}`;
   return {
@@ -59,7 +60,7 @@ export async function generateMetadata({ params }: PageProps<"/article/[slug]">)
 /** Google "Top stories" / News: NewsArticle + breadcrumbs. */
 function articleJsonLd(article: ArticleDetail) {
   const url = absoluteUrl(`/article/${article.slug}`);
-  const topic = topicFor(article.sourceDomain, article.sourceCategory);
+  const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
   const published = (article.publishedAt ?? article.createdAt).toISOString();
   return {
     "@context": "https://schema.org",
@@ -139,7 +140,16 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         <MoneyTags amounts={article.amounts} max={6} />
       </header>
 
-      <AIMessage tier="tier1" title="TL;DR · DeepSeek хураангуй">
+      <AIMessage
+        tier="tier1"
+        title={
+          article.tier1Model
+            ? `AI хураангуй · ${aiModelLabel(article.tier1Model)}`
+            : article.sourceDomain === "opendata.gov.mn"
+              ? "Хураангуй · дүрмээр гаргасан (AI ашиглаагүй)"
+              : "AI хураангуй"
+        }
+      >
         <ul className="flex flex-col gap-2 text-md text-primary">
           {tldrSentences(article.tldr).map((s) => (
             <li key={s} className="flex gap-2">
@@ -154,7 +164,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
 
       {article.deepAnalysis && (
         <section className="rounded-3xl bg-linear-to-br from-purple-500/10 via-transparent to-fuchsia-500/10 p-1">
-          <AIMarkdownMessage tier="tier2" title="⚡ Grok Эрэн Сурвалжлах Дүгнэлт" markdown={article.deepAnalysis} />
+          <AIMarkdownMessage tier="tier2" title={`⚡ Гүнзгий шинжилгээ${article.tier2Model ? ` · ${aiModelLabel(article.tier2Model)}` : ""}`} markdown={article.deepAnalysis} />
         </section>
       )}
 

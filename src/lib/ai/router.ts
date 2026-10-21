@@ -9,7 +9,7 @@ import { estimateCostUsd, getPrice } from "./pricing";
 import { parseJsonLoose } from "./schemas";
 
 export type Tier = "tier1" | "tier2";
-export type Purpose = "tier1" | "tier2" | "cluster" | "admin" | "digest";
+export type Purpose = "tier1" | "tier2" | "cluster" | "admin" | "digest" | "topic";
 
 export interface UsageRecord {
   provider: AIProvider;

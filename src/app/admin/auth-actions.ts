@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { ADMIN_COOKIE, adminConfigured, checkPassword, expectedToken } from "@/lib/admin-auth";
+import { ADMIN_COOKIE, adminConfigured, checkPassword, createToken, SESSION_MAX_AGE_S } from "@/lib/admin-auth";
 
 /**
  * Login/logout live apart from the other admin actions on purpose: this module imports
@@ -23,14 +23,14 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     await new Promise((r) => setTimeout(r, 800)); // slow down guessing
     return { error: "Нууц үг буруу байна." };
   }
-  const token = await expectedToken();
+  const token = await createToken();
   (await cookies()).set(ADMIN_COOKIE, token!, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     // "lax" (not "strict"): the session must survive opening /admin from a link or the home-screen app.
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_MAX_AGE_S,
   });
   redirect("/admin");
 }

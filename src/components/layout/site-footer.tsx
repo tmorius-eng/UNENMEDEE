@@ -2,8 +2,6 @@ import Link from "next/link";
 
 import { Logo } from "./logo";
 
-const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE";
-
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-secondary bg-secondary_alt pb-[env(safe-area-inset-bottom)]">
@@ -23,9 +21,6 @@ export function SiteFooter() {
           <Link className="text-tertiary hover:text-secondary" href="/sources">
             Хянаж буй бүх эх сурвалж
           </Link>
-          <a className="text-tertiary hover:text-secondary" href={REPO} target="_blank" rel="noreferrer">
-            Эх код (GitHub)
-          </a>
         </div>
         <div className="flex flex-col gap-2 text-sm text-tertiary">
           <p className="font-semibold text-primary">Анхааруулга</p>

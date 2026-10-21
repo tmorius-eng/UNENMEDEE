@@ -48,7 +48,6 @@ const SITE_JSON_LD = {
       alternateName: SITE_ALTERNATE_NAMES,
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/icons/icon-512.png`, width: 512, height: 512 },
-      sameAs: [process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE"],
       publishingPrinciples: `${SITE_URL}/transparency`,
     },
     { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: SITE_ALTERNATE_NAMES, description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },

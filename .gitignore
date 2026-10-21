@@ -157,3 +157,6 @@ next-env.d.ts
 .DS_Store
 # Crawlee local request queues / datasets
 /storage/
+
+# Local MCP config (names the Supabase project)
+.mcp.json

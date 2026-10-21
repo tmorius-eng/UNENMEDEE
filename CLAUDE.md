@@ -16,7 +16,7 @@ We are building a 100% transparent, open-source investigative news and public da
   - Lint with `eslint .` (`next lint` no longer exists).
 - **Design system (mandatory):**
   - **Untitled UI React** (https://www.untitledui.com/react) is the primary component library: React Aria Components + Tailwind CSS v4. Theme tokens live in `src/styles/theme.css`; base components in `src/components/base/**`, application components in `src/components/application/**`. Merge classes with `cx()` from `src/utils/cx.ts`.
-  - **ElevenLabs UI** (https://ui.elevenlabs.io) for conversational/AI surfaces: `Message`, `MessageContent`, `MessageAvatar`, `Response`, `Conversation`, `ShimmeringText`, `Orb`. Installed with the shadcn CLI (`components.json`, e.g. `npx shadcn@latest add https://ui.elevenlabs.io/r/message.json`) into `src/components/ui/`. Every AI-generated text block (TL;DR, Grok analysis, cluster synthesis, admin filter chat) renders through `Message` + `Response` (see `src/components/iltod/ai-message.tsx`).
+  - **ElevenLabs UI** (https://ui.elevenlabs.io) for conversational/AI surfaces: `Message`, `MessageContent`, `MessageAvatar`, `Response`, `Conversation`, `ShimmeringText` (the three.js `Orb` was removed: unused, heavy). Installed with the shadcn CLI (`components.json`, e.g. `npx shadcn@latest add https://ui.elevenlabs.io/r/message.json`) into `src/components/ui/`. Every AI-generated text block (TL;DR, deep analysis, cluster synthesis, admin filter chat) renders through `Message` (+ `Response` for Markdown) (see `src/components/iltod/ai-message.tsx`).
   - The vendored ElevenLabs files were **adapted to Untitled UI tokens** (Untitled's `bg-primary` is the page background, not shadcn's brand color). `avatar.tsx` / `button.tsx` are local, dependency-free shims and `cn()` lives in `src/lib/utils.ts`. Re-running `shadcn add` overwrites these edits: re-apply them, and never let it add the unrelated `cn` npm package.
   - Chart colors: `src/styles/charts.css` (validated categorical slots; every chart has a table view).
   - Animation: `motion` package (`import { motion } from "motion/react"`), the successor to framer-motion.
@@ -45,7 +45,8 @@ We are building a 100% transparent, open-source investigative news and public da
 - `analyze.ts`: `analyzeArticle` (pure, used by admin), `processArticle` (writes DB), `assignCluster`/`refreshCluster`.
 - `risk_flag` is derived from `risk_score >= 65`, never trusted from the model. Regex MNT amounts are merged into entities.
 - Clustering: stem Jaccard + entity overlap, threshold 0.45, cross-source only, 7-day window; synthesis only at growth milestones.
-- Tier 1 also returns `importance_score` (0-100, national significance; optional, null when missing).
+- Tier 1 also returns `importance_score` (0-100, national significance; optional, null when missing) and `topic` (one of `AI_TOPIC_KEYS`, unknown → null). `npm run ai:topics` tags older articles 25 headlines per call (runs after ai:process in the pipeline, a no-op when all are tagged).
+- The article page names the model that really wrote each block (latest successful `tier1` / `tier2` call in `ai_usage_logs`, `aiModelLabel()`); never hardcode a provider name in reader-facing copy.
 - `digest.ts`: "Онцлох тойм". Articles are pre-ranked without AI (`rankScore`: importance, risk, cross-source coverage, source weight), one per cluster, top 40 (70 for "30d") go to the editor model (tier2 chain minus Grok), which picks 10 (20) and writes headlines + "why it matters". Model-invented ids are dropped; with no AI it falls back to the rule-based ranking. "12h" editions skip if one exists < 6 h old and do not repeat stories from the last 3 editions.
 
 ## 4. Strict Scraping & Engineering Rules
@@ -68,7 +69,7 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 6. Home page (Kagi News style)
 - `/` is a narrow reading column: date masthead, digest strip, then `StoryList` (`src/components/iltod/story-list.tsx`): colored topic label, big headline, ✓ read toggle, tap to expand the AI summary inline (opening marks it read), "Бүгдийг уншсан болгох". One entry per cluster. Read marks and the "Tт" text size live in localStorage via `useLocalStorage` (`src/lib/local-store.ts`, useSyncExternalStore; never setState in an effect).
-- Topics come from the source domain, not the model (`src/lib/topics.ts`): every seeded domain maps to one topic; aimag/district sites show their own name. Each feed filter is its own prerendered page `/topic/<key>` (old `/?f=<key>` links 308-redirect in `next.config.ts`). `TopicBar` is pinned to the bottom on phones and inline on desktop.
+- Topics (`src/lib/topics.ts` `topicFor`, mirrored in SQL by `EFFECTIVE_TOPIC` in `queries.ts`): aimag/district sites stay local (and show their own name), opendata.gov.mn stays "data"; otherwise the AI's `articles.topic` wins over the source domain (gov.mn posts everything), with the domain as fallback. Feeds hide `importance_score < FEED_MIN_IMPORTANCE` (25) except `/topic/risk` and `/topic/data`. Each feed filter is its own prerendered page `/topic/<key>` (old `/?f=<key>` links 308-redirect in `next.config.ts`). `TopicBar` is pinned to the bottom on phones and inline on desktop.
 - `/` and `/topic/<key>` render `HomeFeed` (`src/components/iltod/home-feed.tsx`) from cached queries only, so they are fully static (CDN, metadata in `<head>`). Never read `searchParams`, `cookies()` or the clock outside `'use cache'` there: the date heading is a `'use cache'` function.
 - Headlines are real `<a href="/article/…">` links (crawlable, Cmd/Ctrl-click opens a tab); a plain tap expands in place.
 
@@ -97,9 +98,12 @@ We are building a 100% transparent, open-source investigative news and public da
 - Vercel functions run in `sin1` (Singapore, `vercel.json`), next to the Supabase database in ap-southeast-1; keep them in the same region.
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
 - Login/logout live in `src/app/admin/auth-actions.ts`, apart from the heavy actions: jsdom failed to load on Vercel (ERR_REQUIRE_ESM) and took the whole actions module, login included, down with it. jsdom is only imported lazily through `extractArticleSafe` (cheerio fallback).
-- `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
+- `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is `<issuedAt>.<HMAC>` and expires after 7 days (`SESSION_MAX_AGE_S`); rotating the password logs everyone out.
+- URLs typed by a person (admin "analyze this URL") go through `fetchPublicUrl` (`src/lib/scraper/public-url.ts`): http(s) on 80/443 only, every redirect hop re-checked, private/loopback/link-local/metadata IPs refused (SSRF).
+- `subscribePush` is public: 10 per IP per hour (per instance), `PUSH_NEW_PER_HOUR` (500) new rows per hour and `PUSH_MAX_SUBSCRIPTIONS` (50k) in total, so nobody can fill the free database.
 - Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.
 - `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `news-digest.yml` (08:07 / 20:07 Ulaanbaatar): opendata.mn sync + 12h digest; manual run with `kind=30d` for a monthly review. `discover-sources.yml` (weekly). The pipeline's manual run takes `days` for a backfill. `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.
 
 ## 9. MCP
-`.mcp.json` registers the Supabase MCP server for project `boyhogngfxynhirkjdqb`. Authenticate once locally with `claude /mcp` → supabase → Authenticate.
+`.mcp.json` is git-ignored (it named the Supabase project). To use the Supabase MCP server locally, create it with `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<your-project-ref>"`, then `claude /mcp` → supabase → Authenticate.
+- The public site does not link to the repository (header, footer and JSON-LD carry no GitHub URL); the scraper's User-Agent and the VAPID subject point to https://iltodmedee.mn.

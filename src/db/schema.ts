@@ -66,6 +66,8 @@ export const articles = pgTable(
     riskScore: integer("risk_score").notNull().default(0),
     /** 0-100: how much the news matters nationally (AI Tier 1). Null for articles analyzed before it existed. */
     importanceScore: integer("importance_score"),
+    /** Topic key the AI read from the text (src/lib/topics.ts AI_TOPIC_KEYS); null = use the source domain. */
+    topic: varchar("topic", { length: 32 }),
     /** When a push notification went out for this article (never notify twice). */
     notifiedAt: timestamp("notified_at", { withTimezone: true }),
     grokDeepAnalysis: text("grok_deep_analysis"),

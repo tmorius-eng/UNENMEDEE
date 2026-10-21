@@ -10,7 +10,7 @@
  */
 
 export const BOT_NAME = "IlTodBot";
-export const USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_NAME}/1.0; +https://github.com/tmorius-eng/UNENMEDEE)`;
+export const USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_NAME}/1.0; +https://iltodmedee.mn)`;
 
 /** Minimum delay between two requests to the same host. CLAUDE.md rule #1. */
 export const MIN_DOMAIN_DELAY_MS = 8_000;

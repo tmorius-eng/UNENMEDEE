@@ -102,13 +102,27 @@ const BY_DOMAIN = new Map(TOPICS.flatMap((t) => t.domains.map((d) => [d, t] as c
 const LOCAL = TOPICS.find((t) => t.key === "local")!;
 const OTHER: Topic = { key: "other", label: "Бусад", tag: "ТӨРИЙН МЭДЭЭ", color: "text-utility-neutral-700", domains: [] };
 
-export function topicFor(domain: string, category: SourceCategory): Topic {
-  return BY_DOMAIN.get(domain) ?? (category === "local" ? LOCAL : OTHER);
+/** Topics the AI may assign from the text (Tier 1). "local" is a place and "data" a source type, so they stay domain-based. */
+export const AI_TOPIC_KEYS = TOPICS.map((t) => t.key).filter((k) => k !== "local" && k !== "data");
+
+export function isAiTopic(v: unknown): v is string {
+  return typeof v === "string" && AI_TOPIC_KEYS.includes(v);
+}
+
+/**
+ * The topic a story is filed under. Aimag/district sites stay "Орон нутаг" and opendata stays
+ * "Нээлттэй өгөгдөл"; otherwise the AI's reading of the text wins over the domain (gov.mn
+ * publishes everything from cabinet decisions to stray-animal rules).
+ */
+export function topicFor(domain: string, category: SourceCategory, aiTopic?: string | null): Topic {
+  const byDomain = BY_DOMAIN.get(domain) ?? (category === "local" ? LOCAL : OTHER);
+  if (category === "local" || byDomain.key === "data" || !isAiTopic(aiTopic)) return byDomain;
+  return TOPICS.find((t) => t.key === aiTopic) ?? byDomain;
 }
 
 /** Label above a headline: "ХОВД АЙМАГ" for local sites, the topic otherwise. */
-export function storyTag(domain: string, category: SourceCategory, sourceName: string): { tag: string; color: string } {
-  const t = topicFor(domain, category);
+export function storyTag(domain: string, category: SourceCategory, sourceName: string, aiTopic?: string | null): { tag: string; color: string } {
+  const t = topicFor(domain, category, aiTopic);
   if (t.key === "local") return { tag: sourceName.replace(/^Нийслэл /, "").toUpperCase(), color: t.color };
   return { tag: t.tag, color: t.color };
 }

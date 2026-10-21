@@ -119,6 +119,12 @@ jobs:
           # Stop starting new articles after 75 min; the rest wait for the next run.
           npm run ai:process -- --limit "$IN_AI_LIMIT" --budget 75
 
+      - name: Tag older articles with an AI topic (batched, free tier)
+        if: env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != ''
+        # A no-op once every article has a topic (Tier 1 returns one for new articles).
+        continue-on-error: true
+        run: npm run ai:topics -- --limit 200
+
       - name: Notify subscribers about important news
         # Push problems must never fail the pipeline.
         continue-on-error: true

@@ -10,7 +10,7 @@ import { getFeed } from "@/lib/queries";
 export const metadata: Metadata = {
   title: "Эрсдэлтэй тендер, төсвийн мэдээ",
   alternates: { canonical: "/risk" },
-  description: "AI эрсдэлийн оноо 65-аас дээш гарсан тендер, төсөв, шийдвэрүүд Grok-ийн гүнзгий шинжилгээтэй.",
+  description: "AI эрсдэлийн оноо 65-аас дээш гарсан тендер, төсөв, шийдвэрүүд AI-ийн гүнзгий шинжилгээтэй.",
 };
 
 async function RiskFeed() {

@@ -10,7 +10,7 @@ export const contentType = "image/png";
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const article = await getArticleBySlug((await params).slug);
   if (!article) return ogImage({ eyebrow: "Мэдээ", title: "Мэдээ олдсонгүй", footer: "" });
-  const topic = topicFor(article.sourceDomain, article.sourceCategory);
+  const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
   return ogImage({
     eyebrow: topic.key === "local" || topic.key === "other" ? article.sourceName : topic.label,
     title: article.title,
