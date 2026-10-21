@@ -145,7 +145,9 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       <AIMessage
         tier="tier1"
         title={
-          article.tier1Model
+          article.summaryFallback
+            ? "Хураангуй · эх текстийн эхний өгүүлбэрүүд (AI ажиллаагүй)"
+            : article.tier1Model
             ? `AI хураангуй · ${aiModelLabel(article.tier1Model)}`
             : article.sourceDomain === "opendata.gov.mn"
               ? "Хураангуй · дүрмээр гаргасан (AI ашиглаагүй)"
@@ -162,7 +164,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         </ul>
       </AIMessage>
 
-      <FactSpinPanel facts={article.facts} spin={article.spinDetected} neutrality={article.neutralityScore} />
+      {!article.summaryFallback && <FactSpinPanel facts={article.facts} spin={article.spinDetected} neutrality={article.neutralityScore} />}
 
       {article.deepAnalysis && (
         <section className="rounded-3xl bg-linear-to-br from-purple-500/10 via-transparent to-fuchsia-500/10 p-1">
@@ -210,6 +212,11 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           </a>
         </div>
         <HashBadge hash={article.contentHash} />
+        {article.contentPrunedAt && (
+          <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary">
+            Хадгалах зай хэмнэхийн тулд 6 сараас дээш хугацааны мэдээний эх текстийн зөвхөн эхний хэсгийг хадгалдаг. Бүтэн текстийг эх сурвалжаас уншина уу; SHA-256 хэш анхны бүтэн текстийнх.
+          </p>
+        )}
         {article.editedAt && (
           <p className="rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary">
             ✏️ Редакцийн засвартай ({formatDateMn(article.editedAt)}). Доорх текстийг редактор зассан; SHA-256 хэш нь анх татсан эх текстэд хамаарна.

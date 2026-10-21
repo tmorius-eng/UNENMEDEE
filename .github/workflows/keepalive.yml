@@ -1,0 +1,26 @@
+# GitHub disables scheduled workflows in a public repository after 60 days without activity.
+# The site must keep updating for months with nobody pushing code, so once a month this
+# re-enables every scheduled workflow (itself included) through the API, which resets the
+# 60-day timer. No commits are made.
+name: Keep schedules alive
+
+on:
+  schedule:
+    - cron: "23 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Re-enable scheduled workflows
+        run: |
+          for wf in autonomous-news-pipeline.yml news-digest.yml officials-sync.yml discover-sources.yml watchdog.yml keepalive.yml; do
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/enable" --silent; then echo "✓ $wf"; else echo "::warning::could not enable $wf"; fi
+          done

@@ -63,6 +63,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
         run: npm run db:migrate
 
+      - name: Trim article bodies older than 180 days (keeps the free 500 MB database from filling)
+        continue-on-error: true
+        run: npm run db:prune
+
       - name: Sync opendata.mn datasets
         # Data problems must never block the news digest.
         continue-on-error: true

@@ -1,0 +1,53 @@
+# Daily health check. When the site stops getting news, AI summaries or digests, or the free
+# database is filling up, it opens (or updates) a GitHub issue labelled "watchdog": GitHub emails
+# the repository owner. When everything is healthy again it closes that issue.
+name: Watchdog
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check the site's health
+        id: health
+        continue-on-error: true
+        # Explicit bash = -eo pipefail, so the script's exit code survives the pipe into tee.
+        shell: bash
+        run: npm run --silent health | tee health.txt
+
+      - name: Open or update the watchdog issue
+        if: steps.health.outcome == 'failure'
+        run: |
+          gh label create watchdog --color d73a4a --description "Automatic health check" 2>/dev/null || true
+          body="$(printf '⚠️ Автомат шалгалт асуудал илрүүллээ (%s UTC):\n\n```\n%s\n```\n\nЗасагдсаны дараа энэ issue автоматаар хаагдана.' "$(date -u '+%Y-%m-%d %H:%M')" "$(cat health.txt)")"
+          open=$(gh issue list --label watchdog --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then gh issue comment "$open" --body "$body"; else gh issue create --title "⚠️ iltodmedee.mn: автомат шалгалт асуудал илрүүллээ" --label watchdog --body "$body"; fi
+          exit 1
+
+      - name: Close the watchdog issue when healthy
+        if: steps.health.outcome == 'success'
+        run: |
+          for n in $(gh issue list --label watchdog --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "✓ Дахин хэвийн ажиллаж байна: $(tail -1 health.txt)"
+          done

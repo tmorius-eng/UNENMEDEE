@@ -267,6 +267,8 @@ export interface ArticleDetail extends ArticleListItem {
   scrapeMeta: ScrapeMeta | null;
   createdAt: Date;
   editedAt: Date | null;
+  contentPrunedAt: Date | null;
+  summaryFallback: boolean;
   /** The model that actually wrote the summary / deep analysis (from ai_usage_logs); null = rule-based or unknown. */
   tier1Model: AIModelRef | null;
   tier2Model: AIModelRef | null;
@@ -305,6 +307,8 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
         scrapeMeta: articles.scrapeMeta,
         createdAt: articles.createdAt,
         editedAt: articles.editedAt,
+        contentPrunedAt: articles.contentPrunedAt,
+        summaryFallback: articles.summaryFallback,
         tier1Model: modelUsed(["tier1"]),
         tier2Model: modelUsed(["tier2", "admin"]),
       })
@@ -325,6 +329,8 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       scrapeMeta: r.scrapeMeta,
       createdAt: r.createdAt,
       editedAt: r.editedAt,
+      contentPrunedAt: r.contentPrunedAt,
+      summaryFallback: r.summaryFallback,
       tier1Model: parseModelRef(r.tier1Model),
       tier2Model: parseModelRef(r.tier2Model),
     };

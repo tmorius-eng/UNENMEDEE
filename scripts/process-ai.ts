@@ -12,15 +12,18 @@
  * Paid providers stop at AI_MONTHLY_BUDGET_USD / AI_DAILY_BUDGET_USD and per-provider daily
  * call caps (see src/lib/ai/limits.ts). Every call's tokens and USD cost go to ai_usage_logs,
  * and this month's total is synced into transparency_ledger.
+ * Articles no AI could process within FALLBACK_AFTER_HOURS (or whose output was unusable) get
+ * their first sentences as the summary, so the site keeps showing news when every provider fails.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
+import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE } from "@/lib/ai/fallback";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { budgetConfig } from "@/lib/ai/limits";
 import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
@@ -63,6 +66,20 @@ async function runSample() {
   console.log(`\nTotal cost: $${out.costUsd.toFixed(6)}`);
 }
 
+/** Gives stale or unprocessable articles an extractive summary (labelled "AI ажиллаагүй" on the page). */
+async function applyFallbacks(db: ReturnType<typeof getDb>) {
+  const stale = await db
+    .select({ id: articles.id, text: articles.cleanContent, title: articles.title })
+    .from(articles)
+    .where(and(isNull(articles.tldrSummary), or(isNotNull(articles.aiError), lt(articles.createdAt, new Date(Date.now() - FALLBACK_AFTER_HOURS * 3_600_000)))))
+    .limit(300);
+  for (const a of stale) {
+    const tldr = extractiveSummary(a.text) || a.title;
+    await db.update(articles).set({ tldrSummary: tldr, summaryFallback: true, importanceScore: FALLBACK_IMPORTANCE }).where(eq(articles.id, a.id));
+  }
+  if (stale.length) console.log(`📝 ${stale.length} article(s) waited over ${FALLBACK_AFTER_HOURS} h or could not be analyzed: shown with their first sentences (no AI).`);
+}
+
 async function main() {
   if (values.sample) return runSample();
   if (!hasDatabase()) {
@@ -87,6 +104,7 @@ async function main() {
     return;
   }
 
+  await applyFallbacks(db);
   const limit = Math.max(1, Number(values.limit));
   const batchSize = Math.max(1, Number(values.batch));
   const pending = await db

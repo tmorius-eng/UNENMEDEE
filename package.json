@@ -23,7 +23,9 @@
     "macro:sync": "tsx scripts/sync-macro.ts",
     "budget:sync": "tsx scripts/sync-budget.ts",
     "push:send": "tsx scripts/send-push.ts",
-    "sources:discover": "tsx scripts/discover-sources.ts"
+    "sources:discover": "tsx scripts/discover-sources.ts",
+    "db:prune": "tsx scripts/prune-content.ts",
+    "health": "tsx scripts/health-check.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

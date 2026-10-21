@@ -81,6 +81,10 @@ export const articles = pgTable(
     isPublished: boolean("is_published").notNull().default(true),
     /** Set when an editor changed the text in /admin. The SHA-256 still proves the ORIGINAL scraped text. */
     editedAt: timestamp("edited_at", { withTimezone: true }),
+    /** Set when the body was cut to an excerpt after RETENTION_DAYS (keeps the free 500 MB DB from filling). */
+    contentPrunedAt: timestamp("content_pruned_at", { withTimezone: true }),
+    /** The summary is the article's first sentences because no AI could process it (see src/lib/ai/fallback.ts). */
+    summaryFallback: boolean("summary_fallback").notNull().default(false),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
