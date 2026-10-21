@@ -38,6 +38,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - `crawl.ts`: one Crawlee run for all other sources. Pass 1 = HTTP (WordPress REST API → RSS → link harvesting, homepage fallback). Pass 2 = headless Chromium (Playwright) only for sources whose news needs JavaScript.
 - Sources rotate least-recently-scraped first under a time budget; failing sources back off 2^n hours (`consecutive_failures`).
 - `robots.ts` + `http.ts`: our own robots parser and 8s-per-host throttle for non-Crawlee fetches.
+- `net-setup.ts` (imported by `http.ts` and `crawl.ts`) raises Node's per-address connect attempt from 250 ms to 3 s: from GitHub's US runners .gov.mn is ~250-300 ms away and 57 sources failed at once with an empty `AggregateError [ETIMEDOUT]`. `errorMessage()` reports the error code when the message is empty.
 
 ### AI pipeline (`src/lib/ai`)
 - `router.ts`: provider chains. tier1 = Groq → Gemini → Requesty → NVIDIA → DeepSeek → Ollama; tier2 = Grok → Gemini Flash → Groq → Requesty → NVIDIA → DeepSeek → Ollama (override with `AI_TIER1_CHAIN` / `AI_TIER2_CHAIN`). JSON mode + zod validation + one repair retry; one retry after a 429. Every call (success or failure with tokens) is logged with its USD cost via `usage-log.ts`; a provider-reported cost (Requesty) wins over the price table.

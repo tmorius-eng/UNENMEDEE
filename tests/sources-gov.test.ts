@@ -67,3 +67,20 @@ describe("police.gov.mn news", () => {
     assert.equal(a.publishedAt, null);
   });
 });
+
+describe("crawler error messages", () => {
+  it("never reports an empty message for network errors", async () => {
+    const { errorMessage } = await import("@/lib/scraper/crawl");
+    const inner = Object.assign(new Error(""), { code: "ETIMEDOUT" });
+    const got = Object.assign(new Error(""), { name: "RequestError", cause: Object.assign(new AggregateError([inner], ""), { code: "ETIMEDOUT" }) });
+    assert.equal(errorMessage(got), "ETIMEDOUT");
+    assert.equal(errorMessage(Object.assign(new Error("connect ECONNREFUSED 1.2.3.4:443"), { code: "ECONNREFUSED" })), "connect ECONNREFUSED 1.2.3.4:443");
+    assert.equal(errorMessage(new Error("request timed out after 30 seconds.\nstack")), "request timed out after 30 seconds.");
+  });
+
+  it("gives far-away hosts more than Node's 250 ms per connection attempt", async () => {
+    await import("@/lib/scraper/http");
+    const net = await import("node:net");
+    assert.ok(net.getDefaultAutoSelectFamilyAttemptTimeout() >= 3000);
+  });
+});
