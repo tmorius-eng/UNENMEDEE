@@ -68,6 +68,10 @@ jobs:
         continue-on-error: true
         run: npm run data:sync
 
+      - name: Sync Mongolbank indicators (policy rate, inflation, FX, gold, reserves)
+        continue-on-error: true
+        run: npm run macro:sync
+
       - name: Write the digest
         env:
           IN_KIND: ${{ inputs.kind || '12h' }}

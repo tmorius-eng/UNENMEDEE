@@ -7,6 +7,7 @@ import { type ArticleListItem, type DigestView, type FeedFilter, getDigests, get
 import { findTopic } from "@/lib/topics";
 
 import { Empty } from "./empty";
+import { MacroStrip } from "./macro-strip";
 import { StoryList } from "./story-list";
 import { TopicBar } from "./topic-bar";
 
@@ -76,6 +77,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
     // Narrow reading column like Kagi News; extra bottom space for the phone topic bar.
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-20 md:pb-0">
       <Masthead stats={stats} digest={edition ?? review} topicLabel={topic?.label} />
+      {filter === "all" && <MacroStrip compact />}
       <TopicBar active={filter} placement="inline" />
       {topic && <h2 className={`pt-6 text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>}
       <div className="mt-2">
