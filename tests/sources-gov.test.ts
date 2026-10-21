@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { legalinfoDetailText, parseLegalinfoList } from "@/lib/scraper/adapters/legalinfo";
+import { parsePoliceArticle, parsePoliceList } from "@/lib/scraper/adapters/police";
 import { parseZasagFeed } from "@/lib/scraper/adapters/zasag";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -38,5 +39,31 @@ describe("legalinfo.mn new acts", () => {
     assert.match(text, /ТОГТООЛ\s+2026 оны/);
     assert.ok(!text.includes("Нэвтрэх нэр"));
     assert.ok(text.length > 800);
+  });
+});
+
+describe("police.gov.mn news", () => {
+  it("reads article cards with the upload day from the image path", () => {
+    const items = parsePoliceList(fixture("police-list.html"));
+    assert.equal(items.length, 4); // the /a/890 menu link is not a card
+    assert.deepEqual(items[0], {
+      url: "https://police.gov.mn/a/8369",
+      title: "Хиймэл оюунд суурилсан залилангаас урьдчилан сэргийлэх нөлөөллийн аян эхэллээ",
+      day: new Date("2026-10-21T00:00:00+08:00"),
+    });
+  });
+
+  it("takes the text and the exact Ulaanbaatar time from the article page", () => {
+    const a = parsePoliceArticle(fixture("police-article.html"));
+    assert.equal(a.title, "Хиймэл оюунд суурилсан залилангаас урьдчилан сэргийлэх нөлөөллийн аян эхэллээ");
+    assert.equal(a.publishedAt?.toISOString(), "2026-10-21T04:19:00.000Z");
+    assert.ok(a.text.startsWith("Олон улсын эрүүгийн цагдаагийн байгууллага-Интерпол"));
+    assert.ok(a.text.length > 500);
+  });
+
+  it("returns empty text for image-only posts (skipped by the runner)", () => {
+    const a = parsePoliceArticle('<div class="article-view-main"><article><h2 class="article-view-name">Хоногийн мэдээ</h2><img src="x.jpg"></article></div>');
+    assert.equal(a.text, "");
+    assert.equal(a.publishedAt, null);
   });
 });

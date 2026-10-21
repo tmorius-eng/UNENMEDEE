@@ -2,6 +2,7 @@ import type { ScrapedItem } from "../types";
 import { fetchLegalinfo } from "./legalinfo";
 import { fetchOpendata } from "./opendata";
 import { fetchParliament } from "./parliament";
+import { fetchPolice } from "./police";
 import { fetchZasag } from "./zasag";
 
 /**
@@ -14,4 +15,5 @@ export const API_ADAPTERS: Record<string, (limit: number) => Promise<ScrapedItem
   "parliament.mn": fetchParliament,
   "zasag.mn": fetchZasag,
   "legalinfo.mn": fetchLegalinfo,
+  "police.gov.mn": fetchPolice,
 };
