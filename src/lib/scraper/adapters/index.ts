@@ -1,6 +1,8 @@
 import type { ScrapedItem } from "../types";
+import { fetchLegalinfo } from "./legalinfo";
 import { fetchOpendata } from "./opendata";
 import { fetchParliament } from "./parliament";
+import { fetchZasag } from "./zasag";
 
 /**
  * Sources that expose a public JSON API (the same one their own website calls).
@@ -10,4 +12,6 @@ import { fetchParliament } from "./parliament";
 export const API_ADAPTERS: Record<string, (limit: number) => Promise<ScrapedItem[]>> = {
   "opendata.gov.mn": fetchOpendata,
   "parliament.mn": fetchParliament,
+  "zasag.mn": fetchZasag,
+  "legalinfo.mn": fetchLegalinfo,
 };
