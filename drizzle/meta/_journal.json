@@ -78,6 +78,13 @@
       "when": 1792590755016,
       "tag": "0010_search_index",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792594486298,
+      "tag": "0011_autopilot",
+      "breakpoints": true
     }
   ]
 }

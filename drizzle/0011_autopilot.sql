@@ -1,0 +1,2 @@
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "content_pruned_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "summary_fallback" boolean DEFAULT false NOT NULL;
