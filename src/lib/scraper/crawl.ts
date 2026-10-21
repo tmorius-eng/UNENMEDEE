@@ -1,3 +1,4 @@
+import "./net-setup";
 import { CheerioCrawler, Configuration, log, PlaywrightCrawler } from "crawlee";
 
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
@@ -56,8 +57,14 @@ function homepage(source: SourceRef): string {
   return `${new URL(source.urlPattern).origin}/`;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message.split("\n")[0].slice(0, 300) : String(error);
+/** First line of the message; network errors often have none, so fall back to their code. */
+export function errorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const e = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };
+  const inner = [e.cause, ...(e.errors ?? [])].find((x): x is Error & { code?: string } => x instanceof Error);
+  const text = e.message.split("\n")[0].trim() || inner?.message.split("\n")[0].trim() || "";
+  const code = e.code ?? inner?.code ?? (inner?.cause as { code?: string } | undefined)?.code;
+  return (code && !text.includes(code) ? `${code} ${text}` : text || e.name).trim().slice(0, 300);
 }
 
 /**
@@ -178,7 +185,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
       sameDomainDelaySecs: MIN_DOMAIN_DELAY_MS / 1000,
       respectRobotsTxtFile: { userAgent: BOT_NAME },
       maxRequestRetries: 1,
-      navigationTimeoutSecs: mode === "http" ? 30 : 45,
+      navigationTimeoutSecs: 45, // some .gov.mn servers answer slowly from abroad
       requestHandlerTimeoutSecs: 90,
     };
 

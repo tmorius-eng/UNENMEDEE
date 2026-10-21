@@ -1,3 +1,4 @@
+import "./net-setup";
 import { DomainThrottle, getRobots, USER_AGENT } from "./robots";
 
 const throttle = new DomainThrottle();
