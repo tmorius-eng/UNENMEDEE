@@ -16,8 +16,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps<"/clusters/[id]">): Promise<Metadata> {
-  const data = await getCluster(Number((await params).id));
-  return { title: data?.cluster.title ?? "Кластер" };
+  const { id } = await params;
+  const data = await getCluster(Number(id));
+  return { title: data?.cluster.title ?? "Кластер", alternates: { canonical: `/clusters/${id}` } };
 }
 
 async function ClusterView({ params }: { params: PageProps<"/clusters/[id]">["params"] }) {

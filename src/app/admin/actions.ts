@@ -1,8 +1,6 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 
@@ -12,8 +10,8 @@ import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/ana
 import type { ArticleForAI } from "@/lib/ai/prompts";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
-import { ADMIN_COOKIE, adminConfigured, checkPassword, expectedToken, requireAdmin } from "@/lib/admin-auth";
-import { extractArticle } from "@/lib/scraper/extractor";
+import { requireAdmin } from "@/lib/admin-auth";
+import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { politeFetch } from "@/lib/scraper/http";
 import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
 
@@ -24,35 +22,6 @@ function refreshPublic(slug?: string) {
   updateTag("clusters");
   updateTag("ai");
   if (slug) updateTag(`article-${slug}`);
-}
-
-/* ------------------------------------------------------------------ auth */
-
-export interface LoginState {
-  error?: string;
-}
-
-export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  if (!adminConfigured()) return { error: "ADMIN_SECRET_PASSWORD тохируулаагүй (12+ тэмдэгт) байна." };
-  const password = String(formData.get("password") ?? "");
-  if (!checkPassword(password)) {
-    await new Promise((r) => setTimeout(r, 800)); // slow down guessing
-    return { error: "Нууц үг буруу байна." };
-  }
-  const token = await expectedToken();
-  (await cookies()).set(ADMIN_COOKIE, token!, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  redirect("/admin");
-}
-
-export async function logout() {
-  (await cookies()).delete(ADMIN_COOKIE);
-  redirect("/admin/login");
 }
 
 /* ------------------------------------------------------------------ articles */
@@ -187,7 +156,7 @@ export async function runFilter(raw: string, forceDeep: boolean): Promise<Filter
     try {
       const res = await politeFetch(value, { timeoutMs: 25_000 });
       if (!res.ok) return { ok: false, error: `Хуудсыг татаж чадсангүй (HTTP ${res.status}).` };
-      const article = extractArticle(await res.text(), res.url || value);
+      const article = await extractArticleSafe(await res.text(), res.url || value);
       if (!article) return { ok: false, error: "Хуудаснаас нийтлэлийн текст олдсонгүй (JavaScript-ээр ачаалдаг сайт байж магадгүй). Текстийг нь хуулж оруулна уу." };
       input = { title: article.title, url: value, sourceDomain: new URL(value).hostname.replace(/^www\./, ""), text: article.text };
     } catch (err) {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { logout } from "@/app/admin/actions";
+import { logout } from "@/app/admin/auth-actions";
 import { LedgerForm } from "@/components/admin/ledger-form";
 import { PublishToggle, ReanalyzeButtons } from "@/components/admin/row-actions";
 import { RiskBadge, SourceBadge } from "@/components/iltod/badges";

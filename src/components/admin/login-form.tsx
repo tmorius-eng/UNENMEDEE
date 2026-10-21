@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { login, type LoginState } from "@/app/admin/actions";
+import { login, type LoginState } from "@/app/admin/auth-actions";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});

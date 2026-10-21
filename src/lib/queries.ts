@@ -272,6 +272,43 @@ export async function getRecentSlugs(limit = 20): Promise<string[]> {
   });
 }
 
+export interface SitemapArticle {
+  slug: string;
+  title: string;
+  tldr: string;
+  sourceName: string;
+  sourceDomain: string;
+  sourceCategory: SourceCategory;
+  publishedAt: Date | null;
+  lastModified: Date;
+}
+
+/** Newest public articles for sitemap.xml, the Google News sitemap and RSS (no body text). */
+export async function getSitemapArticles(limit = 1000): Promise<SitemapArticle[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  return safe("getSitemapArticles", [], async () => {
+    const rows = await getDb()
+      .select({
+        slug: articles.slug,
+        title: articles.title,
+        tldr: articles.tldrSummary,
+        sourceName: sources.name,
+        sourceDomain: sources.domain,
+        sourceCategory: sources.category,
+        publishedAt: articles.publishedAt,
+        lastModified: sql<Date>`greatest(${articles.createdAt}, coalesce(${articles.editedAt}, ${articles.createdAt}))`.mapWith(articles.createdAt),
+      })
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(visible)
+      .orderBy(desc(sql`coalesce(${articles.publishedAt}, ${articles.createdAt})`))
+      .limit(limit);
+    return rows.map((r) => ({ ...r, tldr: r.tldr ?? "" }));
+  });
+}
+
 export interface SiteStats {
   activeSources: number;
   articles: number;

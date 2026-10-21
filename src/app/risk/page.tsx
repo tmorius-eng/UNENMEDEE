@@ -8,7 +8,8 @@ import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { getFeed } from "@/lib/queries";
 
 export const metadata: Metadata = {
-  title: "Эрсдэлтэй Тендер & Төсөв",
+  title: "Эрсдэлтэй тендер, төсвийн мэдээ",
+  alternates: { canonical: "/risk" },
   description: "AI эрсдэлийн оноо 65-аас дээш гарсан тендер, төсөв, шийдвэрүүд Grok-ийн гүнзгий шинжилгээтэй.",
 };
 

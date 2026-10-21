@@ -11,7 +11,8 @@ import { getSiteStats, getTransparency } from "@/lib/queries";
 import type { AIProvider } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Ил Тод Байдлын Тайлан",
+  title: "Ил тод байдлын тайлан — зардал, орлого",
+  alternates: { canonical: "/transparency" },
   description: "Серверийн зардал, AI токен бүрийн зардал, зар сурталчилгаа, хандивын орлогыг шууд мэдээллийн сангаас харуулна.",
 };
 

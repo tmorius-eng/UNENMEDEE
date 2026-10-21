@@ -11,7 +11,9 @@ import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { HashBadge } from "@/components/iltod/hash-badge";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { formatDateMn, tldrSentences } from "@/lib/format";
-import { getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
+import { type ArticleDetail, getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
+import { absoluteUrl, jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
+import { topicFor } from "@/lib/topics";
 
 /** Cache Components requires at least one param; unknown slugs render on demand (ISR). */
 export async function generateStaticParams() {
@@ -19,10 +21,77 @@ export async function generateStaticParams() {
   return (slugs.length ? slugs : ["__placeholder__"]).map((slug) => ({ slug }));
 }
 
+function summaryOf(article: ArticleDetail): string {
+  const text = tldrSentences(article.tldr).join(" ").replace(/\s+/g, " ").trim();
+  if (text.length <= 160) return text;
+  const cut = text.slice(0, 157);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > 100 ? cut.lastIndexOf(" ") : 157).replace(/[\s.,;:–—-]+$/, "")}…`;
+}
+
 export async function generateMetadata({ params }: PageProps<"/article/[slug]">): Promise<Metadata> {
   const article = await getArticleBySlug((await params).slug);
-  if (!article) return { title: "Мэдээ олдсонгүй" };
-  return { title: article.title, description: tldrSentences(article.tldr).join(" ").slice(0, 200) };
+  if (!article) return { title: "Мэдээ олдсонгүй", robots: { index: false } };
+  const topic = topicFor(article.sourceDomain, article.sourceCategory);
+  const description = summaryOf(article);
+  const url = `/article/${article.slug}`;
+  return {
+    title: article.title,
+    description,
+    keywords: [topic.label, article.sourceName, ...article.entities.orgs.slice(0, 5), ...article.entities.people.slice(0, 3), "мэдээ"],
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      url,
+      title: article.title,
+      description,
+      siteName: SITE_NAME,
+      locale: "mn_MN",
+      publishedTime: article.publishedAt?.toISOString(),
+      modifiedTime: (article.editedAt ?? article.createdAt).toISOString(),
+      section: topic.label,
+      tags: article.entities.orgs.slice(0, 5),
+    },
+    twitter: { card: "summary_large_image", title: article.title, description },
+  };
+}
+
+/** Google "Top stories" / News: NewsArticle + breadcrumbs. */
+function articleJsonLd(article: ArticleDetail) {
+  const url = absoluteUrl(`/article/${article.slug}`);
+  const topic = topicFor(article.sourceDomain, article.sourceCategory);
+  const published = (article.publishedAt ?? article.createdAt).toISOString();
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "NewsArticle",
+        "@id": `${url}#article`,
+        mainEntityOfPage: url,
+        url,
+        headline: article.title.length > 110 ? `${article.title.slice(0, 109)}…` : article.title,
+        description: summaryOf(article),
+        image: [absoluteUrl(`/article/${article.slug}/opengraph-image`)],
+        datePublished: published,
+        dateModified: (article.editedAt ?? article.createdAt).toISOString(),
+        inLanguage: "mn",
+        articleSection: topic.label,
+        keywords: [topic.label, ...article.entities.orgs.slice(0, 5)].join(", "),
+        isBasedOn: article.originalUrl,
+        sourceOrganization: { "@type": "GovernmentOrganization", name: article.sourceName, url: `https://${article.sourceDomain}` },
+        author: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+        publisher: { "@id": `${SITE_URL}/#org` },
+        isAccessibleForFree: true,
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Мэдээ", item: absoluteUrl("/") },
+          { "@type": "ListItem", position: 2, name: topic.label, item: absoluteUrl(topic.key === "other" ? "/" : `/?f=${topic.key}`) },
+          { "@type": "ListItem", position: 3, name: article.title, item: url },
+        ],
+      },
+    ],
+  };
 }
 
 async function Related({ clusterId, currentId }: { clusterId: number; currentId: number }) {
@@ -50,6 +119,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
   return (
     <article className="flex flex-col gap-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd(article)) }} />
       <header className="flex flex-col gap-5">
         <Link href="/" className="flex w-fit items-center gap-1.5 text-sm font-semibold text-tertiary hover:text-secondary">
           <ArrowLeft className="size-4" /> Бүх мэдээ
