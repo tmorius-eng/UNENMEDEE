@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-import { subscribePush, unsubscribePush } from "@/app/push-actions";
+import { sendTestPush, subscribePush, unsubscribePush } from "@/app/push-actions";
 
 /** Chrome/Edge/Samsung fire this when the app can be installed with one tap. */
 interface BeforeInstallPromptEvent extends Event {
@@ -111,8 +111,19 @@ export function usePwa() {
     }
   }, [subscription]);
 
+  const [testState, setTestState] = useState<"idle" | "sending" | "sent" | string>("idle");
+  const sendTest = useCallback(async () => {
+    if (!subscription) return;
+    setTestState("sending");
+    const res = await sendTestPush(subscription.endpoint);
+    setTestState(res.ok ? "sent" : (res.error ?? "Илгээж чадсангүй."));
+  }, [subscription]);
+
   return {
     isIOS,
+    sendTest,
+    /** "idle" | "sending" | "sent" | an error message */
+    testState,
     isStandalone,
     canPromptInstall,
     install,

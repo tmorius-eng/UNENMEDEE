@@ -43,8 +43,6 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/badge-96.png",
       tag: data.tag || undefined,
-      renotify: Boolean(data.tag),
-      lang: "mn",
       data: { url: data.url || "/" },
     }),
   );

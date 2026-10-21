@@ -46,7 +46,7 @@ export function MoneyTags({ amounts, max = 3 }: { amounts: string[]; max?: numbe
 export function DeepBadge() {
   return (
     <Badge type="pill-color" color="purple" size="sm">
-      ⚡ Grok шинжилгээ
+      ⚡ Гүнзгий шинжилгээ
     </Badge>
   );
 }

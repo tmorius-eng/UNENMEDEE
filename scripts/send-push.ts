@@ -5,8 +5,8 @@
  *   npm run push:send -- --mode digest   # the newest digest edition (after npm run digest)
  *   npm run push:send -- --mode news --dry-run
  *
- * News: importance >= 75 or a risk flag, published in the last 24 h, never notified before.
- * At most 3 stories per run get their own notification; the rest become one "N more" alert.
+ * News: importance >= 70 or a risk flag, published in the last 24 h, never notified before.
+ * One notification per run: the top story, with "+N чухал мэдээ" for the rest.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -15,7 +15,7 @@ import { and, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { appSettings, articles, digests, sources } from "@/db/schema";
-import { articlePayload, digestPayload, moreNewsPayload, type PushPayload } from "@/lib/push/core";
+import { digestPayload, newsPayload, type PushPayload } from "@/lib/push/core";
 import { sendToAll } from "@/lib/push/server";
 
 const { values } = parseArgs({
@@ -25,8 +25,7 @@ const { values } = parseArgs({
   },
 });
 
-const IMPORTANCE_MIN = Number(process.env.PUSH_IMPORTANCE_MIN ?? 75);
-const MAX_SINGLE = 3;
+const IMPORTANCE_MIN = Number(process.env.PUSH_IMPORTANCE_MIN ?? 70);
 const LAST_DIGEST_KEY = "push_last_digest_id";
 
 async function newsPayloads(): Promise<{ payloads: PushPayload[]; ids: number[] }> {
@@ -46,9 +45,8 @@ async function newsPayloads(): Promise<{ payloads: PushPayload[]; ids: number[] 
     )
     .orderBy(sql`${articles.importanceScore} desc nulls last`, desc(articles.riskScore))
     .limit(50);
-  const payloads = rows.slice(0, MAX_SINGLE).map(articlePayload);
-  if (rows.length > MAX_SINGLE) payloads.push(moreNewsPayload(rows.length - MAX_SINGLE));
-  return { payloads, ids: rows.map((r) => r.id) };
+  const payload = newsPayload(rows);
+  return { payloads: payload ? [payload] : [], ids: rows.map((r) => r.id) };
 }
 
 async function digestPayloads(): Promise<{ payloads: PushPayload[]; digestId: number | null }> {

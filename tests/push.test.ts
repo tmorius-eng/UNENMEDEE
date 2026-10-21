@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { articlePayload, clip, digestPayload, isAllowedPushEndpoint, moreNewsPayload, SubscriptionSchema } from "@/lib/push/core";
+import { articlePayload, clip, digestPayload, isAllowedPushEndpoint, newsPayload, SubscriptionSchema } from "@/lib/push/core";
 
 describe("push subscriptions", () => {
   it("accepts only browser push services over https", () => {
@@ -41,6 +41,13 @@ describe("push payloads", () => {
 
   it("builds digest and overflow notifications", () => {
     assert.equal(digestPayload({ title: "Төсөв", intro: "Товч", kind: "12h" }).url, "/digest");
-    assert.match(moreNewsPayload(5).title, /5 чухал мэдээ/);
+  });
+
+  it("sends one notification per run: the top story plus a count", () => {
+    assert.equal(newsPayload([]), null);
+    assert.deepEqual(newsPayload([article]), articlePayload(article));
+    const many = newsPayload([article, { ...article, id: 8 }, { ...article, id: 9 }])!;
+    assert.equal(many.url, "/article/tosov-2027");
+    assert.match(many.body, /\+2 чухал мэдээ$/);
   });
 });

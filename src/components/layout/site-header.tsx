@@ -8,6 +8,7 @@ import { NotifyButton } from "@/components/pwa/pwa-controls";
 
 import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
+import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
 const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE";
@@ -28,7 +29,8 @@ async function LiveStatus() {
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-secondary bg-primary/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-      <div className="border-b border-secondary bg-secondary_alt">
+      {/* Status strip: desktop only; phones keep the screen for headlines. */}
+      <div className="hidden border-b border-secondary bg-secondary_alt sm:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-1.5 text-xs font-medium text-tertiary md:px-8">
           <Suspense fallback={<span>Систем ачаалж байна…</span>}>
             <LiveStatus />
@@ -56,6 +58,7 @@ export function SiteHeader() {
             <GitBranch01 className="size-4" /> GitHub
           </a>
           <NotifyButton />
+          <TextSizeToggle />
           <ThemeToggle />
           <MobileMenu />
         </div>
