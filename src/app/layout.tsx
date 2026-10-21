@@ -8,25 +8,50 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Providers } from "@/components/providers";
 import { InstallBanner } from "@/components/pwa/pwa-controls";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
+import { jsonLd, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 import "./globals.css";
 
 // Untitled UI's theme reads --font-inter; Cyrillic subset is required for Mongolian.
 const inter = Inter({ subsets: ["latin", "cyrillic", "cyrillic-ext"], variable: "--font-inter", display: "swap" });
 
+const verification: Metadata["verification"] = {
+  google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+  other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } : undefined,
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
-  ),
-  applicationName: "ИЛ ТОД",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   // iOS home-screen app: full-screen, status bar over the page (safe-area padding in CSS).
-  appleWebApp: { capable: true, title: "ИЛ ТОД", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
-  title: { default: "ИЛ ТОД — Пи-аргүй төрийн мэдээ", template: "%s · ИЛ ТОД" },
-  description:
-    "Монголын төрийн байгууллагуудын мэдээ, тендер, төсвийг автоматаар цуглуулж, баримтыг пи-араас салгадаг нээлттэй эхийн AI платформ.",
-  openGraph: { type: "website", locale: "mn_MN", siteName: "ИЛ ТОД" },
+  title: { default: SITE_TITLE, template: "%s · ИЛ ТОД" },
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  category: "news",
+  alternates: { types: { "application/rss+xml": [{ url: "/feed.xml", title: "ИЛ ТОД — шинэ мэдээ" }] } },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
+  openGraph: { type: "website", locale: "mn_MN", siteName: SITE_NAME, title: SITE_TITLE, description: SITE_DESCRIPTION },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION },
+  verification,
+};
+
+/** Site-wide structured data: who publishes (Organization) and the site itself (WebSite). */
+const SITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "NewsMediaOrganization",
+      "@id": `${SITE_URL}/#org`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/icons/icon-512.png`, width: 512, height: 512 },
+      sameAs: [process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE"],
+      publishingPrinciples: `${SITE_URL}/transparency`,
+    },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: "IL TOD", description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },
+  ],
 };
 
 export const viewport: Viewport = {
@@ -42,6 +67,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="mn" className={`${inter.variable} h-full scroll-smooth antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col bg-secondary_alt text-primary">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
         <Providers>
           <SiteHeader />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-8 md:px-8">{children}</main>

@@ -8,7 +8,8 @@ import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { getClusters } from "@/lib/queries";
 
 export const metadata: Metadata = {
-  title: "Кластер Сэдвүүд",
+  title: "Сэдвүүд — олон эх сурвалжийн харьцуулалт",
+  alternates: { canonical: "/clusters" },
   description: "Олон төрийн байгууллага нэг сэдвийг хэрхэн мэдээлж байгааг AI нэгтгэн харьцуулсан сэдвүүд.",
 };
 

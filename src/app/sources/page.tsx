@@ -9,7 +9,8 @@ import { getSources, type SourceHealth } from "@/lib/queries";
 import type { SourceCategory } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Эх сурвалжууд",
+  title: "Эх сурвалжууд — хянаж буй төрийн сайтууд",
+  alternates: { canonical: "/sources" },
   description: "ИЛ ТОД-ийн автоматаар хянаж буй бүх төрийн вэбсайт, тэдгээрийн төлөв.",
 };
 

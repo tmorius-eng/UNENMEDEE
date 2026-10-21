@@ -13,7 +13,8 @@ import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 import { cx } from "@/utils/cx";
 
 export const metadata: Metadata = {
-  title: "Нээлттэй өгөгдөл",
+  title: "Нээлттэй өгөгдөл — ханш, эдийн засаг, тендер",
+  alternates: { canonical: "/data" },
   description: "opendata.mn-ийн бүх өгөгдлийн багц: Монголбанкны ханш, макро эдийн засаг, цалин, тендер, хар жагсаалт, УИХ-ын ирц.",
 };
 

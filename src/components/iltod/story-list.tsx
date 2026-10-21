@@ -68,9 +68,14 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
                     {tag}
                     {s.riskFlag && <span className="ml-2 text-error-primary">· Өндөр эрсдэл {s.riskScore}</span>}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => toggleOpen(s.id)}
+                  {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place. */}
+                  <a
+                    href={`/article/${s.slug}`}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                      e.preventDefault();
+                      toggleOpen(s.id);
+                    }}
                     aria-expanded={isOpen}
                     className={cx(
                       "story-headline mt-1.5 block w-full cursor-pointer text-left font-semibold text-balance transition-colors",
@@ -78,7 +83,7 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
                     )}
                   >
                     {s.title}
-                  </button>
+                  </a>
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-quaternary">
                     <TimeAgo date={s.publishedAt} />
                     <span aria-hidden>·</span>

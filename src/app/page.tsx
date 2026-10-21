@@ -1,5 +1,7 @@
 import { ArrowRight } from "@untitledui/icons";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { Empty } from "@/components/iltod/empty";
@@ -8,6 +10,15 @@ import { TopicBar } from "@/components/iltod/topic-bar";
 import { formatUsd } from "@/lib/format";
 import { type ArticleListItem, type DigestView, getDigests, getFeed, getSiteStats, parseFilter, type SiteStats } from "@/lib/queries";
 import { findTopic } from "@/lib/topics";
+
+/** Topic pages (`/?f=politics`) get their own title, description and canonical URL. */
+export async function generateMetadata({ searchParams }: PageProps<"/">): Promise<Metadata> {
+  const topic = findTopic(parseFilter((await searchParams).f));
+  if (!topic) return { alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/feed.xml", title: "ИЛ ТОД — шинэ мэдээ" }] } } };
+  const title = `${topic.label} — шинэ мэдээ`;
+  const description = `${topic.label} сэдвийн өнөөдрийн шинэ мэдээ: төрийн байгууллагуудын албан мэдээг AI-аар шүүж, баримтыг пи-араас салгасан товч хураангуй.`;
+  return { title, description, alternates: { canonical: `/?f=${topic.key}` }, openGraph: { title, description, url: `/?f=${topic.key}` } };
+}
 
 const WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
 
@@ -28,11 +39,15 @@ function onePerStory(items: ArticleListItem[]): ArticleListItem[] {
   });
 }
 
-function Masthead({ stats, digest }: { stats: SiteStats; digest: DigestView | undefined }) {
+function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; digest: DigestView | undefined; topicLabel?: string }) {
   return (
     <header className="flex flex-col gap-4 pb-2">
       <div>
-        <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">{todayMn()}</h1>
+        <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">
+          {/* Read by search engines and screen readers; the visible heading stays the date. */}
+          <span className="sr-only">{topicLabel ? `${topicLabel} — шинэ мэдээ` : "Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ"}, </span>
+          {todayMn()}
+        </h1>
         <p className="mt-1 text-sm text-tertiary">
           {stats.activeSources} төрийн эх сурвалж · {stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал {formatUsd(stats.aiCostThisMonthUsd)}
         </p>
@@ -59,12 +74,14 @@ function Masthead({ stats, digest }: { stats: SiteStats; digest: DigestView | un
  */
 async function Feed({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   const filter = parseFilter((await searchParams).f);
+  // The date heading reads the clock: opt out of (runtime) prerendering explicitly.
+  await connection();
   const [feed, stats, [edition], [review]] = await Promise.all([getFeed(filter, 60), getSiteStats(), getDigests("12h", 1), getDigests("30d", 1)]);
   const stories = onePerStory(feed);
   const topic = findTopic(filter);
   return (
     <>
-      <Masthead stats={stats} digest={edition ?? review} />
+      <Masthead stats={stats} digest={edition ?? review} topicLabel={topic?.label} />
       <TopicBar active={filter} placement="inline" />
       {topic && <h2 className={`pt-6 text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>}
       <div className="mt-2">

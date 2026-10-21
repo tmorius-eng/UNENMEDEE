@@ -69,7 +69,16 @@ We are building a 100% transparent, open-source investigative news and public da
 ## 6. Home page (Kagi News style)
 - `/` is a narrow reading column: date masthead, digest strip, then `StoryList` (`src/components/iltod/story-list.tsx`): colored topic label, big headline, ✓ read toggle, tap to expand the AI summary inline (opening marks it read), "Бүгдийг уншсан болгох". One entry per cluster. Read marks and the "Tт" text size live in localStorage via `useLocalStorage` (`src/lib/local-store.ts`, useSyncExternalStore; never setState in an effect).
 - Topics come from the source domain, not the model (`src/lib/topics.ts`): every seeded domain maps to one topic; aimag/district sites show their own name. `/?f=<topic>` filters the feed. `TopicBar` is pinned to the bottom on phones and inline on desktop.
-- The date heading reads the clock, so it must stay inside the request-time part (after `await searchParams`): Cache Components refuses `Date.now()` in prerendered parts.
+- The date heading reads the clock, so it must stay inside the request-time part (after `await searchParams` + `await connection()`): Cache Components refuses `Date.now()` in prerendered parts.
+- Headlines are real `<a href="/article/…">` links (crawlable, Cmd/Ctrl-click opens a tab); a plain tap expands in place.
+
+## 6b. SEO
+- `src/lib/site.ts` is the one source for `SITE_URL` (`NEXT_PUBLIC_SITE_URL` → `VERCEL_PROJECT_PRODUCTION_URL`), title, description and Mongolian keywords.
+- `robots.ts` (disallows `/admin`), `sitemap.ts` (pages, topics `/?f=<topic>`, every article), `news-sitemap.xml` (Google News, last 48 h), `feed.xml` (RSS).
+- Every public page sets its own `alternates.canonical`. Never put a canonical or `openGraph.url` in the root layout: children inherit it and every page would point at `/`.
+- JSON-LD: `NewsMediaOrganization` + `WebSite` in the layout, `NewsArticle` + `BreadcrumbList` on articles (`jsonLd()` escapes `<`).
+- OG images: `src/lib/og.tsx` (next/og) with Inter 700 WOFF subsets in `src/assets/fonts`. Satori keeps one font per family name, so each subset has its own name.
+- Search Console: set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (and optionally `NEXT_PUBLIC_BING_SITE_VERIFICATION`) on Vercel, then submit `/sitemap.xml` and `/news-sitemap.xml`.
 
 ## 7. PWA & push notifications
 - `src/app/manifest.ts` + `public/icons/*` + `src/app/apple-icon.png`: installable app. `public/sw.js` handles push, notification clicks and an offline page; it never caches pages (`/sw.js` is served `no-store`, see `next.config.ts`).
@@ -81,6 +90,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - Public queries (`src/lib/queries.ts`) time out after `QUERY_TIMEOUT_MS` (10 s) and render the empty state: a hung `'use cache'` function would otherwise fail `next build`.
 - Vercel functions run in `sin1` (Singapore, `vercel.json`), next to the Supabase database in ap-southeast-1; keep them in the same region.
 - `/admin` is protected by `src/proxy.ts` (optimistic redirect) AND `requireAdmin()` at the top of every admin page and server action (`src/app/admin/actions.ts`). Server actions are callable directly, so never skip the second check.
+- Login/logout live in `src/app/admin/auth-actions.ts`, apart from the heavy actions: jsdom failed to load on Vercel (ERR_REQUIRE_ESM) and took the whole actions module, login included, down with it. jsdom is only imported lazily through `extractArticleSafe` (cheerio fallback).
 - `ADMIN_SECRET_PASSWORD` must be 12+ characters; the cookie is an HMAC of it (rotating the password logs everyone out).
 - Editing article text sets `edited_at` and the public page says so; `content_hash` keeps proving the original scrape.
 - `.github/workflows/autonomous-news-pipeline.yml` (every 2h): migrate → scrape (HTTP + Chromium) → AI. `news-digest.yml` (08:07 / 20:07 Ulaanbaatar): opendata.mn sync + 12h digest; manual run with `kind=30d` for a monthly review. `discover-sources.yml` (weekly). The pipeline's manual run takes `days` for a backfill. `ci.yml`: check + build without secrets. Workflow inputs reach shell scripts only through `env:`.

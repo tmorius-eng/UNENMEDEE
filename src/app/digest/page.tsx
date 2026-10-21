@@ -8,7 +8,8 @@ import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { getDigests } from "@/lib/queries";
 
 export const metadata: Metadata = {
-  title: "Онцлох тойм",
+  title: "Өнөөдрийн онцлох мэдээ — өглөө, оройн тойм",
+  alternates: { canonical: "/digest" },
   description: "Төрийн байгууллагуудын мэдээнээс улс орны хэмжээнд хамгийн чухал мэдээг AI редактор 12 цаг тутам сонгож, баримтад суурилж тоймлоно.",
 };
 
