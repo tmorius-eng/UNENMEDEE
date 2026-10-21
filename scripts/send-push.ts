@@ -7,6 +7,8 @@
  *
  * News: importance >= 70 or a risk flag, published in the last 24 h, never notified before.
  * One notification per run: the top story, with "+N чухал мэдээ" for the rest.
+ * News mode also sends "Миний гишүүн" alerts: one per subscriber whose followed MPs are named
+ * (extracted_entities.people = politicians.short_name) in articles of the last 24 h.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -14,9 +16,10 @@ import { parseArgs } from "node:util";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
-import { appSettings, articles, digests, sources } from "@/db/schema";
+import { appSettings, articles, digests, politicians, pushSubscriptions, sources } from "@/db/schema";
+import { mentionAlerts } from "@/lib/officials/follow-alerts";
 import { digestPayload, newsPayload, type PushPayload } from "@/lib/push/core";
-import { sendToAll } from "@/lib/push/server";
+import { sendToAll, sendToEndpoint } from "@/lib/push/server";
 
 const { values } = parseArgs({
   options: {
@@ -63,6 +66,28 @@ async function digestPayloads(): Promise<{ payloads: PushPayload[]; digestId: nu
   return { payloads: [digestPayload(latest)], digestId: latest.id };
 }
 
+async function sendMentionAlerts(dryRun: boolean) {
+  const db = getDb();
+  const rows = await db
+    .select({ id: articles.id, slug: articles.slug, title: articles.title, people: sql<string[]>`coalesce(${articles.extractedEntities}->'people', '[]'::jsonb)` })
+    .from(articles)
+    .where(and(eq(articles.isPublished, true), isNotNull(articles.tldrSummary), isNull(articles.mentionNotifiedAt), gte(articles.publishedAt, new Date(Date.now() - 24 * 3_600_000))))
+    .orderBy(sql`${articles.importanceScore} desc nulls last`)
+    .limit(200);
+  if (!rows.length) return;
+  const [pols, subs] = await Promise.all([
+    db.select({ id: politicians.id, shortName: politicians.shortName }).from(politicians).where(eq(politicians.isActive, true)),
+    db.select({ endpoint: pushSubscriptions.endpoint, follows: pushSubscriptions.followPoliticians }).from(pushSubscriptions).where(sql`cardinality(${pushSubscriptions.followPoliticians}) > 0`),
+  ]);
+  const alerts = mentionAlerts(rows, pols, subs);
+  for (const a of alerts) console.log(`  → mention: ${a.payload.title} | ${a.payload.body}`);
+  if (dryRun) return;
+  let sent = 0;
+  for (const a of alerts) if ((await sendToEndpoint(db, a.endpoint, a.payload)).ok) sent++;
+  await db.update(articles).set({ mentionNotifiedAt: new Date() }).where(inArray(articles.id, rows.map((r) => r.id)));
+  console.log(`👤 Миний гишүүн: ${sent}/${alerts.length} alert(s) sent for ${rows.length} new article(s).`);
+}
+
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -71,6 +96,7 @@ async function main() {
   }
   const db = getDb();
   const mode = values.mode === "digest" ? "digest" : "news";
+  if (mode === "news") await sendMentionAlerts(values["dry-run"]);
   const plan = mode === "digest" ? await digestPayloads() : await newsPayloads();
   if (plan.payloads.length === 0) {
     console.log(`🔕 Nothing new to notify (${mode}).`);

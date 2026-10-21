@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
+import { MyMps } from "@/components/officials/follow";
 import { OfficialsTable } from "@/components/officials/officials-table";
 import { getPoliticians } from "@/lib/queries";
 
@@ -28,6 +29,7 @@ export default async function OfficialsPage() {
       >
         <ShareButton path="/officials" title="УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг" className="w-fit" />
       </PageHeader>
+      {people.length > 0 && <MyMps people={people} />}
       {people.length ? <OfficialsTable people={people} /> : <Empty title="Мэдүүлэг хараахан ачаалагдаагүй" description="Гишүүдийн жагсаалт болон мэдүүлгийг долоо хоног бүр автоматаар татна." />}
     </div>
   );
