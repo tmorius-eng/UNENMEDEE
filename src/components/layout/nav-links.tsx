@@ -9,6 +9,7 @@ export const NAV_ITEMS = [
   { href: "/", label: "Нүүр" },
   { href: "/digest", label: "Онцлох тойм" },
   { href: "/officials", label: "Улстөрчид" },
+  { href: "/budget", label: "Төсөв" },
   { href: "/data", label: "Өгөгдөл" },
   { href: "/risk", label: "Эрсдэл" },
   { href: "/clusters", label: "Сэдвүүд" },
