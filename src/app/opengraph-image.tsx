@@ -1,6 +1,6 @@
 import { OG_SIZE, ogImage } from "@/lib/og";
 
-export const alt = "ИЛ ТОД — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
+export const alt = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

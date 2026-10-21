@@ -24,13 +24,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   // iOS home-screen app: full-screen, status bar over the page (safe-area padding in CSS).
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "ИЛ ТОД", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
-  title: { default: SITE_TITLE, template: "%s · ИЛ ТОД" },
+  title: { default: SITE_TITLE, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
   category: "news",
-  alternates: { types: { "application/rss+xml": [{ url: "/feed.xml", title: "ИЛ ТОД — шинэ мэдээ" }] } },
+  alternates: { types: { "application/rss+xml": [{ url: "/feed.xml", title: `${SITE_NAME} — шинэ мэдээ` }] } },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
   openGraph: { type: "website", locale: "mn_MN", siteName: SITE_NAME, title: SITE_TITLE, description: SITE_DESCRIPTION },
   twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION },
@@ -50,7 +50,7 @@ const SITE_JSON_LD = {
       sameAs: [process.env.NEXT_PUBLIC_GITHUB_REPO || "https://github.com/tmorius-eng/UNENMEDEE"],
       publishingPrinciples: `${SITE_URL}/transparency`,
     },
-    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: "IL TOD", description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: ["ИЛ ТОД", "IL TOD", "iltodmedee"], description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },
   ],
 };
 

@@ -3,7 +3,7 @@ import { OG_SIZE, ogImage } from "@/lib/og";
 import { getArticleBySlug } from "@/lib/queries";
 import { topicFor } from "@/lib/topics";
 
-export const alt = "ИЛ ТОД мэдээ";
+export const alt = "ИЛ ТОД МЭДЭЭ";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

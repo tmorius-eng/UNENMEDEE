@@ -7,8 +7,8 @@ export const SITE_URL = (
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")
 ).replace(/\/+$/, "");
 
-export const SITE_NAME = "ИЛ ТОД";
-export const SITE_TITLE = "ИЛ ТОД — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
+export const SITE_NAME = "ИЛ ТОД МЭДЭЭ";
+export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
 export const SITE_DESCRIPTION =
   "Өнөөдрийн мэдээ: УИХ, Засгийн газар, яамд, тендер, төсөв, авлигын хэргийн шинэ мэдээг 90 гаруй төрийн эх сурвалжаас 2 цаг тутам цуглуулж, AI-аар баримтыг пи-араас салгасан Монголын нээлттэй мэдээний сайт.";
 
