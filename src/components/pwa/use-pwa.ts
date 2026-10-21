@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-import { sendTestPush, subscribePush, unsubscribePush } from "@/app/push-actions";
+import { sendTestPush, setFollows, subscribePush, unsubscribePush } from "@/app/push-actions";
+import { FOLLOW_KEY, parseFollows } from "@/lib/officials/follow";
 
 /** Chrome/Edge/Samsung fire this when the app can be installed with one tap. */
 interface BeforeInstallPromptEvent extends Event {
@@ -92,6 +93,8 @@ export function usePwa() {
         return;
       }
       setSubscription(sub);
+      const follows = parseFollows(localStorage.getItem(FOLLOW_KEY));
+      if (follows.length) await setFollows(sub.endpoint, follows);
     } catch {
       setError("Мэдэгдэл асааж чадсангүй. Дахин оролдоно уу.");
     } finally {
@@ -131,6 +134,7 @@ export function usePwa() {
     /** iOS only allows web push inside an app added to the home screen. */
     needsInstallForPush: isIOS && !isStandalone,
     subscribed: subscription !== null,
+    endpoint: subscription?.endpoint ?? null,
     enablePush,
     disablePush,
     busy,

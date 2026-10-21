@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -72,6 +72,8 @@ export const articles = pgTable(
     topic: varchar("topic", { length: 32 }),
     /** When a push notification went out for this article (never notify twice). */
     notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    /** Set once followers of the MPs named in this article were notified (or none followed them). */
+    mentionNotifiedAt: timestamp("mention_notified_at", { withTimezone: true }),
     grokDeepAnalysis: text("grok_deep_analysis"),
     clusterId: integer("cluster_id").references(() => clusters.id, { onDelete: "set null" }),
     /** Set when the AI pipeline gave up on this article, so it is not retried forever. */
@@ -177,6 +179,8 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
   failures: integer("failures").notNull().default(0),
+  /** politicians.id the reader follows ("Миний гишүүн"): alerts when they appear in news. */
+  followPoliticians: integer("follow_politicians").array().notNull().default(sql`'{}'::integer[]`),
 });
 
 /**

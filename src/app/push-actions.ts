@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 
 import { getDb, hasDatabase } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
+import { MAX_FOLLOWS } from "@/lib/officials/follow";
 import { isAllowedPushEndpoint, SubscriptionSchema, TEST_PAYLOAD } from "@/lib/push/core";
 import { sendToEndpoint } from "@/lib/push/server";
 
@@ -70,4 +71,12 @@ export async function sendTestPush(endpoint: unknown): Promise<{ ok: boolean; er
   const res = await sendToEndpoint(getDb(), endpoint, TEST_PAYLOAD);
   if (res.ok) return { ok: true };
   return { ok: false, error: res.status === 404 || res.status === 410 ? "Бүртгэл хүчингүй болсон. Мэдэгдлээ дахин асаана уу." : `Илгээж чадсангүй (${res.status ?? "алдаа"}).` };
+}
+
+/** "Миний гишүүн": stores which MPs this (already subscribed) browser follows. */
+export async function setFollows(endpoint: unknown, ids: unknown): Promise<{ ok: boolean }> {
+  if (typeof endpoint !== "string" || !isAllowedPushEndpoint(endpoint) || !hasDatabase() || !Array.isArray(ids)) return { ok: false };
+  const follows = [...new Set(ids.filter((x): x is number => Number.isInteger(x) && x > 0 && x < 1_000_000))].slice(0, MAX_FOLLOWS);
+  const updated = await getDb().update(pushSubscriptions).set({ followPoliticians: follows }).where(eq(pushSubscriptions.endpoint, endpoint)).returning({ id: pushSubscriptions.id });
+  return { ok: updated.length > 0 };
 }

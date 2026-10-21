@@ -64,6 +64,13 @@
       "when": 1792565161397,
       "tag": "0008_officials_and_indicators",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792573659179,
+      "tag": "0009_follow_politicians",
+      "breakpoints": true
     }
   ]
 }
