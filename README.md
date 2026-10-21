@@ -77,6 +77,8 @@ GitHub Actions (every 2h, free on public repos)
      └─ ai_usage_logs + transparency_ledger    exact tokens and USD for every call
 GitHub Actions (08:07 and 20:07 Ulaanbaatar)
  ├─ npm run data:sync       opendata.mn catalogue (36+ datasets) → small highlights for /data
+ ├─ npm run macro:sync      Mongolbank policy rate, inflation, FX, gold, reserves → home strip + /data
+ ├─ npm run budget:sync     budget since 1990, spending, revenue, debt, Шилэн данс, audit opinions → /budget
  └─ npm run digest          rank the last 12 h without AI → editor model picks 10 stories → /digest
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
 ```
@@ -114,7 +116,7 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 ### Contributing
 
 ```bash
-npm run check   # typecheck + lint + 75 unit tests (no secrets needed)
+npm run check   # typecheck + lint + 110+ unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 

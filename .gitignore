@@ -153,6 +153,7 @@ vite.config.ts.timestamp-*
 next-env.d.ts
 /.next/
 *.pem
+!/certs/*.pem
 .vercel
 .DS_Store
 # Crawlee local request queues / datasets

@@ -72,6 +72,13 @@ jobs:
         continue-on-error: true
         run: npm run macro:sync
 
+      - name: Sync budget data (NSO, Шилэн данс, World Bank, audit.mn)
+        continue-on-error: true
+        env:
+          # audit.mn does not send its RapidSSL intermediate; trust DigiCert's public one (verification stays on).
+          NODE_EXTRA_CA_CERTS: certs/rapidssl-tls-rsa-ca-g1.pem
+        run: npm run budget:sync
+
       - name: Write the digest
         env:
           IN_KIND: ${{ inputs.kind || '12h' }}

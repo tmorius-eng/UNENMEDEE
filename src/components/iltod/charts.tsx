@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
 
 import { formatUsd } from "@/lib/format";
 
@@ -84,6 +84,64 @@ export function SeriesLineChart({ data, name, unit, ariaLabel }: { data: { label
           />
           <Line type="monotone" dataKey="value" name={name} stroke="var(--series-1)" strokeWidth={2} dot={false} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+const TOOLTIP_STYLE = {
+  contentStyle: { background: "var(--color-bg-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, fontSize: 12 },
+  labelStyle: { color: "var(--color-text-primary)", fontWeight: 600 },
+};
+
+/** Grouped bars per period (budget revenue vs expenditure). Always paired with a table on the page. */
+export function GroupedBarChart({
+  data,
+  series,
+  unit,
+  ariaLabel,
+}: {
+  data: ({ label: string } & Record<string, number | string | null>)[];
+  series: { key: string; name: string }[];
+  unit: string;
+  ariaLabel: string;
+}) {
+  const fmt = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return (
+    <div className="h-72 w-full" role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={1} barCategoryGap="15%">
+          <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+          <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} tickFormatter={fmt} />
+          <Tooltip formatter={(v, name) => [`${fmt(Number(v))} ${unit}`, name]} cursor={{ fill: "var(--color-bg-secondary)" }} {...TOOLTIP_STYLE} />
+          <Legend formatter={LegendText} iconType="square" iconSize={10} />
+          {series.map((s, i) => (
+            <Bar key={s.key} dataKey={s.key} name={s.name} fill={`var(--series-${i + 1})`} radius={[3, 3, 0, 0]} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Bars that go below zero (budget balance): surplus and deficit get their own color. */
+export function SignedBarChart({ data, name, unit, ariaLabel }: { data: { label: string; value: number }[]; name: string; unit: string; ariaLabel: string }) {
+  const fmt = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 1 });
+  return (
+    <div className="h-56 w-full" role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="15%">
+          <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+          <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} tickFormatter={fmt} />
+          <Tooltip formatter={(v) => [`${fmt(Number(v))} ${unit}`, name]} cursor={{ fill: "var(--color-bg-secondary)" }} {...TOOLTIP_STYLE} />
+          <Bar dataKey="value" name={name} radius={[3, 3, 3, 3]}>
+            {data.map((d) => (
+              <Cell key={d.label} fill={d.value < 0 ? "var(--series-2)" : "var(--series-3)"} />
+            ))}
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
