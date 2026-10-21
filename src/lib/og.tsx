@@ -46,3 +46,28 @@ export async function ogImage({ eyebrow, title, footer }: { eyebrow: string; tit
     { ...OG_SIZE, fonts: data.map((d, i) => ({ name: FONTS[i].name, data: d, weight: 700 as const, style: "normal" as const })) },
   );
 }
+
+/** Instagram / Facebook story image (1080×1920), shared as a file from the phone share sheet. */
+export const STORY_SIZE = { width: 1080, height: 1920 };
+
+export async function storyImage({ eyebrow, title, footer }: { eyebrow: string; title: string; footer: string }) {
+  const [data, markSrc] = await Promise.all([loadFonts(), loadMark()]);
+  const size = title.length > 110 ? 64 : title.length > 60 ? 76 : 92;
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "160px 88px 200px", background: "linear-gradient(180deg, #ffffff 0%, #e6fbfa 100%)", fontFamily: FONT_FAMILY }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> */}
+          <img src={markSrc} width={208} height={128} alt="" />
+          <div style={{ display: "flex", fontSize: 40, color: "#047c78", letterSpacing: 3 }}>{eyebrow.toUpperCase()}</div>
+        </div>
+        <div style={{ display: "flex", fontSize: size, lineHeight: 1.15, color: "#171043", letterSpacing: -1 }}>{title.length > 160 ? `${title.slice(0, 157)}…` : title}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, borderTop: "6px solid #05beb8", paddingTop: 36, fontSize: 38, color: "#475467" }}>
+          <span>{footer}</span>
+          <span style={{ color: "#171043" }}>iltodmedee.mn</span>
+        </div>
+      </div>
+    ),
+    { ...STORY_SIZE, fonts: data.map((d, i) => ({ name: FONTS[i].name, data: d, weight: 700 as const, style: "normal" as const })) },
+  );
+}

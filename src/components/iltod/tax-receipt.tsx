@@ -1,0 +1,94 @@
+"use client";
+
+import { useState } from "react";
+
+import { formatMntShort, formatNumber } from "@/lib/format";
+import { type BudgetShare, estimatePayrollTax, PIT_RATE, SI_RATE, taxReceipt } from "@/lib/tax/receipt";
+
+const toNumber = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
+const pct = (x: number) => `${(x * 100).toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
+
+function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: string; hint: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label htmlFor={id} className="flex flex-col gap-1.5">
+      <span className="text-sm font-semibold text-primary">{label}</span>
+      <span className="flex items-center rounded-lg bg-primary ring-1 ring-primary ring-inset focus-within:ring-2 focus-within:ring-brand">
+        <input
+          id={id}
+          inputMode="numeric"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => onChange(formatNumber(toNumber(e.target.value)).replace(/^0$/, ""))}
+          placeholder="0"
+          className="w-full bg-transparent px-3.5 py-2.5 text-md text-primary tabular-nums outline-none"
+        />
+        <span className="pr-3.5 text-sm text-tertiary">₮ / сар</span>
+      </span>
+      <span className="text-xs text-tertiary">{hint}</span>
+    </label>
+  );
+}
+
+/** Calculator for /tax. Nothing typed here leaves the browser. */
+export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; year: string }) {
+  const [payroll, setPayroll] = useState("");
+  const [purchases, setPurchases] = useState("");
+  const [salary, setSalary] = useState("");
+  const r = taxReceipt({ payrollMonthly: toNumber(payroll), purchasesMonthly: toNumber(purchases) }, shares);
+  const max = r.lines[0]?.amount || 1;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-5 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:grid-cols-2 md:p-6">
+        <div className="flex flex-col gap-3">
+          <MoneyInput id="payroll" label="Цалингаас суутгадаг ХХОАТ + НДШ" hint="Цалингийн хуудас эсвэл e-barimt-аас харна. Цалингүй бол хоосон орхи." value={payroll} onChange={setPayroll} />
+          <details className="text-sm">
+            <summary className="cursor-pointer text-xs font-semibold text-brand-secondary">Мэдэхгүй байна: цалингаараа ойролцоо тооцох</summary>
+            <div className="mt-2 flex flex-col gap-2">
+              <MoneyInput id="salary" label="Татвар суутгахаас өмнөх цалин" hint={`НДШ ${pct(SI_RATE)} + ХХОАТ ${pct(PIT_RATE)} (НДШ хассаны дараа). Хөнгөлөлт, 2026 оны өөрчлөлтийг тооцоогүй тул ойролцоо.`} value={salary} onChange={setSalary} />
+              <button
+                type="button"
+                onClick={() => setPayroll(formatNumber(estimatePayrollTax(toNumber(salary))))}
+                className="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
+              >
+                Тооцоод дээр бичих
+              </button>
+            </div>
+          </details>
+        </div>
+        <MoneyInput id="purchases" label="Сард дэлгүүр, үйлчилгээнд зарцуулдаг мөнгө" hint="Үнэд 10% НӨАТ орсон байдаг: үнийн 1/11 нь татвар. Оюутан ч гэсэн татвар төлдөг гэсэн үг." value={purchases} onChange={setPurchases} />
+      </div>
+
+      {r.total > 0 && (
+        <section aria-live="polite" className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:p-6">
+          <header className="flex flex-col gap-1">
+            <p className="text-sm text-tertiary">Таны жилд төлдөг татвар (ойролцоо)</p>
+            <p className="text-display-xs font-semibold text-primary tabular-nums">{formatNumber(r.total)} ₮</p>
+            <p className="text-xs text-tertiary">
+              ХХОАТ + НДШ {formatMntShort(r.payrollYear)} · НӨАТ {formatMntShort(r.vatYear)}
+            </p>
+          </header>
+          <h2 className="text-sm font-semibold text-primary">{year} оны улсын төсвийн бүтцээр хуваавал:</h2>
+          <ol className="flex flex-col gap-3">
+            {r.lines.map((l) => (
+              <li key={l.name} className="flex flex-col gap-1">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0 text-secondary">{l.name}</span>
+                  <span className="shrink-0 font-semibold text-primary tabular-nums">
+                    {formatNumber(l.amount)} ₮ <span className="font-normal text-tertiary">· {pct(l.share)}</span>
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-secondary" aria-hidden>
+                  <div className="h-2 rounded-full bg-[var(--series-1)]" style={{ width: `${Math.max(1, (l.amount / max) * 100)}%` }} />
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-tertiary">
+            Татвар тодорхой зардалд шууд очдоггүй: бүгд нэг төсөвт нийлж, УИХ-ын баталсан төсвөөр зарцуулагдана. Энэ нь &quot;таны төлсөн мөнгийг төсөвтэй ижил харьцаагаар хуваавал&quot; гэсэн тооцоо.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}
