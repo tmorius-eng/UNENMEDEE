@@ -7,6 +7,11 @@ export interface ScrapedItem {
   text: string;
   publishedAt: Date | null;
   meta?: ScrapeMeta;
+  /**
+   * API adapters whose list has no body (legalinfo.mn) fetch the text lazily: the runner calls
+   * this only for URLs not stored yet, so known items cost no request. Null = skip the item.
+   */
+  loadText?: () => Promise<string | null>;
 }
 
 export interface SourceRef {

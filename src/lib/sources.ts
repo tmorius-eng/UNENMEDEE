@@ -26,12 +26,15 @@ const s = (category: SourceCategory, domain: string, name: string, urlPattern = 
  * Some hosts block or time out from non-Mongolian IPs, and tender.gov.mn /
  * president.mn sit behind a Cloudflare browser challenge. The scraper records
  * failures per source and backs off instead of failing the batch.
+ * tender.gov.mn (Cloudflare 403 to datacenter IPs; robots.txt also bars AI agents) and
+ * shilendans.gov.mn (SPA with 7 news items; its JSON API is budget data, not news) are kept as
+ * rows but set is_active = false in the database; the seed never re-activates existing rows.
  */
 export const SOURCE_SEEDS: SourceSeed[] = [
   // ---------------------------------------------------------------- portals
   s("portal", "opendata.gov.mn", "Нээлттэй өгөгдлийн портал", "https://opendata.gov.mn/api/v1/front/search"),
   s("portal", "tender.gov.mn", "Төрийн худалдан авах ажиллагааны цахим систем", "https://tender.gov.mn/mn/invitation"),
-  s("portal", "legalinfo.mn", "Эрх зүйн мэдээллийн нэгдсэн систем", "https://legalinfo.mn/mn/news"),
+  s("portal", "legalinfo.mn", "Эрх зүйн мэдээллийн нэгдсэн систем", "https://legalinfo.mn/mn/ajaxLlist/"),
   s("portal", "shilendans.gov.mn", "Шилэн данс", "https://shilendans.gov.mn/"),
   s("portal", "gov.mn", "Монгол Улсын Засгийн газар (gov.mn)", "https://www.gov.mn/news"),
   s("portal", "khural.mn", "Иргэдийн Төлөөлөгчдийн Хурлын нэгдсэн портал"),
@@ -39,7 +42,7 @@ export const SOURCE_SEEDS: SourceSeed[] = [
   // ------------------------------------------- state power & oversight bodies
   s("agency", "parliament.mn", "Монгол Улсын Их Хурал", "https://parliament.mn/api/news/articles/"),
   s("agency", "president.mn", "Монгол Улсын Ерөнхийлөгчийн Тамгын газар"),
-  s("agency", "zasag.mn", "Монгол Улсын Засгийн газар", "https://zasag.mn/news"),
+  s("agency", "zasag.mn", "Монгол Улсын Засгийн газар", "https://mongolia.gov.mn/feed"),
   s("agency", "cabinet.gov.mn", "Засгийн газрын Хэрэг эрхлэх газар", "https://cabinet.gov.mn/c/news"),
   s("agency", "nsc.gov.mn", "Үндэсний аюулгүй байдлын зөвлөл", "https://nsc.gov.mn/mn"),
   s("agency", "iaac.mn", "Авлигатай тэмцэх газар", "https://iaac.mn/news"),
