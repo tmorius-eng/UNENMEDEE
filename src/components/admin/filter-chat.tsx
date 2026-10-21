@@ -67,7 +67,7 @@ function ResultMessage({ item, onPublish, publishing }: { item: Extract<ChatItem
       {r.deepMarkdown && (
         <Message from="assistant">
           <MessageContent>
-            <p className="text-xs font-semibold text-tertiary uppercase">⚡ Grok эрэн сурвалжлах дүгнэлт</p>
+            <p className="text-xs font-semibold text-tertiary uppercase">⚡ Гүнзгий шинжилгээ</p>
             <Response className="prose prose-sm max-w-none dark:prose-invert">{r.deepMarkdown}</Response>
           </MessageContent>
           <MessageAvatar src="/avatars/ai-tier2.svg" name="Gk" />
@@ -141,7 +141,7 @@ export function FilterChat() {
             <ConversationEmptyState
               icon={<span className="text-3xl">🧠</span>}
               title="Тархи угаалтын шүүлтүүр"
-              description="Төрийн мэдээний URL эсвэл улс төрийн мэдэгдлийн текстийг оруулахад DeepSeek баримтыг пи-араас салгаж, эрсдэлтэй бол Grok гүнзгий шинжилнэ."
+              description="Төрийн мэдээний URL эсвэл улс төрийн мэдэгдлийн текстийг оруулахад AI баримтыг пи-араас салгаж, эрсдэлтэй бол гүнзгий шинжилгээ хийнэ."
             />
           ) : (
             items.map((item) =>
@@ -159,7 +159,7 @@ export function FilterChat() {
           {thinking && (
             <Message from="assistant">
               <MessageContent>
-                <ShimmeringText text={deep ? "DeepSeek, дараа нь Grok шинжилж байна…" : "Баримтыг пи-араас салгаж байна…"} />
+                <ShimmeringText text={deep ? "Баримтыг салгаад гүнзгий шинжилж байна…" : "Баримтыг пи-араас салгаж байна…"} />
               </MessageContent>
               <MessageAvatar src="/avatars/ai-tier1.svg" name="AI" />
             </Message>
@@ -186,7 +186,7 @@ export function FilterChat() {
         />
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-secondary">
-            <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} className="size-4" /> ⚡ Grok-оор заавал шинжлэх
+            <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} className="size-4" /> ⚡ Гүнзгий шинжилгээ заавал хийх
           </label>
           <button
             type="submit"

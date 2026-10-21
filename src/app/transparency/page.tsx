@@ -61,7 +61,7 @@ async function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile icon={Server03} label="Серверийн зардал" value="$0.00" hint="Vercel Hobby + Supabase Free + GitHub Actions (нээлттэй репо)" />
+        <Tile icon={Server03} label="Серверийн зардал" value="$0.00" hint="Vercel Hobby + Supabase Free + үнэгүй автомат ажлын сервер" />
         <Tile icon={CpuChip01} label="Нийт AI зардал" value={formatUsd(data.totals.costUsd)} hint={`${formatNumber(data.totals.calls)} дуудлага · ${formatNumber(data.totals.tokens)} токен`} />
         <Tile icon={Database01} label="Уншсан төрийн хуудас" value={formatNumber(stats.articles)} hint={`${formatNumber(stats.analyzed)} нь AI-аар шүүгдсэн`} />
         <Tile
@@ -156,8 +156,8 @@ async function Dashboard() {
       <Panel title="Яаж шалгах вэ?">
         <ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-secondary">
           <li>AI дуудлага бүр (амжилттай эсвэл алдаатай) токены тоо, үнийн хамт <code>ai_usage_logs</code> хүснэгтэд бичигдэнэ.</li>
-          <li>Үнийн хүснэгт эх кодонд (<code>src/lib/ai/pricing.ts</code>) ил байгаа тул хэн ч дахин тооцоолж болно.</li>
-          <li>Скрапер, AI pipeline нь нээлттэй GitHub Actions дээр ажилладаг тул ажлын бүртгэл (log) бүгдэд ил.</li>
+          <li>Зардлыг үйлчилгээ үзүүлэгч бүрийн албан ёсны үнээр (1 сая токен тутамд) тооцно; үнэгүй квотоор хийсэн дуудлага $0.</li>
+          <li>Скрапер, AI pipeline 2 цаг тутам автоматаар ажиллаж, ажил бүрийн бүртгэл хадгалагдана.</li>
         </ul>
       </Panel>
     </div>

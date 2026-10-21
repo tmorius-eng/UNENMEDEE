@@ -58,7 +58,7 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
         {stories.map((s) => {
           const isRead = read.has(s.id);
           const isOpen = open === s.id;
-          const { tag, color } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName);
+          const { tag, color } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName, s.topic);
           return (
             <li key={s.id} className="py-5">
               <div className="flex items-start gap-4">

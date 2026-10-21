@@ -24,7 +24,7 @@ export interface PoliteFetchOptions extends Omit<RequestInit, "signal"> {
  * Used for JSON APIs, source discovery and admin "analyze this URL".
  */
 export async function politeFetch(url: string, opts: PoliteFetchOptions = {}): Promise<Response> {
-  const { timeoutMs = 30_000, skipRobots = false, headers, ...init } = opts;
+  const { timeoutMs = 30_000, skipRobots = false, headers, redirect = "follow", ...init } = opts;
   const u = new URL(url);
   let crawlDelayMs = 0;
   if (!skipRobots) {
@@ -35,7 +35,7 @@ export async function politeFetch(url: string, opts: PoliteFetchOptions = {}): P
   await throttle.wait(u.host, crawlDelayMs);
   return fetch(url, {
     ...init,
-    redirect: "follow",
+    redirect,
     headers: { "user-agent": USER_AGENT, "accept-language": "mn,en;q=0.8", ...headers },
     signal: AbortSignal.timeout(timeoutMs),
   });

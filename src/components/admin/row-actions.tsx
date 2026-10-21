@@ -25,10 +25,10 @@ export function ReanalyzeButtons({ id }: { id: number }) {
       <form action={action} className="flex gap-1">
         <input type="hidden" name="id" value={id} />
         <button type="submit" name="deep" value="0" disabled={pending} className={cx(btn, "text-secondary")}>
-          {pending ? "…" : "DeepSeek"}
+          {pending ? "…" : "AI дахин"}
         </button>
         <button type="submit" name="deep" value="1" disabled={pending} className={cx(btn, "text-purple-600 dark:text-purple-400")}>
-          {pending ? "…" : "⚡ Grok"}
+          {pending ? "…" : "⚡ Гүнзгий"}
         </button>
       </form>
       {state && <p className={cx("max-w-56 text-right text-xs", state.ok ? "text-success-primary" : "text-error-primary")}>{state.message}</p>}

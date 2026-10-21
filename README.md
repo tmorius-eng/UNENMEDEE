@@ -118,6 +118,6 @@ npm run check   # typecheck + lint + 75 unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 
-Add a source: append it to `src/lib/sources.ts`, or let `npm run sources:discover` find it. Sites with a JSON API get an adapter in `src/lib/scraper/adapters/`. Supabase MCP for Claude Code is preconfigured in `.mcp.json`; run `claude /mcp` → supabase → Authenticate once.
+Add a source: append it to `src/lib/sources.ts`, or let `npm run sources:discover` find it. Sites with a JSON API get an adapter in `src/lib/scraper/adapters/`. For the Supabase MCP server in Claude Code, create a local (git-ignored) `.mcp.json` with `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<your-project-ref>"`.
 
 License: MIT.

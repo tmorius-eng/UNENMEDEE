@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, articles, clusters, digests, openDatasets, sources, transparencyLedger, type OpenDataset } from "@/db/schema";
 import { SOURCE_SEEDS } from "@/lib/sources";
-import { findTopic, TOPICS } from "@/lib/topics";
+import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
 
 /**
@@ -40,6 +40,8 @@ export interface ArticleListItem {
   originalUrl: string;
   /** Articles in the same cross-source story (1 = only this one). */
   clusterSize: number;
+  /** Topic the AI read from the text (null = filed by source domain). */
+  topic: string | null;
 }
 
 /**
@@ -81,6 +83,7 @@ const listColumns = {
   deep: articles.grokDeepAnalysis,
   clusterId: articles.clusterId,
   originalUrl: articles.originalUrl,
+  topic: articles.topic,
   clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
 };
 
@@ -100,6 +103,7 @@ type ListRow = {
   deep: string | null;
   clusterId: number | null;
   originalUrl: string;
+  topic: string | null;
   clusterSize: number | null;
 };
 
@@ -120,6 +124,7 @@ function toListItem(r: ListRow): ArticleListItem {
     hasDeepAnalysis: Boolean(r.deep),
     clusterId: r.clusterId,
     originalUrl: r.originalUrl,
+    topic: r.topic,
     clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
   };
 }
@@ -127,6 +132,26 @@ function toListItem(r: ListRow): ArticleListItem {
 /** Only analyzed, published articles appear publicly. */
 const visible = and(eq(articles.isPublished, true), isNotNull(articles.tldrSummary));
 const BUDGET_DOMAINS = ["tender.gov.mn", "shilendans.gov.mn", "mof.gov.mn", "audit.mn"];
+
+/**
+ * SQL mirror of topicFor() (src/lib/topics.ts): local sites and opendata keep their domain topic,
+ * otherwise the AI topic wins over the domain.
+ */
+const DOMAIN_TOPIC = sql`case ${sources.domain} ${sql.join(
+  TOPICS.flatMap((t) => t.domains.map((d) => sql`when ${d} then ${t.key}`)),
+  sql` `,
+)} else 'other' end`;
+const EFFECTIVE_TOPIC = sql<string>`case
+  when ${sources.category} = 'local' then 'local'
+  when ${DOMAIN_TOPIC} = 'data' then 'data'
+  when ${articles.topic} in (${sql.join(AI_TOPIC_KEYS.map((k) => sql`${k}`), sql`, `)}) then ${articles.topic}
+  else ${DOMAIN_TOPIC} end`;
+
+/**
+ * Minor items (importance below this, e.g. trainings, greetings, dataset listings) stay off the
+ * home page and topic pages; they remain on /topic/data, /risk, clusters and the sitemap.
+ */
+const FEED_MIN_IMPORTANCE = Number(process.env.FEED_MIN_IMPORTANCE ?? 25);
 
 function filterCondition(filter: FeedFilter): SQL | undefined {
   switch (filter) {
@@ -143,7 +168,7 @@ function filterCondition(filter: FeedFilter): SQL | undefined {
       return eq(sources.category, "local");
     default: {
       const topic = findTopic(filter);
-      return topic?.domains.length ? inArray(sources.domain, topic.domains) : undefined;
+      return topic ? sql`${EFFECTIVE_TOPIC} = ${topic.key}` : undefined;
     }
   }
 }
@@ -157,7 +182,13 @@ export async function getFeed(filter: FeedFilter, limit = 30): Promise<ArticleLi
       .select(listColumns)
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
-      .where(and(visible, filterCondition(filter)))
+      .where(
+        and(
+          visible,
+          filterCondition(filter),
+          filter === "risk" || filter === "data" ? undefined : sql`coalesce(${articles.importanceScore}, 100) >= ${FEED_MIN_IMPORTANCE}`,
+        ),
+      )
       .orderBy(...(filter === "risk" ? [desc(articles.riskScore), desc(articles.publishedAt)] : [desc(articles.publishedAt), desc(articles.id)]))
       .limit(limit);
     return rows.map(toListItem);
@@ -234,6 +265,28 @@ export interface ArticleDetail extends ArticleListItem {
   scrapeMeta: ScrapeMeta | null;
   createdAt: Date;
   editedAt: Date | null;
+  /** The model that actually wrote the summary / deep analysis (from ai_usage_logs); null = rule-based or unknown. */
+  tier1Model: AIModelRef | null;
+  tier2Model: AIModelRef | null;
+}
+
+export interface AIModelRef {
+  provider: string;
+  model: string;
+}
+
+/** Latest successful call of these purposes for the article, as "provider|model". */
+function modelUsed(purposes: string[]) {
+  return sql<string | null>`(select ${aiUsageLogs.provider} || '|' || ${aiUsageLogs.model} from ${aiUsageLogs}
+    where ${aiUsageLogs.articleId} = ${articles.id} and ${aiUsageLogs.success}
+      and ${aiUsageLogs.purpose} in (${sql.join(purposes.map((p) => sql`${p}`), sql`, `)})
+    order by ${aiUsageLogs.createdAt} desc limit 1)`;
+}
+
+function parseModelRef(v: string | null): AIModelRef | null {
+  if (!v) return null;
+  const [provider, ...rest] = v.split("|");
+  return { provider, model: rest.join("|") };
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
@@ -242,7 +295,17 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
   cacheTag("articles", `article-${slug}`);
   return safe("getArticleBySlug", null, async () => {
     const [r] = await getDb()
-      .select({ ...listColumns, originalUrl: articles.originalUrl, contentHash: articles.contentHash, cleanContent: articles.cleanContent, scrapeMeta: articles.scrapeMeta, createdAt: articles.createdAt, editedAt: articles.editedAt })
+      .select({
+        ...listColumns,
+        originalUrl: articles.originalUrl,
+        contentHash: articles.contentHash,
+        cleanContent: articles.cleanContent,
+        scrapeMeta: articles.scrapeMeta,
+        createdAt: articles.createdAt,
+        editedAt: articles.editedAt,
+        tier1Model: modelUsed(["tier1"]),
+        tier2Model: modelUsed(["tier2", "admin"]),
+      })
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
       .where(and(visible, eq(articles.slug, slug)))
@@ -260,6 +323,8 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       scrapeMeta: r.scrapeMeta,
       createdAt: r.createdAt,
       editedAt: r.editedAt,
+      tier1Model: parseModelRef(r.tier1Model),
+      tier2Model: parseModelRef(r.tier2Model),
     };
   });
 }

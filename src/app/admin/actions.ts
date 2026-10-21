@@ -12,7 +12,7 @@ import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
-import { politeFetch } from "@/lib/scraper/http";
+import { fetchPublicUrl } from "@/lib/scraper/public-url";
 import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
 
 const MAX_STORED_CHARS = 15_000;
@@ -154,7 +154,7 @@ export async function runFilter(raw: string, forceDeep: boolean): Promise<Filter
   let input: FilterInput;
   if (/^https?:\/\/\S+$/i.test(value)) {
     try {
-      const res = await politeFetch(value, { timeoutMs: 25_000 });
+      const res = await fetchPublicUrl(value, { timeoutMs: 25_000 });
       if (!res.ok) return { ok: false, error: `Хуудсыг татаж чадсангүй (HTTP ${res.status}).` };
       const article = await extractArticleSafe(await res.text(), res.url || value);
       if (!article) return { ok: false, error: "Хуудаснаас нийтлэлийн текст олдсонгүй (JavaScript-ээр ачаалдаг сайт байж магадгүй). Текстийг нь хуулж оруулна уу." };

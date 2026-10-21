@@ -17,7 +17,7 @@ import type { PushPayload } from "./core";
 
 const PUBLIC_KEY = "vapid_public_key";
 const PRIVATE_KEY = "vapid_private_key";
-const SUBJECT = process.env.VAPID_SUBJECT || "https://github.com/tmorius-eng/UNENMEDEE";
+const SUBJECT = process.env.VAPID_SUBJECT || "https://iltodmedee.mn";
 
 export async function getVapidPublicKey(db: DB): Promise<string | null> {
   const [row] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, PUBLIC_KEY));
