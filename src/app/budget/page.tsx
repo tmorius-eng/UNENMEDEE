@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { GroupedBarChart, SeriesLineChart, SignedBarChart } from "@/components/iltod/charts";
 import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
+import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { AUDIT_URL, type AuditSnapshot, OPINIONS, type Opinion } from "@/lib/budget/audit";
 import { GOVERNMENTS_SOURCE, governmentsInYear } from "@/lib/budget/governments";
@@ -462,7 +463,9 @@ export default function BudgetPage() {
         eyebrow="💰 Улсын төсөв"
         title="Татварын мөнгө хаашаа явдаг вэ?"
         description="1990 оноос хойшхи нэгдсэн төсвийн орлого, зарлага, алдагдал, юунд зарцуулсан, хэнд төлсөн, аудит юу гэж дүгнэсэн. Зөвхөн албан ёсны статистик, тоо бүр эх сурвалж руугаа холбогдоно; бид хэнийг ч буруутгахгүй."
-      />
+      >
+        <ShareButton path="/budget" title="Татварын мөнгө хаашаа явдаг вэ? 1990 оноос хойшхи улсын төсөв" className="w-fit" />
+      </PageHeader>
       <Suspense fallback={<FeedSkeleton />}>
         <Budget />
       </Suspense>

@@ -10,6 +10,7 @@ import { ArticleGrid } from "@/components/iltod/article-grid";
 import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod/badges";
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { HashBadge } from "@/components/iltod/hash-badge";
+import { ShareButton } from "@/components/iltod/share-button";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
@@ -138,6 +139,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         </div>
         <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{article.title}</h1>
         <MoneyTags amounts={article.amounts} max={6} />
+        <ShareButton path={`/article/${slug}`} title={article.title} text={tldrSentences(article.tldr, 1)[0]} className="w-fit" />
       </header>
 
       <AIMessage

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { SeriesLineChart } from "@/components/iltod/charts";
+import { ShareButton } from "@/components/iltod/share-button";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import type { AssetDeclaration } from "@/db/schema";
 import { formatMntShort, formatNumber } from "@/lib/format";
@@ -80,6 +81,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
               parliament.mn <LinkExternal01 className="size-3.5" />
             </a>
           </p>
+          <ShareButton path={`/officials/${p.id}`} title={`${p.fullName}: хөрөнгө, орлогын мэдүүлэг`} className="mt-2 w-fit" />
         </div>
       </header>
 

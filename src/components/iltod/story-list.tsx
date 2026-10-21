@@ -12,6 +12,7 @@ import { cx } from "@/utils/cx";
 
 import { AIMessage } from "./ai-message";
 import { MoneyTags } from "./badges";
+import { ShareButton } from "./share-button";
 import { SpinMeter } from "./spin-meter";
 import { TimeAgo } from "./time-ago";
 
@@ -136,6 +137,7 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
                     >
                       Эх сурвалж <ArrowUpRight className="size-4" />
                     </a>
+                    <ShareButton path={`/article/${s.slug}`} title={s.title} />
                   </div>
                 </div>
               )}
