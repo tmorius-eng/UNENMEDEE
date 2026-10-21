@@ -20,6 +20,9 @@ export function SiteFooter() {
           <Link className="text-tertiary hover:text-secondary" href="/transparency">
             Зардлын тайлан (AI токен бүрээр)
           </Link>
+          <Link className="text-tertiary hover:text-secondary" href="/clusters">
+            Олон эх сурвалжид гарсан сэдвүүд
+          </Link>
           <Link className="text-tertiary hover:text-secondary" href="/sources">
             Хянаж буй бүх эх сурвалж
           </Link>

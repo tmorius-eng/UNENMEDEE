@@ -7,7 +7,7 @@ import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/
 import { toPrefixQuery } from "@/lib/search";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
-import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
+import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
 
 /**
  * Read model for the public site. Every function:
@@ -731,5 +731,70 @@ export async function search(q: string): Promise<SearchResults> {
         : Promise.resolve([]),
     ]);
     return { articles: rows.map(toListItem), politicians: people };
+  });
+}
+
+export type AttendanceHighlight = Extract<DatasetHighlight, { kind: "attendance" }>;
+
+/** Parliament attendance from opendata.mn (one dataset, every member's counts). */
+export async function getAttendance(): Promise<{ highlight: AttendanceHighlight; pageUrl: string } | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("open-data");
+  return safe("getAttendance", null, async () => {
+    const [row] = await getDb()
+      .select({ highlight: openDatasets.highlight, pageUrl: openDatasets.pageUrl })
+      .from(openDatasets)
+      .where(sql`${openDatasets.highlight}->>'kind' = 'attendance'`)
+      .limit(1);
+    return row?.highlight?.kind === "attendance" ? { highlight: row.highlight, pageUrl: row.pageUrl } : null;
+  });
+}
+
+/** /laws: newest legal acts registered on legalinfo.mn (laws, resolutions, orders) with their AI summaries. */
+export async function getLegalActs(limit = 40): Promise<ArticleListItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  return safe("getLegalActs", [], async () => {
+    const rows = await getDb()
+      .select(listColumns)
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(and(visible, eq(sources.domain, "legalinfo.mn")))
+      .orderBy(desc(articles.publishedAt), desc(articles.id))
+      .limit(limit);
+    return rows.map(toListItem);
+  });
+}
+
+export interface WeekNumbers {
+  articles: number;
+  risky: number;
+  legalActs: number;
+  sources: number;
+  /** articles that name an amount in ₮ */
+  withAmounts: number;
+}
+
+/** "📊 Энэ 7 хоногт" on /digest: plain counts over the last 7 days. */
+export async function getWeekNumbers(): Promise<WeekNumbers | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("articles");
+  return safe("getWeekNumbers", null, async () => {
+    const since = sql`now() - interval '7 days'`;
+    const [r] = await getDb()
+      .select({
+        articles: sql<number>`count(*)::int`,
+        risky: sql<number>`count(*) filter (where ${articles.riskFlag})::int`,
+        legalActs: sql<number>`count(*) filter (where ${sources.domain} = 'legalinfo.mn')::int`,
+        sources: sql<number>`count(distinct ${articles.sourceId})::int`,
+        withAmounts: sql<number>`count(*) filter (where jsonb_array_length(coalesce(${articles.extractedEntities}->'amounts_mnt', '[]'::jsonb)) > 0)::int`,
+      })
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(and(visible, sql`${articles.publishedAt} > ${since}`));
+    return r && r.articles > 0 ? r : null;
   });
 }

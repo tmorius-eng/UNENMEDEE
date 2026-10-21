@@ -11,7 +11,7 @@ import { TimeAgo } from "@/components/iltod/time-ago";
 import type { AssetDeclaration } from "@/db/schema";
 import { formatMntShort, formatNumber } from "@/lib/format";
 import { declarationFlags } from "@/lib/officials/flags";
-import { getPolitician, getPoliticianIds } from "@/lib/queries";
+import { getAttendance, getPolitician, getPoliticianIds } from "@/lib/queries";
 
 export async function generateStaticParams() {
   const ids = await getPoliticianIds();
@@ -46,6 +46,50 @@ const COLUMNS: { key: keyof AssetDeclaration; label: string }[] = [
 
 function money(v: unknown): string {
   return typeof v === "number" ? formatMntShort(v) : "—";
+}
+
+/** Plenary attendance from opendata.mn, matched by short name ("Х.Баттулга"). */
+async function Attendance({ shortName }: { shortName: string }) {
+  const data = await getAttendance();
+  const m = data?.highlight.top.find((x) => x.name === shortName);
+  if (!data || !m) return null;
+  const { highlight: h } = data;
+  const parts = [
+    { label: "Ирсэн", n: m.present, color: "bg-success-solid" },
+    { label: "Томилолт", n: m.travel, color: "bg-[var(--series-1)]" },
+    { label: "Эмнэлэг", n: m.medical, color: "bg-[var(--series-4)]" },
+    { label: "Чөлөө", n: m.leave, color: "bg-[var(--series-3)]" },
+    { label: "Шалтгаан бүртгэгдээгүй", n: m.unexplained, color: "bg-error-solid" },
+  ];
+  return (
+    <section aria-labelledby="attendance" className="flex flex-col gap-3 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+      <header className="flex flex-col gap-1">
+        <h2 id="attendance" className="text-lg font-semibold text-primary">
+          🏛 Нэгдсэн хуралдааны ирц
+        </h2>
+        <p className="text-xs text-tertiary">
+          {h.from} – {h.to}, {m.records} хуралдаан. Эх сурвалж:{" "}
+          <a href={data.pageUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-secondary hover:underline">
+            opendata.mn
+          </a>
+        </p>
+      </header>
+      <div className="flex h-3 overflow-hidden rounded-full bg-secondary" role="img" aria-label={parts.map((p) => `${p.label} ${p.n}`).join(", ")}>
+        {parts.map((p) => p.n > 0 && <div key={p.label} className={p.color} style={{ width: `${(p.n / m.records) * 100}%` }} />)}
+      </div>
+      <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
+        {parts.map((p) => (
+          <li key={p.label} className="flex items-center gap-2">
+            <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${p.color}`} />
+            <span className="text-secondary">
+              {p.label}: <strong className="text-primary tabular-nums">{p.n}</strong>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-tertiary">&quot;Шалтгаан бүртгэгдээгүй&quot; гэдэг нь ирсэн цаг ч, томилолт, чөлөөний тэмдэглэл ч өгөгдөлд байхгүй тохиолдол: тасалсан гэсэн баталгаа биш.</p>
+    </section>
+  );
 }
 
 async function Profile({ params }: { params: PageProps<"/officials/[id]">["params"] }) {
@@ -93,6 +137,8 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
         Доорх тоо бүр Авлигатай тэмцэх газрын ХАСХОМ системд гишүүний өөрөө гаргасан албан ёсны мэдүүлгээс авсан (₮). Мэдүүлэг бол буруутгал биш. Өөрчлөлтийн шалтгааныг (өв залгамжлал, худалдаа,
         цалин г.м.) эх мэдүүлгээс шалгана уу.
       </p>
+
+      <Attendance shortName={p.shortName} />
 
       {rows.length === 0 ? (
         <p className="text-tertiary">Энэ гишүүний мэдүүлэг ХАСХОМ системээс олдсонгүй.</p>

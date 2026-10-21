@@ -197,8 +197,8 @@ export function attendanceHighlight(rows: Row[]): DatasetHighlight | null {
   const sorted = [...sessions].sort();
   const top = [...members.entries()]
     .map(([name, m]) => ({ name, ...m }))
-    .sort((a, b) => b.unexplained - a.unexplained || a.present / a.records - b.present / b.records)
-    .slice(0, 20);
+    // Every member (about 127, ~13 KB): /officials/[id] shows each MP's own row; /data shows the top 20.
+    .sort((a, b) => b.unexplained - a.unexplained || a.present / a.records - b.present / b.records);
   return { kind: "attendance", sessions: sessions.size, from: sorted[0], to: sorted[sorted.length - 1], members: members.size, records: rows.length, top };
 }
 

@@ -199,7 +199,7 @@ function Attendance({ d, h }: { d: OpenDataset; h: Highlight<"attendance"> }) {
       <Table
         caption="УИХ-ын гишүүдийн ирц"
         head={["Гишүүн", "Ирсэн", "Томилолт", "Эмнэлэг", "Чөлөө", "Шалтгаан бүртгэгдээгүй"]}
-        rows={h.top.map((m) => [m.name, `${m.present}/${m.records}`, m.travel, m.medical, m.leave, m.unexplained])}
+        rows={h.top.slice(0, 20).map((m) => [m.name, `${m.present}/${m.records}`, m.travel, m.medical, m.leave, m.unexplained])}
         numeric={[1, 2, 3, 4, 5]}
       />
     </Panel>

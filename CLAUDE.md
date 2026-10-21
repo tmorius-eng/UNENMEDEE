@@ -83,6 +83,11 @@ We are building a 100% transparent, open-source investigative news and public da
 - `/search?q=` (🔍 in the header): `search()` in queries.ts, Postgres full-text with the `simple` config + prefix terms from `toPrefixQuery()` (`src/lib/search.ts`: words longer than 6 letters are cut to 5 because Mongolian suffixes change the stem). GIN index `articles_search_idx` (migration 0010) must use the same expression as `SEARCH_DOC`. MPs match by name (ILIKE). Result pages are `noindex, follow`.
 - `PushInvite` sits at the END of the home StoryList (below the fold: it appears after hydration, mid-list it would cause CLS); "Дараа" hides it via localStorage `iltod-push-invite`.
 
+## 6g. Laws, attendance, weekly numbers
+- `/laws` ("Хууль" in the nav, replacing "Сэдвүүд", which moved to the footer): `getLegalActs()` = legalinfo.mn articles with their AI summaries, grouped by day, each linking the original text.
+- Attendance: the opendata.mn attendance highlight now keeps every member (not only the top 20; /data slices 20 itself). `/officials/[id]` matches the member by `short_name` ("Х.Баттулга") and shows present / travel / medical / leave / unexplained with the neutral note that "unexplained" is not proof of absence.
+- `/digest` "📊 Энэ 7 хоногт": `getWeekNumbers()` plain counts (articles, sources, legal acts, articles naming ₮, high-risk), each tile linking to where they are.
+
 ## 6c. Performance budget (PageSpeed mobile)
 - Keep heavy client libraries off shared and home bundles. `AIMessage` must not import streamdown (`Response`): markdown blocks use `AIMarkdownMessage` (`ai-markdown.tsx`). Header, StoryList and PWA sheets animate with CSS (`tailwindcss-animate` `animate-in …`), not `motion`. `Empty` is plain markup (Untitled's EmptyState pulled ~200 KB of illustrations; its file-icons loader ~470 KB).
 - Check with Lighthouse before merging UI work: `npx lighthouse <url> --form-factor=mobile`. Text needs 4.5:1 contrast: topic labels use `utility-*-700`, the logo's teal is `#047c78` in light mode.
