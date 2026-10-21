@@ -4,6 +4,7 @@ import { ArrowUpRight, Check } from "@untitledui/icons";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
+import { PushInvite } from "@/components/pwa/push-invite";
 import { tldrSentences } from "@/lib/format";
 import { useLocalStorage } from "@/lib/local-store";
 import { parseIds, READ_KEY, READ_MAX } from "@/lib/read-state";
@@ -147,6 +148,7 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
           </button>
         </div>
       )}
+      {stories.length > 0 && <PushInvite />}
     </div>
   );
 }

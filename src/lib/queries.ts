@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
+import { toPrefixQuery } from "@/lib/search";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
@@ -690,5 +691,45 @@ export async function getDonation(): Promise<Donation> {
   return safe("getDonation", DEFAULT_DONATION, async () => {
     const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, DONATION_KEY)).limit(1);
     return row ? parseDonation(row.value) : DEFAULT_DONATION;
+  });
+}
+
+/** Expression of the GIN index articles_search_idx (schema.ts): keep both identical. */
+const SEARCH_DOC = sql`to_tsvector('simple', ${articles.title} || ' ' || coalesce(${articles.tldrSummary}, ''))`;
+
+export interface SearchResults {
+  articles: ArticleListItem[];
+  politicians: { id: number; fullName: string; party: string | null; photoUrl: string | null }[];
+}
+
+/** /search: published articles (title + AI summary, prefix match) and MPs by name. */
+export async function search(q: string): Promise<SearchResults> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles", "officials");
+  const query = toPrefixQuery(q);
+  const empty: SearchResults = { articles: [], politicians: [] };
+  if (!query) return empty;
+  return safe("search", empty, async () => {
+    const db = getDb();
+    const tsq = sql`to_tsquery('simple', ${query})`;
+    const name = `%${q.trim().slice(0, 60).replace(/[%_\\]/g, "")}%`;
+    const [rows, people] = await Promise.all([
+      db
+        .select(listColumns)
+        .from(articles)
+        .innerJoin(sources, eq(articles.sourceId, sources.id))
+        .where(and(visible, sql`${SEARCH_DOC} @@ ${tsq}`))
+        .orderBy(sql`ts_rank(${SEARCH_DOC}, ${tsq}) desc`, desc(articles.publishedAt))
+        .limit(30),
+      q.trim().length >= 2
+        ? db
+            .select({ id: politicians.id, fullName: politicians.fullName, party: politicians.party, photoUrl: politicians.photoUrl })
+            .from(politicians)
+            .where(and(eq(politicians.isActive, true), sql`(${politicians.fullName} ilike ${name} or ${politicians.shortName} ilike ${name})`))
+            .limit(6)
+        : Promise.resolve([]),
+    ]);
+    return { articles: rows.map(toListItem), politicians: people };
   });
 }

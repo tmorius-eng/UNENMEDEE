@@ -1,3 +1,4 @@
+import { SearchLg } from "@untitledui/icons";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -51,6 +52,9 @@ export function SiteHeader() {
           <DonateChip className="mx-auto hidden rounded-full bg-secondary px-3 py-1.5 sm:flex xl:hidden" />
         </Suspense>
         <div className="ml-auto flex items-center gap-1">
+          <Link href="/search" aria-label="Хайх" title="Хайх" className="flex size-10 items-center justify-center rounded-lg text-fg-quaternary transition hover:bg-primary_hover hover:text-fg-secondary">
+            <SearchLg className="size-5" aria-hidden />
+          </Link>
           <NotifyButton />
           <TextSizeToggle />
           <ThemeToggle />

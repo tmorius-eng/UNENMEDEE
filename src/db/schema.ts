@@ -91,6 +91,8 @@ export const articles = pgTable(
     index("articles_risk_idx").on(t.riskFlag, t.riskScore),
     index("articles_published_at_idx").on(t.publishedAt),
     index("articles_created_at_idx").on(t.createdAt),
+    // /search: must match the expression in searchArticles() exactly.
+    index("articles_search_idx").using("gin", sql`to_tsvector('simple', ${t.title} || ' ' || coalesce(${t.tldrSummary}, ''))`),
   ],
 );
 
