@@ -71,7 +71,15 @@ function isDateLine(line: string): boolean {
  */
 export function looksLikeNavigation(text: string): boolean {
   const head = normalizeText(text).slice(0, 300);
-  return (head.match(/[а-яөүёa-z][А-ЯӨҮЁA-Z]/gu)?.length ?? 0) >= 3 || (head.match(/>/g)?.length ?? 0) >= 2;
+  return (
+    (head.match(/[а-яөүёa-z][А-ЯӨҮЁA-Z]/gu)?.length ?? 0) >= 3 ||
+    (head.match(/>/g)?.length ?? 0) >= 2 ||
+    // A news listing with view counters ("2023-06-08 1932 уншсан") or a menu that opens the page.
+    (head.match(/\d\s*уншсан/g)?.length ?? 0) >= 2 ||
+    /^(Бидний тухай|Нүүр хуудас|Нүүр|Home|ENG)\s/u.test(head) ||
+    // Nothing that reads like a headline at all (login pages: "Нэвтрэх").
+    isGenericTitle(firstSentenceTitle(text))
+  );
 }
 
 /** The first sentence of the text as a headline (≤ 110 characters, cut at a word). */
@@ -80,7 +88,10 @@ export function firstSentenceTitle(text: string, max = 110): string {
     .split(/\n+|(?<=[.!?])\s+/)
     .map((l) => l.replace(/\s+/g, " ").trim())
     .filter((l) => l && !isDateLine(l));
-  const pick = lines.find((l) => l.length >= 20 && !isGenericTitle(l)) ?? lines[0] ?? "";
+  let pick = lines.find((l) => l.length >= 20 && !isGenericTitle(l)) ?? lines[0] ?? "";
+  // A listing line glued to its date and view counter: "Гарчиг 2023-06-081932 уншсан…".
+  const beforeDate = pick.split(/\s+(?=20\d{2}[./-]\d{1,2}[./-]\d{1,2})/)[0];
+  if (beforeDate.length >= 20) pick = beforeDate;
   if (pick.length <= max) return pick.replace(/[.\s]+$/, "");
   const cut = pick.slice(0, max);
   const space = cut.lastIndexOf(" ");

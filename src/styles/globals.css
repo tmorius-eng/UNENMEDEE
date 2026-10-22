@@ -111,6 +111,14 @@ html {
 }
 
 /* Kagi-style story list. The "Tт" toggle scales every rem-based size at once. */
+/*
+ * Scraped titles sometimes glue two words together ("ГҮЙЦЭТГЭЛИЙНТӨЛӨВЛӨГӨӨГ"): let such a word
+ * wrap instead of pushing the page wider than a 320 px phone.
+ */
+:where(h1, h2, h3, .story-headline) {
+    overflow-wrap: anywhere;
+}
+
 .story-headline {
     font-size: 1.3125rem;
     line-height: 1.3;
