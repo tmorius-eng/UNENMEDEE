@@ -15,6 +15,8 @@
 - AI шинжилгээ, AI-д өгдөг заавар ([`src/lib/ai/prompts.ts`](src/lib/ai/prompts.ts)),
 - бүх автомат ажил ([`.github/workflows/`](.github/workflows)), тэдгээрийн бүртгэл [Actions](https://github.com/tmorius-eng/UNENMEDEE/actions) хэсэгт нээлттэй.
 
+📐 **Техникийн дэлгэрэнгүй:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): систем, өгөгдлийн сан, скрапер, AI pipeline, кластерчлал, аюулгүй байдал, шийдвэрүүдийн шалтгаан (англиар).
+
 ## Үндсэн зарчим
 
 - **Баримт эхэнд.** Тоо, ₮ дүн, огноо, хууль, байгууллагыг пи-ар, магтаалаас тусад нь гаргана.
@@ -90,6 +92,8 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 ## English
 
 ### How it works
+
+The full technical write-up, with diagrams, the data model, algorithms and design trade-offs, is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. A short version:
 
 ```
 GitHub Actions (every 2 h, free on public repos)
