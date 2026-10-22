@@ -145,6 +145,12 @@ We are building a 100% transparent, open-source investigative news and public da
 - AI fallback (`src/lib/ai/fallback.ts`, start of `ai:process`): articles still unsummarized after 24 h, or parked with `ai_error`, get their first sentences as the summary (`summary_fallback`, importance 30, page label "AI ажиллаагүй", no fact/spin panel), so news keeps appearing if every provider fails.
 - `watchdog.yml` (daily) runs `npm run health`: no new articles > 26 h, no AI summary > 36 h, no digest > 26 h, > 60 % failing sources or DB > 400 MB → opens/updates a GitHub issue labelled `watchdog` (GitHub emails the owner) and closes it when healthy again.
 
+## 8c. Repository security
+- `main` is protected by a ruleset (set in the GitHub UI): changes land only through a PR with the `check` job green; no force push or deletion. Dependabot PRs follow the same path.
+- Workflows: top-level `permissions: contents: read` (raise per workflow only where needed: keepalive `actions: write`, watchdog `issues: write`), `actions/checkout` with `persist-credentials: false`, and every action pinned to a commit SHA with its version as a comment (Dependabot `github-actions` updates both). Add new actions the same way.
+- `.github/dependabot.yml`: weekly, minor/patch grouped, 7-day cooldown on new releases. `ci.yml` runs `dependency-review` on PRs (fails on high-severity advisories).
+- `SECURITY.md`: vulnerabilities are reported privately (GitHub private vulnerability reporting), never in public issues.
+
 ## 9. MCP
 `.mcp.json` is git-ignored (it named the Supabase project). To use the Supabase MCP server locally, create it with `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<your-project-ref>"`, then `claude /mcp` → supabase → Authenticate.
 - The public site does not link to the repository (header, footer and JSON-LD carry no GitHub URL); the scraper's User-Agent and the VAPID subject point to https://iltodmedee.mn.

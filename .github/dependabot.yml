@@ -1,0 +1,40 @@
+# Dependabot: weekly update PRs for npm packages and GitHub Actions (pinned by commit SHA).
+# Minor and patch bumps arrive as one grouped PR; major versions come one by one, because
+# Next.js / React majors change APIs (see AGENTS.md). CI (`check`) must pass before a merge.
+# Security fixes are opened as soon as an advisory appears, outside this schedule, once
+# "Dependabot security updates" is on in Settings → Code security.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Ulaanbaatar
+    # A brand-new release is a common supply-chain attack window: wait before proposing it.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: deps
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Ulaanbaatar
+    cooldown:
+      default-days: 7
+    labels: [dependencies]
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
