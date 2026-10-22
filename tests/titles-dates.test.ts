@@ -29,6 +29,7 @@ describe("generic titles", () => {
       firstSentenceTitle("2026 оны 10 -р сарын 21, Лхагва\nТус газрын алба хаагчид сургалтад хамрагдлаа. Дараагийн өгүүлбэр."),
       "Тус газрын алба хаагчид сургалтад хамрагдлаа",
     );
+    assert.equal(firstSentenceTitle("Тоон гарын үсгийг олгож эхэллээ 2022-05-111847 уншсанЗасгийн газрын"), "Тоон гарын үсгийг олгож эхэллээ");
     const long = firstSentenceTitle(`${"Монгол Улсын Засгийн газрын ээлжит хуралдаанаар олон чухал асуудлыг хэлэлцэн шийдвэрлэж, тогтоол гаргалаа ".repeat(2)}.`);
     assert.ok(long.length <= 111 && long.endsWith("…"));
   });
@@ -40,6 +41,9 @@ describe("generic titles", () => {
   it("recognises menu text glued together by the extractor", () => {
     assert.ok(looksLikeNavigation("ХолбоосуудТөрийн байгууллагаСалбаруудын сайтГадаад улсын байгууллагууд"));
     assert.ok(looksLikeNavigation("Саналаа бичнэ үүНүүр>Татварын тооцоолуур>->Татварын тооцоолуур"));
+    assert.ok(looksLikeNavigation("Бидний тухай Мэндчилгээ Танилцуулга Захиргаа удирдлагын газар Аюулгүй байдал"));
+    assert.ok(looksLikeNavigation("Нэвтрэх"));
+    assert.ok(looksLikeNavigation("Шүгэл ажиллагаа 2023-06-08 1932 уншсан Тоон гарын үсэг 2022-05-11 1847 уншсан"));
     assert.ok(!looksLikeNavigation("Өнөөдөр Эрүүл мэндийн даатгалын ерөнхий газрын дарга Ц.Батбаатар Азийн хөгжлийн банкны төлөөлөгчдийг хүлээн авлаа."));
   });
 });
@@ -53,7 +57,9 @@ describe("dates", () => {
   it("flags undated pages that only mention old years", () => {
     const now = new Date("2026-10-22T00:00:00Z");
     assert.equal(newestYearMentioned("2020 оны хаврын чуулган, 2021 онд"), 2021);
-    assert.ok(looksOld("Улсын Их Хурлын 2020 оны хаврын ээлжит чуулганаар", now));
+    assert.ok(looksOld("Улсын Их Хурлын 2020 оны 05 дугаар сарын 14-ний өдрийн чуулганаар", now));
+    // A current story that mentions an old year in passing is not an archive post.
+    assert.ok(!looksOld("Холбооны Канцлер Фридрих Мерц бараалхлаа. Хоёр улс 2011 онд түншлэлийн харилцаа тогтоосон.", now));
     assert.ok(!looksOld("2025 онд эхэлсэн төсөл", now));
     assert.ok(!looksOld("Он дурдаагүй мэдээ", now));
   });
