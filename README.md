@@ -1,12 +1,16 @@
 # ИЛ ТОД МЭДЭЭ — төрийн мэдээ, пи-аргүй
 
 [![CI](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/ci.yml/badge.svg)](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/ci.yml)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![News pipeline](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/autonomous-news-pipeline.yml/badge.svg)](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/autonomous-news-pipeline.yml)
+[![Code: MIT](https://img.shields.io/badge/code-MIT-green.svg)](LICENSE)
+[![Content: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-lightgrey.svg)](LICENSE-CONTENT.md)
 [![Site](https://img.shields.io/badge/site-iltodmedee.mn-047c78.svg)](https://iltodmedee.mn)
 
 > 🇲🇳 Монгол Улсын төрийн байгууллагуудын албан ёсны мэдээ, хууль, төсөв, улстөрчдийн хөрөнгийн мэдүүлгийг автоматаар цуглуулж, **баримтыг пи-араас салгадаг**, зарцуулсан цент бүрээ ил тайлагнадаг нээлттэй эхийн мэдээллийн сайт: **[iltodmedee.mn](https://iltodmedee.mn)**.
 >
 > 🇬🇧 An open-source news site that collects official news, laws, budgets and MPs' asset declarations from Mongolian government websites, **separates verifiable facts from PR spin**, and publishes every cent it spends. [English below](#english).
+
+[![iltodmedee.mn нүүр хуудас](docs/screenshot.jpg)](https://iltodmedee.mn)
 
 Сайтыг ажиллуулдаг бүх зүйл энэ репод байна:
 
@@ -75,7 +79,7 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 
 - **Эх сурвалж санал болгох:** [issue нээх](https://github.com/tmorius-eng/UNENMEDEE/issues/new/choose) → "Эх сурвалж санал болгох". Эсвэл [`src/lib/sources.ts`](src/lib/sources.ts)-д нэмээд PR илгээнэ. JSON API-тай сайтад [`src/lib/scraper/adapters/`](src/lib/scraper/adapters)-д adapter бичнэ.
 - **Алдаа мэдэгдэх:** AI хураангуй, тоо буруу байвал эх сурвалжийн холбоосыг хавсаргаад issue нээнэ үү.
-- **Код:** PR бүр `npm run check` (typecheck + lint + 130+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
+- **Код:** PR бүр `npm run check` (typecheck + lint + 150+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Алхам алхмаар заавар: [CONTRIBUTING.md](CONTRIBUTING.md). Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
 
 ## Аюулгүй байдал
 
@@ -84,6 +88,7 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 - `main` салбар хамгаалагдсан: зөвхөн PR-ээр, CI ногоон үед нэгтгэнэ.
 - GitHub Actions-ууд commit SHA-аар бэхлэгдсэн, `GITHUB_TOKEN` зөвхөн уншина.
 - Dependabot долоо хоног бүр шинэчлэл санал болгоно. CodeQL, secret scanning, push protection асаалттай.
+- Аюулын загвар (threat model): нэг DB хэрэглэгч яагаад хангалттай, админ хамгаалалт, prompt injection-оос хамгаалах арга. Дэлгэрэнгүйг [SECURITY.md](SECURITY.md)-с үзнэ үү.
 
 ---
 
@@ -147,12 +152,16 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 ### Contributing
 
 ```bash
-npm run check   # typecheck + lint + 130+ unit tests (no secrets needed)
+npm run check   # typecheck + lint + 150+ unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 
-Changes land through pull requests with CI green. Report vulnerabilities privately (see [SECURITY.md](SECURITY.md)).
+Changes land through pull requests with CI green; see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately (see [SECURITY.md](SECURITY.md)).
 
 ## License
 
-Code: [MIT](LICENSE). News texts belong to their government publishers; we store cleaned text with a link to the original.
+- **Code:** [MIT](LICENSE).
+- **Content we produce** (AI summaries, digests, computed data, charts, RSS): [CC BY 4.0](LICENSE-CONTENT.md). Reuse it freely, commercially too, crediting "ИЛ ТОД МЭДЭЭ (iltodmedee.mn)" with a link.
+- **Original government texts** belong to their publishers; every article links to its official source.
+
+Код MIT; манай бэлтгэсэн агуулга CC BY 4.0: эх сурвалжаа **iltodmedee.mn** гэж холбоостой дурдаад чөлөөтэй ашиглаарай.

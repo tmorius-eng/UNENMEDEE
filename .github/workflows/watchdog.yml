@@ -14,6 +14,8 @@ permissions:
 
 jobs:
   health:
+    # Forks keep the code but never run the scheduled jobs (no secrets, no Actions minutes).
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -9,6 +9,7 @@ import { tldrSentences } from "@/lib/format";
 import { useLocalStorage } from "@/lib/local-store";
 import { parseIds, READ_KEY, READ_MAX } from "@/lib/read-state";
 import type { ArticleListItem } from "@/lib/queries";
+import { safeHttpUrl } from "@/lib/site";
 import { storyTag } from "@/lib/topics";
 import { cx } from "@/utils/cx";
 
@@ -120,7 +121,7 @@ export function StoryList({ stories }: { stories: ArticleListItem[] }) {
                       Бүтэн шинжилгээ{s.hasDeepAnalysis ? " ⚡" : ""}
                     </Link>
                     <a
-                      href={s.originalUrl}
+                      href={safeHttpUrl(s.originalUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"

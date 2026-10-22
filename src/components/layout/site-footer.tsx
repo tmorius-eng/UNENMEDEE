@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { REPO_URL } from "@/lib/site";
+import { REPO_URL, repoFile } from "@/lib/site";
 
 import { DonateCard } from "./donate";
 import { Logo } from "./logo";
@@ -46,6 +46,13 @@ export function SiteFooter() {
           <p>
             AI шинжилгээ нь алдаа гаргаж болно. Нийтлэл бүр эх .gov.mn холбоос болон SHA-256 хэштэй тул анхны тексттэй шууд тулгаж шалгана уу.
             Эрсдэлийн оноо нь AI-ийн үнэлгээ, буруутгал биш, анхаарах дохио юм.
+          </p>
+          <p className="text-xs text-quaternary">
+            Агуулга:{" "}
+            <a className="hover:text-tertiary hover:underline" href={repoFile("LICENSE-CONTENT.md")} target="_blank" rel="noreferrer license">
+              CC BY 4.0
+            </a>{" "}
+            (эх сурвалжаа iltodmedee.mn гэж дурдана уу) · Код: MIT
           </p>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { getDb, hasDatabase } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
 import { MAX_FOLLOWS } from "@/lib/officials/follow";
 import { isAllowedPushEndpoint, SubscriptionSchema, TEST_PAYLOAD } from "@/lib/push/core";
+import { clientIp } from "@/lib/rate-limit";
 import { sendToEndpoint } from "@/lib/push/server";
 
 /**
@@ -34,7 +35,7 @@ export async function subscribePush(input: unknown): Promise<{ ok: boolean; erro
   if (!hasDatabase()) return { ok: false, error: "Сервер тохируулагдаагүй байна." };
   const busy = { ok: false, error: "Түр завгүй байна. Хэдэн минутын дараа дахин оролдоно уу." };
   const h = await headers();
-  const ip = h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(h);
   if (!ipAllowed(ip, Date.now())) return busy;
   const { endpoint, keys } = parsed.data;
   const db = getDb();
