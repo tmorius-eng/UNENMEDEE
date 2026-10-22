@@ -57,8 +57,10 @@
 ```bash
 git clone https://github.com/tmorius-eng/UNENMEDEE && cd UNENMEDEE
 npm install                 # Node.js 24
-npm run dev                 # http://localhost:3000 (өгөгдлийн сангүйгээр хоосон хуудсууд харагдана)
+npm run demo                # http://localhost:3000: жишээ өгөгдөлтэй бүтэн сайт, DB болон API түлхүүр хэрэггүй
 ```
+
+`npm run demo` нь `tests/fixtures`-д хадгалсан **бодит** төрийн мэдээ, УИХ-ын гишүүд, ХАСХОМ мэдүүлэг, Монголбанк, төсвийн өгөгдлийг процесс доторх Postgres (PGlite, `.demo-db/`) руу ачаалж сайтыг асаана. Хураангуй нь эхний өгүүлбэрүүд ("AI ажиллаагүй"); `.env`-д үнэгүй `GROQ_API_KEY` тавиад `DATABASE_URL=pglite:./.demo-db npm run ai:process` хийвэл AI хураангуй үүснэ. Дахин эхнээс нь: `.demo-db/`-г устгана.
 
 Өгөгдөлтэй ажиллуулах:
 
@@ -152,6 +154,7 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 ### Contributing
 
 ```bash
+npm run demo    # the full site on real sample data (PGlite, no database server, no API keys)
 npm run check   # typecheck + lint + 150+ unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```

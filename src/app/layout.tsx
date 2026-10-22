@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Providers } from "@/components/providers";
 import { InstallBanner } from "@/components/pwa/pwa-controls";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
+import { isDemoDatabase } from "@/db";
 import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 import "./globals.css";
@@ -70,6 +71,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-secondary_alt text-primary">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
         <Providers>
+          {isDemoDatabase() && (
+            <p className="bg-warning-solid px-4 py-1.5 text-center text-xs font-semibold text-white">
+              Демо горим: tests/fixtures-аас ачаалсан жишээ өгөгдөл. Бодит сайт: iltodmedee.mn
+            </p>
+          )}
           <SiteHeader />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-8 md:px-8">{children}</main>
           <SiteFooter />
