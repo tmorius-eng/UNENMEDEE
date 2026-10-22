@@ -153,4 +153,5 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 9. MCP
 `.mcp.json` is git-ignored (it named the Supabase project). To use the Supabase MCP server locally, create it with `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<your-project-ref>"`, then `claude /mcp` → supabase → Authenticate.
-- The public site does not link to the repository (header, footer and JSON-LD carry no GitHub URL); the scraper's User-Agent and the VAPID subject point to https://iltodmedee.mn.
+- The repository is linked from the site again (footer, `/method`, `/transparency`, JSON-LD `sameAs`) via `REPO_URL` / `repoFile()` in `src/lib/site.ts`, now that the repo is hardened (§8c). The scraper's User-Agent and the VAPID subject still point to https://iltodmedee.mn.
+- `/method` renders the live prompts (`TIER1_SYSTEM`, `TIER2_SYSTEM`, `DIGEST_SYSTEM`) verbatim and says the risk score is an AI estimate; the article page links to `/method#risk` next to the risk badge. Keep it in sync when prompts or thresholds change (it imports them, so text updates itself).

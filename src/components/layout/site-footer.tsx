@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { REPO_URL } from "@/lib/site";
+
 import { DonateCard } from "./donate";
 import { Logo } from "./logo";
 
@@ -26,6 +28,12 @@ export function SiteFooter() {
           <Link className="text-tertiary hover:text-secondary" href="/sources">
             Хянаж буй бүх эх сурвалж
           </Link>
+          <Link className="text-tertiary hover:text-secondary" href="/method">
+            Арга зүй: AI яаж ажилладаг вэ
+          </Link>
+          <a className="text-tertiary hover:text-secondary" href={REPO_URL} target="_blank" rel="noreferrer">
+            Эх код (GitHub, нээлттэй) ↗
+          </a>
           <Link className="mt-3 font-semibold text-brand-secondary hover:underline" href="/support">
             💙 Ил тод мэдээг дэмжих
           </Link>
@@ -37,7 +45,7 @@ export function SiteFooter() {
           <p className="font-semibold text-primary">Анхааруулга</p>
           <p>
             AI шинжилгээ нь алдаа гаргаж болно. Нийтлэл бүр эх .gov.mn холбоос болон SHA-256 хэштэй тул анхны тексттэй шууд тулгаж шалгана уу.
-            Эрсдэлийн оноо нь буруутгал биш, анхаарах дохио юм.
+            Эрсдэлийн оноо нь AI-ийн үнэлгээ, буруутгал биш, анхаарах дохио юм.
           </p>
         </div>
       </div>

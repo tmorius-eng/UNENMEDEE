@@ -1,58 +1,87 @@
-# ИЛ ТОД (IL-TOD) — Пи-аргүй төрийн мэдээ
+# ИЛ ТОД МЭДЭЭ — төрийн мэдээ, пи-аргүй
 
-> 🇲🇳 Монгол Улсын төрийн байгууллагуудын албан ёсны мэдээ, тендер, төсвийг автоматаар цуглуулж, **баримтыг улс төрийн пи-араас салгадаг**, бүх зардлаа олон нийтэд ил тайлагнадаг нээлттэй эхийн платформ.
+[![CI](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/ci.yml/badge.svg)](https://github.com/tmorius-eng/UNENMEDEE/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Site](https://img.shields.io/badge/site-iltodmedee.mn-047c78.svg)](https://iltodmedee.mn)
+
+> 🇲🇳 Монгол Улсын төрийн байгууллагуудын албан ёсны мэдээ, хууль, төсөв, улстөрчдийн хөрөнгийн мэдүүлгийг автоматаар цуглуулж, **баримтыг пи-араас салгадаг**, зарцуулсан цент бүрээ ил тайлагнадаг нээлттэй эхийн мэдээллийн сайт: **[iltodmedee.mn](https://iltodmedee.mn)**.
 >
-> 🇬🇧 An open-source platform that automatically collects official news, tenders and budgets from Mongolian government websites, **separates verifiable facts from political PR spin**, and publishes every cent it spends.
+> 🇬🇧 An open-source news site that collects official news, laws, budgets and MPs' asset declarations from Mongolian government websites, **separates verifiable facts from PR spin**, and publishes every cent it spends. [English below](#english).
 
-**Монгол** · [English](#english)
+Сайтыг ажиллуулдаг бүх зүйл энэ репод байна:
 
----
+- вэб сайт (Next.js),
+- 95+ төрийн сайтаас мэдээ цуглуулагч,
+- AI шинжилгээ, AI-д өгдөг заавар ([`src/lib/ai/prompts.ts`](src/lib/ai/prompts.ts)),
+- бүх автомат ажил ([`.github/workflows/`](.github/workflows)), тэдгээрийн бүртгэл [Actions](https://github.com/tmorius-eng/UNENMEDEE/actions) хэсэгт нээлттэй.
 
-## Юу хийдэг вэ?
+## Үндсэн зарчим
 
-1. **Цуглуулна.** 95+ төрийн вэбсайт (яам, агентлаг, 21 аймаг, шүүх, УИХ, Шилэн данс, Нээлттэй өгөгдөл…) 2 цаг тутам robots.txt-г хүндэтгэн, нэг домэйнд 8 секундээс доошгүй завсартай уншина. Шинэ `*.gov.mn`, `*.khural.mn` сайтыг долоо хоног бүр автоматаар илрүүлж нэмнэ.
-2. **Шүүнэ.** Мэдээ бүрийг үнэгүй AI (Groq, Gemini, Requesty, NVIDIA; дуусвал DeepSeek) уншиж 3 өгүүлбэрийн хураангуй, шалгагдах баримт, пи-арын шинж, мөнгөн дүн, эрсдэлийн оноо (0-100) гаргана.
-3. **Гүнзгий шинжилнэ.** Эрсдэлийн оноо 65+ (тендергүй шууд гэрээ, тодорхойгүй зарцуулалт…) бол xAI Grok (өдөрт 5 удаа) эсвэл үнэгүй Gemini Flash эрэн сурвалжлах дүгнэлт, иргэдийн асуух ёстой асуултуудыг бичнэ.
-4. **Нотолно.** Нийтлэл бүр эх `.gov.mn` холбоос болон цэвэрлэсэн эх текстийн **SHA-256 хэштэй**. Хэн ч дахин татаж шалгаж болно.
-5. **Тоймлоно.** Өглөө 08:00, орой 20:00 цагт AI редактор сүүлийн 12 цагийн бүх мэдээнээс улс орны хэмжээнд хамгийн чухал 10-ыг сонгож "Онцлох тойм" бичнэ (`/digest`). Сүүлийн 30 хоногийн тоймыг гараар ажиллуулж болно.
-6. **Тоогоор нотолно.** opendata.mn-ийн бүх өгөгдлийн багцыг өдөрт 2 удаа API-аар татаж Монголбанкны ханш, инфляци, цалин, тендер, тендерийн хар жагсаалт, УИХ-ын ирцийг `/data` хуудсанд харуулна.
-7. **Апп ба мэдэгдэл.** Сайтыг утсандаа апп болгон суулгаж (PWA), чухал шинэ мэдээ болон өдөр бүрийн тойм гарахад push мэдэгдэл авна. iPhone дээр эхлээд "Add to Home Screen" хийнэ.
-8. **Тайлагнана.** AI дуудлага бүрийн токен, үнэ `ai_usage_logs`-д бичигдэж `/transparency` хуудсанд шууд харагдана.
+- **Баримт эхэнд.** Тоо, ₮ дүн, огноо, хууль, байгууллагыг пи-ар, магтаалаас тусад нь гаргана.
+- **Нотлох боломжтой.** Мэдээ бүр эх `.gov.mn` холбоос, цэвэрлэсэн эх текстийн SHA-256 хэштэй.
+- **Хэнийг ч буруутгахгүй.** Улстөрчид, төсвийн мэдээлэлд зөвхөн албан ёсны бүртгэлийг эх сурвалжийн холбоостой харуулна. AI-д хүнийг гэмт хэрэгт буруутгахыг хориглосон.
+- **Эрсдэлийн оноо = AI-ийн үнэлгээ, баримт биш.** Яаж гардгийг [/method](https://iltodmedee.mn/method) хуудсанд AI-ийн зааврын хамт бүтнээр нь нийтэлсэн.
+- **Зар сурталчилгаагүй, хувь хүнийг мөрдөхгүй.** Уншсан мэдээ, дагасан гишүүн зөвхөн таны төхөөрөмжид хадгалагдана. Хандалтыг зөвхөн нэргүй нийт тоогоор (Vercel Web Analytics, cookie-гүй) хэмждэг.
+- **0₮ дэд бүтэц.** Vercel Hobby, Supabase Free, GitHub Actions. Төлбөртэй AI сард $3-оос хэтрэхгүй.
 
-| Давхарга | Технологи | Сарын зардал |
-|---|---|---|
-| Вэб | Next.js 16 (App Router, Cache Components) + Vercel Hobby | 0₮ |
-| Дизайн | Untitled UI React + ElevenLabs UI (Message, Response, Orb), Tailwind 4, motion | 0₮ |
-| Өгөгдлийн сан | Supabase PostgreSQL + pgvector, Drizzle ORM | 0₮ (500MB) |
-| Скрапер | GitHub Actions cron + Crawlee (HTTP + Playwright Chromium) | 0₮ (нээлттэй репо) |
-| AI 1-р шат | Groq → Gemini → Requesty (Gemma) → NVIDIA NIM, үнэгүй хувилбарууд | 0₮ |
-| AI 2-р шат | xAI Grok (өдөрт ≤5) → Gemini Flash (үнэгүй) | ≤$3 (хязгаартай) |
-| AI нөөц | DeepSeek (төлбөртэй, хязгаартай), Ollama (локал) | ≤$3 нийт |
+## Сайт дээр юу байна
 
-**Мөнгө шатаахгүй.** Төлбөртэй AI (DeepSeek, Grok, Requesty-ийн төлбөртэй загвар) сард `AI_MONTHLY_BUDGET_USD` (анхдагч $3), өдөрт `AI_DAILY_BUDGET_USD` ($0.30)-аас хэтэрвэл автоматаар зогсоно. Grok өдөрт 5 удаа. Үнэгүй AI-ууд үргэлжлүүлэн ажиллана. Нээлттэй өгөгдлийн багцуудыг AI-гүйгээр (0 токен) дүрмээр хураангуйлна.
+| Хуудас | Юу харуулдаг |
+|---|---|
+| `/` | Сүүлийн мэдээ, сэдвээр (`/topic/…`), нэг сэдэвт нэг мөр, AI хураангуй |
+| `/digest` | Өдөрт 2 удаа AI редакторын сонгосон 10 чухал мэдээ, долоо хоногийн тоо |
+| `/laws` | legalinfo.mn-д шинээр гарсан хууль, тогтоол, товч тайлбартай |
+| `/officials` | УИХ-ын гишүүд: хөрөнгө орлогын мэдүүлэг (ХАСХОМ), ирц, мэдээнд дурдагдсан нь, "Миний гишүүн" |
+| `/officials/companies` | Төрийн өмчит компаниудын орлого, зардал, ашиг, цалингийн сан (Шилэн данс) |
+| `/budget` | Улсын төсөв 1990 оноос, зарлага, орлого, өр, аудитын дүгнэлт |
+| `/tax` | "Миний татвар": таны татвар юунд зарцуулагдсан бэ |
+| `/data` | Монголбанкны ханш, инфляци, opendata.mn-ийн өгөгдөл |
+| `/search` | Мэдээ, гишүүдээс хайх |
+| `/transparency` | AI дуудлага бүрийн токен, долларын зардал, орлого |
+| `/method` | Арга зүй: AI яаж ажилладаг, эрсдэлийн оноо, AI-ийн заавар |
 
-## Суулгах (5 алхам)
+## AI түлхүүр яаж хадгалагддаг вэ
+
+- Кодонд **ямар ч түлхүүр, нууц үг байхгүй**. AI-ийн түлхүүр, `DATABASE_URL` зөвхөн GitHub Actions secrets болон Vercel-ийн орчны хувьсагчид байна. `.env*` файлууд git-д ордоггүй (`.env.example` л байна).
+- Үнэгүй AI-ууд эхэлж ажиллана: Groq → Gemini → Requesty → NVIDIA. Төлбөртэй (DeepSeek, Grok) нь сард `AI_MONTHLY_BUDGET_USD` ($3), өдөрт `AI_DAILY_BUDGET_USD` ($0.30)-оос хэтэрвэл автоматаар зогсоно ([`src/lib/ai/limits.ts`](src/lib/ai/limits.ts)).
+- Дуудлага бүр `ai_usage_logs`-д бичигдэж [/transparency](https://iltodmedee.mn/transparency)-д харагдана.
+
+## Өөрийн компьютер дээр ажиллуулах
 
 ```bash
 git clone https://github.com/tmorius-eng/UNENMEDEE && cd UNENMEDEE
-npm install
-cp .env.example .env          # DATABASE_URL, GROQ_API_KEY (эсвэл өөр үнэгүй түлхүүр), ADMIN_SECRET_PASSWORD
-npm run db:migrate && npm run db:seed
-npm run dev                   # http://localhost:3000
+npm install                 # Node.js 24
+npm run dev                 # http://localhost:3000 (өгөгдлийн сангүйгээр хоосон хуудсууд харагдана)
 ```
 
-Туршиж үзэх (өгөгдлийн сангүйгээр):
+Өгөгдөлтэй ажиллуулах:
 
 ```bash
-npm run scrape -- --dry-run --source mlsp.gov.mn,parliament.mn --limit 2
-npm run ai:process -- --sample     # API түлхүүр зөв эсэхийг шалгана
+cp .env.example .env        # DATABASE_URL, нэг үнэгүй AI түлхүүр (GROQ_API_KEY), ADMIN_SECRET_PASSWORD
+npm run db:migrate && npm run db:seed
+npm run scrape -- --source mlsp.gov.mn --limit 2
+npm run ai:process -- --limit 2
 ```
 
-**`DATABASE_URL` хаанаас авах вэ?** Supabase төслийн хуудасны дээд талын **Connect** товч → **Transaction pooler** (порт 6543). Шууд холбоос: `https://supabase.com/dashboard/project/<ref>?showConnect=true&method=transaction`. `[YOUR-PASSWORD]`-ийг өөрийн өгөгдлийн сангийн нууц үгээр солино (мартсан бол Database Settings → Reset database password). GitHub Actions-ийн migration-д зориулж **Session pooler** (порт 5432) хаягийг `DATABASE_URL_DIRECT` нэрээр нэмж болно.
+API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөгдлийн сангүй туршилт: `npm run scrape -- --dry-run --source parliament.mn --limit 2`.
 
-**Автоматжуулалт:** GitHub репо → Settings → Secrets → Actions хэсэгт `DATABASE_URL` болон дор хаяж нэг AI түлхүүр (`GROQ_API_KEY`, `GEMINI_API_KEY`, `REQUESTY_API_KEY`, `NVIDIA_API_KEY`; хүсвэл `DEEPSEEK_API_KEY`, `GROK_API_KEY`) нэмэхэд `.github/workflows/autonomous-news-pipeline.yml` 2 цаг тутам ажиллана. Vercel дээр мөн адил env-үүдийг (мөн `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт) тохируулна.
+**`DATABASE_URL`:** Supabase төсөл → **Connect** → **Transaction pooler** (порт 6543). Migration-д **Session pooler** (порт 5432)-ийг `DATABASE_URL_DIRECT` нэрээр нэмж болно.
 
-**Админ:** `/admin` → мэдээ засах/нуух, Grok-оор дахин шинжлэх, сарын зар/хандивын орлого бүртгэх, `/admin/filter` дээр дурын URL эсвэл текстийг "тархи угаалтын шүүлтүүр"-ээр шалгаж нэг товчоор нийтлэх.
+**Автоматжуулалт:** репо → Settings → Secrets and variables → Actions хэсэгт `DATABASE_URL` болон дор хаяж нэг AI түлхүүр нэмэхэд мэдээ 2 цаг тутам шинэчлэгдэнэ. Vercel дээр мөн адил (нэмээд `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт).
+
+## Хувь нэмэр оруулах
+
+- **Эх сурвалж санал болгох:** [issue нээх](https://github.com/tmorius-eng/UNENMEDEE/issues/new/choose) → "Эх сурвалж санал болгох". Эсвэл [`src/lib/sources.ts`](src/lib/sources.ts)-д нэмээд PR илгээнэ. JSON API-тай сайтад [`src/lib/scraper/adapters/`](src/lib/scraper/adapters)-д adapter бичнэ.
+- **Алдаа мэдэгдэх:** AI хураангуй, тоо буруу байвал эх сурвалжийн холбоосыг хавсаргаад issue нээнэ үү.
+- **Код:** PR бүр `npm run check` (typecheck + lint + 130+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
+
+## Аюулгүй байдал
+
+Эмзэг байдал олвол **нээлттэй issue бүү бичээрэй**: [SECURITY.md](SECURITY.md)-ийн дагуу нууцаар мэдэгдэнэ үү.
+
+- `main` салбар хамгаалагдсан: зөвхөн PR-ээр, CI ногоон үед нэгтгэнэ.
+- GitHub Actions-ууд commit SHA-аар бэхлэгдсэн, `GITHUB_TOKEN` зөвхөн уншина.
+- Dependabot долоо хоног бүр шинэчлэл санал болгоно. CodeQL, secret scanning, push protection асаалттай.
 
 ---
 
@@ -63,23 +92,23 @@ npm run ai:process -- --sample     # API түлхүүр зөв эсэхийг ш
 ### How it works
 
 ```
-GitHub Actions (every 2h, free on public repos)
+GitHub Actions (every 2 h, free on public repos)
  ├─ npm run scrape          95+ seeded sources, least-recently-scraped first, 30-min budget
- │   ├─ JSON APIs           opendata.gov.mn, parliament.mn (the same endpoints their own sites call)
+ │   ├─ JSON APIs / feeds   opendata.gov.mn, parliament.mn, legalinfo.mn, police.gov.mn, mongolia.gov.mn RSS
  │   ├─ HTTP pass (Crawlee) WordPress REST API → RSS → scored link harvesting → Readability
- │   └─ Browser pass        headless Chromium only for JavaScript-rendered sites (gov.mn, …)
- │      → SHA-256 dedup → clean text only (≤15 KB) → articles (tldr = null)
+ │   └─ Browser pass        headless Chromium only for JavaScript-rendered sites
+ │      → SHA-256 dedup → clean text only → articles
  └─ npm run ai:process
      ├─ Budget guard                            paid providers stop at $3/month, $0.30/day; Grok ≤ 5 calls/day
      ├─ Tier 1  Groq → Gemini → Requesty → NVIDIA → DeepSeek → (Ollama)   free first; facts, spin, risk 0-100
-     ├─ Tier 2  Grok → Gemini Flash → Groq → … only when risk ≥ 65: investigative analysis
-     ├─ Clustering                              cross-source Jaccard (Mongolian stems + entities), 7-day window
-     └─ ai_usage_logs + transparency_ledger    exact tokens and USD for every call
+     ├─ Tier 2  Grok → Gemini Flash → …         only when risk ≥ 65: investigative analysis
+     ├─ Fallback                                first sentences if every provider fails for 24 h
+     └─ ai_usage_logs                           exact tokens and USD for every call
 GitHub Actions (08:07 and 20:07 Ulaanbaatar)
- ├─ npm run data:sync       opendata.mn catalogue (36+ datasets) → small highlights for /data
- ├─ npm run macro:sync      Mongolbank policy rate, inflation, FX, gold, reserves → home strip + /data
- ├─ npm run budget:sync     budget since 1990, spending, revenue, debt, Шилэн данс, audit opinions → /budget
- └─ npm run digest          rank the last 12 h without AI → editor model picks 10 stories → /digest
+ ├─ data:sync / macro:sync / budget:sync   opendata.mn, Mongolbank, NSO, Шилэн данс, World Bank, audit.mn
+ ├─ digest                                 rank the last 12 h without AI → editor model picks 10 → /digest
+ └─ db:prune                               bodies older than 180 days become 600-char excerpts
+Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover. Daily: watchdog. Monthly: keepalive.
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
 ```
 
@@ -88,38 +117,38 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 | Path | What |
 |---|---|
 | `CLAUDE.md` | Architecture rules for contributors and AI agents |
-| `src/db/schema.ts`, `drizzle/` | Drizzle schema and SQL migrations (RLS on, pgvector enabled) |
-| `src/lib/sources.ts` | Curated source list, discovery hubs |
-| `src/lib/scraper/` | robots.txt parser, polite fetch, extractor, adapters, two-pass crawler, discovery |
-| `src/lib/ai/` | Router (fallback chains, cost logging), budget guard, prompts, schemas, clustering, digest, pricing |
-| `src/lib/opendata-mn/` | opendata.mn API client and dataset highlights (FX, macro, wages, tenders, blacklist, parliament attendance) |
+| `src/db/schema.ts`, `drizzle/` | Drizzle schema and SQL migrations |
+| `src/lib/sources.ts` | Curated source list and discovery hubs |
+| `src/lib/scraper/` | robots.txt parser, polite fetch (8 s per host), extractor, adapters, two-pass crawler |
+| `src/lib/ai/` | Provider router with cost logging, budget guard, prompts, schemas, clustering, digest |
+| `src/lib/officials/`, `budget/`, `soe/`, `mongolbank/`, `opendata-mn/` | Civic-data clients and parsers (each unit-tested on saved fixtures) |
 | `src/lib/queries.ts` | Cached read model for the public site |
-| `src/app/` | Pages: `/`, `/article/[slug]`, `/digest`, `/data`, `/risk`, `/clusters`, `/sources`, `/transparency`, `/admin` |
-| `src/components/ui/` | ElevenLabs UI (via shadcn), adapted to Untitled UI tokens |
-| `src/components/base`, `application` | Untitled UI React components (via `untitledui` CLI) |
-| `.github/workflows/` | Pipeline (2h, manual 30-day backfill), news digest + data sync (12h), source discovery (weekly), CI |
+| `src/app/` | Pages (see the table above) and `/admin` |
+| `.github/workflows/` | Pipeline, digest + data sync, officials, discovery, watchdog, keepalive, CI |
 
 ### Audit it yourself
 
-- **Every number on `/transparency` comes from SQL.** `ai_usage_logs` stores provider, model, prompt and completion tokens, and the USD cost computed from the public price table in `src/lib/ai/pricing.ts`.
-- **Every article links to its `.gov.mn` original** and shows the SHA-256 of the cleaned text. If an editor changes the text, the page says so openly; the hash keeps proving the original scrape.
-- **Pipeline logs are public** in the repository's Actions tab.
-- **Risk scores are signals, not accusations.** Prompts forbid asserting crimes; Grok is asked for questions citizens should ask.
+- **Every number on `/transparency` comes from SQL.** `ai_usage_logs` stores provider, model, tokens and the USD cost from the public price table in `src/lib/ai/pricing.ts`.
+- **Every article links to its `.gov.mn` original** and shows the SHA-256 of the cleaned text. Edits are labelled on the page; the hash keeps proving the original scrape.
+- **The prompts are public**, both in `src/lib/ai/prompts.ts` and rendered verbatim on `/method`.
+- **Risk scores are AI estimates, not facts.** The model scores 0-100 by the published rubric; our code, not the model, sets the "high" threshold (65). Prompts forbid asserting crimes.
+- **Pipeline logs are public** in the Actions tab.
 
 ### Honest limits
 
-- **Free GitHub Actions minutes require a public repository.** A private repo gets about 2,000 free minutes a month, and a 2-hourly pipeline needs far more.
-- **GitHub disables scheduled workflows** in public repos after 60 days without commits. Re-enable them in the Actions tab.
-- **Some sites block cloud IPs or use a Cloudflare browser challenge**, notably tender.gov.mn and president.mn. They fail gracefully and back off. Running the scraper from a machine in Mongolia covers them.
-- **AI prices and model ids change.** Paid defaults follow the original spec; verify them at the DeepSeek and xAI pricing pages and override them with repository variables. Free tiers (Groq, Gemini, NVIDIA, Requesty's free models) are rate limited and may use prompts for training; we only send already-public government news.
+- Free GitHub Actions minutes require a public repository; a 2-hourly pipeline needs far more than a private repo's free quota.
+- Some sites block cloud IPs or sit behind a Cloudflare browser challenge (tender.gov.mn, president.mn). They fail gracefully and back off; we never try to get around Cloudflare.
+- AI output can be wrong. Summaries name the model that wrote them, and every page links the official source.
 
 ### Contributing
 
 ```bash
-npm run check   # typecheck + lint + 110+ unit tests (no secrets needed)
+npm run check   # typecheck + lint + 130+ unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 
-Add a source: append it to `src/lib/sources.ts`, or let `npm run sources:discover` find it. Sites with a JSON API get an adapter in `src/lib/scraper/adapters/`. For the Supabase MCP server in Claude Code, create a local (git-ignored) `.mcp.json` with `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=<your-project-ref>"`.
+Changes land through pull requests with CI green. Report vulnerabilities privately (see [SECURITY.md](SECURITY.md)).
 
-License: MIT.
+## License
+
+Code: [MIT](LICENSE). News texts belong to their government publishers; we store cleaned text with a link to the original.
