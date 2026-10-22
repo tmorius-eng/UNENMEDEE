@@ -135,6 +135,9 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <span className="flex gap-1.5 sm:ml-auto">
             {article.hasDeepAnalysis && <DeepBadge />}
             <RiskBadge score={article.riskScore} size="md" />
+            <Link href="/method#risk" className="self-center text-xs font-medium text-tertiary underline decoration-dotted hover:text-secondary">
+              AI-ийн үнэлгээ
+            </Link>
           </span>
         </div>
         <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{article.title}</h1>
