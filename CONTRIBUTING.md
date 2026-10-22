@@ -8,9 +8,12 @@
 ```bash
 git clone https://github.com/tmorius-eng/UNENMEDEE && cd UNENMEDEE
 npm install          # Node.js 24
-npm run dev          # http://localhost:3000 (өгөгдлийн сангүйгээр хоосон хуудсууд харагдана)
+npm run demo         # http://localhost:3000: жишээ өгөгдөлтэй бүтэн сайт (DB, API түлхүүр хэрэггүй)
 npm run check        # typecheck + lint + unit test (нууц түлхүүр хэрэггүй)
 ```
+
+`npm run demo` нь `tests/fixtures`-ийн бодит төрийн мэдээ, гишүүд, төсвийн өгөгдлийг процесс доторх
+Postgres (PGlite)-д ачаална. Шинэ fixture нэмбэл демо ч баяжина.
 
 Бодит өгөгдөлтэй ажиллуулахын тулд үнэгүй Supabase төсөл үүсгээд `.env`-д `DATABASE_URL`, нэг үнэгүй
 AI түлхүүр (`GROQ_API_KEY`) тавина. Дэлгэрэнгүйг [README](README.md#өөрийн-компьютер-дээр-ажиллуулах)-с үзнэ үү.
@@ -49,8 +52,9 @@ AI түлхүүр (`GROQ_API_KEY`) тавина. Дэлгэрэнгүйг [READM
 
 ## English
 
-**Start:** `npm install && npm run dev` (Node.js 24). The site builds and runs without any secrets
-and shows empty states. `npm run check` runs typecheck, lint and the unit tests, offline.
+**Start:** `npm install && npm run demo` (Node.js 24): the full site on real sample data from
+`tests/fixtures`, loaded into an in-process Postgres (PGlite). No database server, no API keys.
+`npm run check` runs typecheck, lint and the unit tests, offline.
 
 **Good first contributions**
 - A new government source: one line in [`src/lib/sources.ts`](src/lib/sources.ts), or an issue.

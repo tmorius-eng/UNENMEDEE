@@ -258,7 +258,15 @@ The site is designed to keep publishing for months with nobody touching it:
 ```bash
 npm run check   # tsc --noEmit + eslint + node:test unit tests (no network, no database)
 npm run build   # production build with no DATABASE_URL
+npm run demo    # next dev on PGlite seeded from tests/fixtures (no database server, no keys)
 ```
+
+**Demo mode.** `DATABASE_URL=pglite:<dir>` makes `getDb()` open PGlite (Postgres compiled to
+WebAssembly) in the same process, loaded from node_modules at run time and listed in
+`serverExternalPackages`, so production bundles never contain it. `src/db/demo-migrate.ts` applies
+`drizzle/*.sql` (skipping `CREATE EXTENSION vector`, which nothing uses) and `src/db/demo-seed.ts`
+loads the saved real responses through the scrapers' own parsers, shifting dates so the newest
+item is "now". The seed refuses any non-`pglite:` URL. Every page shows a "Демо горим" strip.
 
 Unit tests cover the parsers (each against a saved real response), the AI router fallbacks and budget
 guard (fake providers), clustering, ranking, search query building, tax maths and the declaration flags.

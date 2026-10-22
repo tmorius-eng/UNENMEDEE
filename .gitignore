@@ -161,3 +161,6 @@ next-env.d.ts
 
 # Local MCP config (names the Supabase project)
 .mcp.json
+
+# npm run demo: local PGlite database
+/.demo-db/

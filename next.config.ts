@@ -6,6 +6,8 @@ import { TOPICS } from "./src/lib/topics";
 const TOPIC_KEYS = ["risk", "budget", "ministry", ...TOPICS.map((t) => t.key)];
 
 const nextConfig: NextConfig = {
+  // The demo database (`npm run demo`) is loaded from node_modules at run time, never bundled.
+  serverExternalPackages: ["@electric-sql/pglite"],
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

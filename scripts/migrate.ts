@@ -11,7 +11,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-import { isLocalDatabase } from "@/db";
+import { closeDb, getDb, isLocalDatabase, isPgliteUrl } from "@/db";
+import { migrateDemo } from "@/db/demo-migrate";
 
 /** Host, port and user only, so logs help debug a wrong secret without leaking the password. */
 function describe(url: string): string {
@@ -54,6 +55,13 @@ async function main() {
   if (!url) {
     console.error("✗ DATABASE_URL is not set.");
     process.exitCode = 1;
+    return;
+  }
+  if (isPgliteUrl(url)) {
+    // `npm run demo`: the in-process demo database.
+    const n = await migrateDemo(getDb());
+    console.log(`✓ Demo database ready (${n} migration(s) applied).`);
+    await closeDb();
     return;
   }
   console.log(`🗄  Migrating ${describe(url)} …`);

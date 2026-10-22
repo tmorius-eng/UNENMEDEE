@@ -63,6 +63,7 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 5. Commands
 - `npm run dev` / `npm run build` / `npm run start`
+- `npm run demo`: the full site on sample data with no DB server or keys. `scripts/demo.mjs` sets `DATABASE_URL=pglite:./.demo-db`, runs `scripts/seed-demo.ts` (demo migrations + `seedDemo`, refuses non-`pglite:` URLs) and `next dev`. `getDb()` opens PGlite for `pglite:` URLs through `createRequire` (devDependency `@electric-sql/pglite`, in `serverExternalPackages`, never bundled); `migrateDemo` applies `drizzle/*.sql` with its own `__demo_migrations` table and skips `CREATE EXTENSION vector`; `seedDemo` builds everything from `tests/fixtures` via the real parsers and shifts dates so the newest item is "now". The layout shows a "Демо горим" strip (`isDemoDatabase()`). Dev only: Vercel never sees a `pglite:` URL. When a fixture changes, `tests/demo.test.ts` catches a broken seed.
 - `npm run check` = `typecheck` + `lint` + `test` (run before every commit)
 - `npm run db:generate` (after schema changes) / `npm run db:migrate` / `npm run db:seed`
 - `npm run scrape` (`--dry-run`, `--source <d1,d2>`, `--limit <n>`, `--budget <min>`, `--days <n>` backfill, `--no-browser`)
