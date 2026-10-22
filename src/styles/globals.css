@@ -27,6 +27,29 @@
     scrollbar-width: none; /* Firefox */
 }
 
+/*
+ * Horizontal scrollers: fade the right edge so it is clear there is more. Where scroll-driven
+ * animations exist the fade disappears once the end is reached; elsewhere it stays (static mask).
+ * CSS only: no scroll listeners on the home page.
+ */
+@utility scroll-fade-x {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    @supports (animation-timeline: scroll(x self)) {
+        animation: scroll-fade-x-end linear both;
+        animation-timeline: scroll(x self);
+    }
+}
+
+@keyframes scroll-fade-x-end {
+    0%,
+    96% {
+        mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    }
+    100% {
+        mask-image: linear-gradient(to right, #000, #000);
+    }
+}
+
 @utility transition-inherit-all {
     transition-property: inherit;
     transition-duration: inherit;

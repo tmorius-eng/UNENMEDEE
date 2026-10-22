@@ -119,6 +119,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
 
+  const dateUnknown = article.scrapeMeta?.date_unknown === true;
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
   return (
     <article className="flex flex-col gap-10">
@@ -131,7 +132,13 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <SourceBadge domain={article.sourceDomain} category={article.sourceCategory} size="md" />
           <span className="text-sm text-tertiary">{article.sourceName}</span>
           <span className="text-sm text-quaternary">·</span>
-          <TimeAgo date={article.publishedAt} className="text-sm text-tertiary" />
+          {dateUnknown ? (
+            <span className="text-sm text-tertiary" title={`Эх хуудсанд огноо байхгүй. ${formatDateMn(article.createdAt)}-нд цуглуулсан.`}>
+              Огноо тодорхойгүй
+            </span>
+          ) : (
+            <TimeAgo date={article.publishedAt} className="text-sm text-tertiary" />
+          )}
           <span className="flex gap-1.5 sm:ml-auto">
             {article.hasDeepAnalysis && <DeepBadge />}
             <RiskBadge score={article.riskScore} size="md" />
@@ -202,7 +209,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <div>
             <h2 className="text-lg font-semibold text-primary">Эх текст (албан ёсны)</h2>
             <p className="text-sm text-tertiary">
-              {formatDateMn(article.publishedAt)}-нд нийтлэгдсэн. Цэвэрлэсэн текстийн SHA-256 хэш: хэн ч эх хуудсыг дахин татаж шалгах боломжтой.
+              {dateUnknown ? `Эх хуудсанд нийтэлсэн огноо байхгүй; ${formatDateMn(article.createdAt)}-нд цуглуулсан.` : `${formatDateMn(article.publishedAt)}-нд нийтлэгдсэн.`} Цэвэрлэсэн текстийн SHA-256 хэш: хэн ч эх хуудсыг дахин татаж шалгах боломжтой.
             </p>
           </div>
           <a

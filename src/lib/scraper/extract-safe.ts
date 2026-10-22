@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import { contentHash, normalizeText } from "@/lib/text";
 
 import type { ExtractedArticle } from "./extractor";
+import { chooseTitle } from "./titles";
 
 /**
  * Article extraction for request-time code (admin "analyze this URL").
@@ -25,7 +26,12 @@ export async function extractArticleSafe(html: string, url: string): Promise<Ext
 export function extractWithCheerio(html: string): ExtractedArticle | null {
   const $ = cheerio.load(html);
   $("script, style, noscript, nav, header, footer, aside, form, iframe").remove();
-  const title = ($('meta[property="og:title"]').attr("content") || $("h1").first().text() || $("title").text()).trim();
+  const pageTitle = $("title").first().text();
+  const siteNames = [$('meta[property="og:site_name"]').attr("content"), ...pageTitle.split(/\s*[|–—]\s*|\s+-\s+/).slice(1)];
+  const h1 = $("h1")
+    .map((_, el) => $(el).text())
+    .get()
+    .find((t) => t.trim().length > 0);
   const root = $("article").first().length ? $("article").first() : $("main").first().length ? $("main").first() : $("body");
   const text = normalizeText(
     root
@@ -38,5 +44,6 @@ export function extractWithCheerio(html: string): ExtractedArticle | null {
   if (text.length < 200) return null;
   const published = $('meta[property="article:published_time"]').attr("content") || $("time[datetime]").attr("datetime");
   const date = published ? new Date(published) : null;
-  return { title: title || text.slice(0, 120), text, excerpt: text.slice(0, 200), hash: contentHash(text), publishedAt: date && !Number.isNaN(date.getTime()) ? date : null };
+  const title = chooseTitle([$('meta[property="og:title"]').attr("content"), h1, pageTitle], text, siteNames);
+  return { title, text, excerpt: text.slice(0, 200), hash: contentHash(text), publishedAt: date && !Number.isNaN(date.getTime()) ? date : null };
 }

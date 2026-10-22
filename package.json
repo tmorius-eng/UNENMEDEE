@@ -25,6 +25,7 @@
     "push:send": "tsx scripts/send-push.ts",
     "sources:discover": "tsx scripts/discover-sources.ts",
     "db:prune": "tsx scripts/prune-content.ts",
+    "db:fix-titles": "tsx scripts/fix-generic-titles.ts",
     "health": "tsx scripts/health-check.ts"
   },
   "dependencies": {

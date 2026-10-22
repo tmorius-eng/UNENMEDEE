@@ -33,7 +33,7 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
           : "hidden border-b border-secondary md:block",
       )}
     >
-      <ul className="scrollbar-hide flex gap-1 overflow-x-auto px-2">
+      <ul className="scrollbar-hide scroll-fade-x flex gap-1 overflow-x-auto px-2">
         {ITEMS.map((it) => {
           const isActive = it.key === active;
           return (
