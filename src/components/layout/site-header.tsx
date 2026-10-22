@@ -44,8 +44,8 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0">
           <Logo />
         </Link>
-        <Suspense fallback={<NavLinksFallback skipHome className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />}>
-          <NavLinks skipHome className="ml-2 hidden min-w-0 items-center overflow-x-auto xl:flex" />
+        <Suspense fallback={<NavLinksFallback skipHome more className="ml-2 hidden min-w-0 items-center xl:flex" />}>
+          <NavLinks skipHome more className="ml-2 hidden min-w-0 items-center xl:flex" />
         </Suspense>
         {/* The nav is hidden below xl: the empty middle of the bar shows the donation chip. */}
         <Suspense fallback={null}>
