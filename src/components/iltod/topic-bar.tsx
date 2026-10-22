@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "@untitledui/icons";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { TOPICS } from "@/lib/topics";
 import { cx } from "@/utils/cx";
@@ -14,46 +15,118 @@ const ITEMS: { key: string; label: string; href: string }[] = [
   { key: "data", label: "Тоо баримт", href: "/data" },
 ];
 
+/** Width of the edge zone where a resting mouse scrolls the strip, and the top speed (px/frame). */
+const HOVER_ZONE = 72;
+const HOVER_MAX_SPEED = 12;
+
 /**
  * Kagi-style topic tabs: a scrollable strip pinned to the bottom of the screen on phones
- * (thumb reach), inline above the list on larger screens. The active tab scrolls into view.
+ * (thumb reach, swipe), inline above the list on larger screens. Inline it has ‹ › buttons at
+ * the ends, and a mouse near either edge scrolls the strip that way. The active tab scrolls into view.
  */
 export function TopicBar({ active, placement }: { active: string; placement: "bottom" | "inline" }) {
+  const inline = placement === "inline";
   const activeRef = useRef<HTMLAnchorElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const speed = useRef(0);
+  const frame = useRef(0);
+
+  const measure = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdges((e) => (e.left === left && e.right === right ? e : { left, right }));
+  }, []);
+
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [active]);
 
+  useEffect(() => {
+    const el = listRef.current;
+    if (!inline || !el) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame.current);
+    };
+  }, [inline, measure]);
+
+  const tick = () => {
+    const el = listRef.current;
+    if (!el || speed.current === 0) {
+      frame.current = 0;
+      return;
+    }
+    el.scrollLeft += speed.current;
+    frame.current = requestAnimationFrame(tick);
+  };
+
+  // Mouse only: the closer to an edge, the faster the strip moves toward it. Touch keeps swiping.
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse") return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - box.left;
+    const toRight = box.width - x;
+    speed.current =
+      x < HOVER_ZONE ? -Math.ceil(HOVER_MAX_SPEED * (1 - x / HOVER_ZONE)) : toRight < HOVER_ZONE ? Math.ceil(HOVER_MAX_SPEED * (1 - toRight / HOVER_ZONE)) : 0;
+    if (speed.current !== 0 && frame.current === 0) frame.current = requestAnimationFrame(tick);
+  };
+  const stopHover = () => {
+    speed.current = 0;
+  };
+
+  const page = (dir: 1 | -1) => {
+    const el = listRef.current;
+    el?.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+  };
+
+  const arrow = "absolute inset-y-0 z-10 flex w-12 cursor-pointer items-center text-fg-quaternary transition hover:text-fg-secondary";
   return (
     <nav
       aria-label="Сэдвүүд"
       className={cx(
-        placement === "bottom"
-          ? "fixed inset-x-0 bottom-0 z-30 border-t border-secondary bg-primary/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
-          : "hidden border-b border-secondary md:block",
+        inline
+          ? "hidden border-b border-secondary md:block"
+          : "fixed inset-x-0 bottom-0 z-30 border-t border-secondary bg-primary/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden",
       )}
     >
-      <ul className="scrollbar-hide scroll-fade-x flex gap-1 overflow-x-auto px-2">
-        {ITEMS.map((it) => {
-          const isActive = it.key === active;
-          return (
-            <li key={it.key} className="shrink-0">
-              <Link
-                ref={isActive ? activeRef : undefined}
-                href={it.href}
-                aria-current={isActive ? "page" : undefined}
-                className={cx(
-                  "relative block px-3 py-3.5 text-md whitespace-nowrap transition-colors",
-                  isActive ? "font-semibold text-primary" : "text-tertiary hover:text-secondary",
-                )}
-              >
-                {it.label}
-                {isActive && <span aria-hidden className="absolute inset-x-3 bottom-1.5 h-0.5 rounded-full bg-brand-solid" />}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="relative" onPointerMove={inline ? onPointerMove : undefined} onPointerLeave={inline ? stopHover : undefined}>
+        {inline && edges.left && (
+          <button type="button" tabIndex={-1} aria-label="Өмнөх сэдвүүд" onClick={() => page(-1)} className={cx(arrow, "left-0 justify-start bg-linear-to-r from-bg-primary from-40% to-transparent pl-1")}>
+            <ChevronLeft className="size-5" aria-hidden />
+          </button>
+        )}
+        <ul ref={listRef} onScroll={inline ? measure : undefined} className={cx("scrollbar-hide flex gap-1 overflow-x-auto px-2", !inline && "scroll-fade-x")}>
+          {ITEMS.map((it) => {
+            const isActive = it.key === active;
+            return (
+              <li key={it.key} className="shrink-0">
+                <Link
+                  ref={isActive ? activeRef : undefined}
+                  href={it.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cx(
+                    "relative block px-3 py-3.5 text-md whitespace-nowrap transition-colors",
+                    isActive ? "font-semibold text-primary" : "text-tertiary hover:text-secondary",
+                  )}
+                >
+                  {it.label}
+                  {isActive && <span aria-hidden className="absolute inset-x-3 bottom-1.5 h-0.5 rounded-full bg-brand-solid" />}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        {inline && edges.right && (
+          <button type="button" tabIndex={-1} aria-label="Дараагийн сэдвүүд" onClick={() => page(1)} className={cx(arrow, "right-0 justify-end bg-linear-to-l from-bg-primary from-40% to-transparent pr-1")}>
+            <ChevronRight className="size-5" aria-hidden />
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

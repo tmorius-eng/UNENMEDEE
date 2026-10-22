@@ -6,6 +6,7 @@ import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digest
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
 import { toPrefixQuery } from "@/lib/search";
 import { SOURCE_SEEDS } from "@/lib/sources";
+import { ubMidnight } from "@/lib/ticker";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
 
@@ -392,19 +393,24 @@ export interface SiteStats {
   flagged: number;
   clusters: number;
   aiCostThisMonthUsd: number;
+  /** Newest published article's created_at (ISO): "Шинэчилсэн: … өмнө". */
+  lastArticleAt: string | null;
+  /** Published articles found since midnight Ulaanbaatar time. */
+  todayArticles: number;
 }
 
 export async function getSiteStats(): Promise<SiteStats> {
   "use cache";
   cacheLife("minutes");
   cacheTag("articles", "sources", "ai");
-  const fallback: SiteStats = { activeSources: SOURCE_SEEDS.length, articles: 0, analyzed: 0, flagged: 0, clusters: 0, aiCostThisMonthUsd: 0 };
+  const fallback: SiteStats = { activeSources: SOURCE_SEEDS.length, articles: 0, analyzed: 0, flagged: 0, clusters: 0, aiCostThisMonthUsd: 0, lastArticleAt: null, todayArticles: 0 };
   return safe("getSiteStats", fallback, async () => {
     const db = getDb();
     const monthStart = new Date();
     monthStart.setUTCDate(1);
     monthStart.setUTCHours(0, 0, 0, 0);
-    const [[src], [art], [clu], [cost]] = await Promise.all([
+    const todayStart = new Date(ubMidnight(Date.now()));
+    const [[src], [art], [clu], [cost], [recent]] = await Promise.all([
       db.select({ n: count() }).from(sources).where(eq(sources.isActive, true)),
       db
         .select({
@@ -415,6 +421,13 @@ export async function getSiteStats(): Promise<SiteStats> {
         .from(articles),
       db.select({ n: count() }).from(clusters).where(gte(clusters.articleCount, 2)),
       db.select({ usd: sql<string>`coalesce(sum(${aiUsageLogs.estimatedCostUsd}), 0)` }).from(aiUsageLogs).where(gte(aiUsageLogs.createdAt, monthStart)),
+      db
+        .select({
+          last: sql<string | null>`max(${articles.createdAt})::text`,
+          today: sql<number>`count(*) filter (where ${articles.createdAt} >= ${todayStart})::int`,
+        })
+        .from(articles)
+        .where(eq(articles.isPublished, true)),
     ]);
     return {
       activeSources: src.n,
@@ -423,6 +436,8 @@ export async function getSiteStats(): Promise<SiteStats> {
       flagged: art.flagged,
       clusters: clu.n,
       aiCostThisMonthUsd: Number(cost.usd),
+      lastArticleAt: recent.last ? new Date(recent.last).toISOString() : null,
+      todayArticles: recent.today,
     };
   });
 }

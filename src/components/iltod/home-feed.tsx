@@ -8,6 +8,7 @@ import { findTopic } from "@/lib/topics";
 
 import { Empty } from "./empty";
 import { MacroStrip } from "./macro-strip";
+import { StatusTicker } from "./status-ticker";
 import { StoryList } from "./story-list";
 import { TopicBar } from "./topic-bar";
 
@@ -44,9 +45,11 @@ async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; diges
           <span className="sr-only">{topicLabel ? `${topicLabel} — шинэ мэдээ` : "Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ"}, </span>
           {await todayMn()}
         </h1>
-        <p className="mt-1 text-sm text-tertiary">
-          {stats.activeSources} төрийн эх сурвалж · {stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал {formatUsd(stats.aiCostThisMonthUsd)}
-        </p>
+        <StatusTicker
+          stats={`${stats.activeSources} төрийн эх сурвалж · ${stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал ${formatUsd(stats.aiCostThisMonthUsd)}`}
+          lastArticleAt={stats.lastArticleAt}
+          todayArticles={stats.todayArticles}
+        />
       </div>
       {digest && (
         <Link href="/digest" className="group flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3.5 transition hover:bg-secondary_hover">
