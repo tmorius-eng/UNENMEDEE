@@ -51,9 +51,12 @@ describe("extractWithCheerio (fallback when jsdom cannot load)", () => {
     const html = `<html><head><title>Гарчиг</title><script>var x = "secret";</script></head><body><nav><li>Нүүр</li></nav><main><p>Богино.</p></main></body></html>`;
     assert.equal(extractWithCheerio(html), null);
     const long = "Засгийн газрын хуралдаанаар төсвийн тодотголыг хэлэлцлээ. ".repeat(8);
-    const ok = extractWithCheerio(html.replace("<p>Богино.</p>", `<h1>Шийдвэр</h1><p>${long}</p>`));
+    const ok = extractWithCheerio(html.replace("<p>Богино.</p>", `<h1>Төсвийн тодотголыг хэлэлцлээ</h1><p>${long}</p>`));
     assert.ok(ok);
-    assert.equal(ok.title, "Шийдвэр");
+    assert.equal(ok.title, "Төсвийн тодотголыг хэлэлцлээ");
     assert.ok(!ok.text.includes("secret") && !ok.text.includes("Нүүр"));
+    // A one-word heading says nothing about the story: the first sentence is used instead.
+    const short = extractWithCheerio(html.replace("<p>Богино.</p>", `<h1>Шийдвэр</h1><p>${long}</p>`));
+    assert.equal(short?.title, "Засгийн газрын хуралдаанаар төсвийн тодотголыг хэлэлцлээ");
   });
 });

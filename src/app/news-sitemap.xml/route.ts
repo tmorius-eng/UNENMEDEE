@@ -3,13 +3,16 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getSitemapArticles, type SitemapArticle } from "@/lib/queries";
 import { absoluteUrl, SITE_NAME, xmlEscape } from "@/lib/site";
 
-/** Google News sitemap: only articles published in the last two days (Google's limit). */
+/**
+ * Google News sitemap: only articles published in the last two days (Google's limit), and only
+ * those whose page printed a real publication date.
+ */
 async function recentNews(): Promise<SitemapArticle[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("articles");
   const cutoff = Date.now() - 2 * 86_400_000;
-  return (await getSitemapArticles(1000)).filter((a) => a.publishedAt && a.publishedAt.getTime() >= cutoff);
+  return (await getSitemapArticles(1000)).filter((a) => !a.dateUnknown && a.publishedAt && a.publishedAt.getTime() >= cutoff);
 }
 
 export async function GET() {

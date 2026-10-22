@@ -27,6 +27,8 @@ export interface ScrapeMeta {
   procuring_entity?: string;
   dataset_org?: string;
   dataset_updated?: string;
+  /** The page shows no publication date: `published_at` is the time we found it. */
+  date_unknown?: boolean;
 }
 
 export const RISK_FLAG_THRESHOLD = 65;

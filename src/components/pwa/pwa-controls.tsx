@@ -91,11 +91,9 @@ export function NotifyButton() {
   const [sheet, setSheet] = useState(false);
   if (!pwa.pushSupported && !pwa.needsInstallForPush) return null;
 
-  const onClick = async () => {
-    // Subscribed: open the sheet (test / turn off) instead of silently unsubscribing.
-    if (!pwa.needsInstallForPush && !pwa.subscribed) await pwa.enablePush();
-    setSheet(true);
-  };
+  // Always open the sheet first: it says what is sent, and "Асаах" asks the browser for
+  // permission. Asking on the bell itself looked dead where the browser hides its prompt.
+  const onClick = () => setSheet(true);
   const label = pwa.subscribed ? "Мэдэгдлийн тохиргоо" : "Шинэ мэдээний мэдэгдэл авах";
 
   return (
@@ -117,7 +115,7 @@ export function NotifyButton() {
       <Sheet
         open={sheet}
         onClose={() => setSheet(false)}
-        title={pwa.needsInstallForPush ? "iPhone дээр мэдэгдэл авах" : pwa.error && !pwa.subscribed ? "Мэдэгдэл асаагүй" : pwa.subscribed ? "Мэдэгдэл асаалттай 🔔" : "Мэдэгдэл"}
+        title={pwa.needsInstallForPush ? "iPhone дээр мэдэгдэл авах" : pwa.subscribed ? "Мэдэгдэл асаалттай 🔔" : "Чухал мэдээг мэдэгдлээр авах"}
       >
         {pwa.needsInstallForPush ? (
           <div className="flex flex-col gap-4">
@@ -125,7 +123,21 @@ export function NotifyButton() {
             <IosSteps />
           </div>
         ) : !pwa.subscribed ? (
-          <p className="text-sm text-tertiary">{pwa.error ?? "Мэдэгдэл асаагүй байна."}</p>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-tertiary">
+              Өдөрт хэдхэн удаа: улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ, өглөө 08:00, орой 20:00 цагийн онцлох тойм. Зар сурталчилгаа илгээхгүй.
+            </p>
+            {pwa.error && <p className="text-sm text-error-primary">{pwa.error}</p>}
+            <button
+              type="button"
+              onClick={pwa.enablePush}
+              disabled={pwa.busy}
+              className="rounded-xl bg-brand-solid py-3 text-md font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover disabled:opacity-60"
+            >
+              {pwa.busy ? "Асааж байна…" : "Асаах"}
+            </button>
+            <p className="text-xs text-quaternary">Хөтөч зөвшөөрөл асууна. Дараа нь энэ хонхоор хэзээ ч унтрааж болно.</p>
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-tertiary">

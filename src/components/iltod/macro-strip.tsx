@@ -26,7 +26,7 @@ export async function MacroStrip({ compact = false }: { compact?: boolean }) {
 
   return (
     <section aria-label="Монголбанкны үзүүлэлт" className="flex flex-col gap-2">
-      <div className={cx("grid gap-3", compact ? "scrollbar-hide -mx-4 auto-cols-[78%] grid-flow-col overflow-x-auto px-4 sm:mx-0 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-3 sm:px-0" : "sm:grid-cols-3")}>
+      <div className={cx("grid gap-3", compact ? "scrollbar-hide max-sm:scroll-fade-x -mx-4 auto-cols-[78%] grid-flow-col overflow-x-auto px-4 sm:mx-0 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-3 sm:px-0" : "sm:grid-cols-3")}>
         {policyRate && (
           <Card accent="border-utility-green-600">
             <p className="text-sm font-semibold text-primary">Бодлогын хүү</p>

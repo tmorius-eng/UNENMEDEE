@@ -353,6 +353,8 @@ export interface SitemapArticle {
   sourceDomain: string;
   sourceCategory: SourceCategory;
   publishedAt: Date | null;
+  /** The source page printed no date (`scrape_meta.date_unknown`): publishedAt is when we found it. */
+  dateUnknown: boolean;
   lastModified: Date;
 }
 
@@ -371,6 +373,7 @@ export async function getSitemapArticles(limit = 1000): Promise<SitemapArticle[]
         sourceDomain: sources.domain,
         sourceCategory: sources.category,
         publishedAt: articles.publishedAt,
+        dateUnknown: sql<boolean>`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false)`,
         lastModified: sql<Date>`greatest(${articles.createdAt}, coalesce(${articles.editedAt}, ${articles.createdAt}))`.mapWith(articles.createdAt),
       })
       .from(articles)

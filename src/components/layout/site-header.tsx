@@ -56,8 +56,11 @@ export function SiteHeader() {
             <SearchLg className="size-5" aria-hidden />
           </Link>
           <NotifyButton />
-          <TextSizeToggle />
-          <ThemeToggle />
+          {/* Below sm (≤ 360 px phones) these two move into the menu, or the row overflows. */}
+          <div className="hidden sm:contents">
+            <TextSizeToggle />
+            <ThemeToggle />
+          </div>
           <MobileMenu />
         </div>
       </div>

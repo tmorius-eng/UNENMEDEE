@@ -1,14 +1,19 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 import type { DB } from "@/db";
 import { articles, sources } from "@/db/schema";
 import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
+import { looksOld } from "./dates";
+import { firstSentenceTitle, isGenericTitle, looksLikeNavigation } from "./titles";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Hard cap per article to protect the 500 MB Supabase free tier (~15 KB of text). */
 export const MAX_STORED_CHARS = 15_000;
+
+/** Sources whose items legitimately share titles (a dataset name per release). */
+const REPEATING_TITLES = new Set(["opendata.gov.mn"]);
 
 export function createDbSink(db: DB): ArticleSink {
   return {
@@ -27,17 +32,36 @@ export function createDbSink(db: DB): ArticleSink {
       const hash = contentHash(item.text);
       const dup = await db.select({ id: articles.id }).from(articles).where(eq(articles.contentHash, hash)).limit(1);
       if (dup.length) return "duplicate";
+      let title = item.title;
+      let siteTitle = isGenericTitle(title, [source.name]);
+      if (!siteTitle && !REPEATING_TITLES.has(source.domain)) {
+        // The same title already used by this site this month: it is the site's title, not a headline.
+        const seen = await db
+          .select({ id: articles.id })
+          .from(articles)
+          .where(and(eq(articles.sourceId, source.id), eq(articles.title, title), gte(articles.createdAt, new Date(Date.now() - 30 * 86_400_000))))
+          .limit(1);
+        siteTitle = seen.length > 0;
+      }
+      // A site title over menu text is a homepage or a menu page: keep it (so it is not fetched
+      // again) but never publish it.
+      const notNews = siteTitle && looksLikeNavigation(item.text);
+      if (siteTitle && !notNews) title = firstSentenceTitle(item.text);
+      const meta = { ...item.meta, ...(item.publishedAt ? {} : { date_unknown: true }) };
       const inserted = await db
         .insert(articles)
         .values({
           sourceId: source.id,
-          title: item.title.slice(0, 500),
-          slug: slugify(item.title, item.url),
+          title: title.slice(0, 500),
+          slug: slugify(title, item.url),
           originalUrl: item.url,
           contentHash: hash,
           cleanContent: truncate(item.text, MAX_STORED_CHARS),
-          scrapeMeta: item.meta && Object.keys(item.meta).length ? item.meta : null,
+          scrapeMeta: Object.keys(meta).length ? meta : null,
+          // Undated: the time we found it (feeds sort by date), flagged as unknown above. An undated
+          // post whose text only mentions years before last year is an old page, not news.
           publishedAt: item.publishedAt ?? new Date(),
+          isPublished: notNews ? false : item.publishedAt ? undefined : !looksOld(item.text),
           // tldr_summary stays null so `npm run ai:process` picks it up.
         })
         .onConflictDoNothing()
