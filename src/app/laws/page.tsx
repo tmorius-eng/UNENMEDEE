@@ -8,6 +8,7 @@ import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { getLegalActs } from "@/lib/queries";
+import { safeHttpUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Шинэ хууль, тогтоол — юу өөрчлөгдөж байна вэ",
@@ -44,7 +45,7 @@ async function Acts() {
                     ))}
                   </ul>
                 )}
-                <a href={a.originalUrl} target="_blank" rel="noreferrer" className="w-fit text-xs font-semibold text-brand-secondary hover:underline">
+                <a href={safeHttpUrl(a.originalUrl)} target="_blank" rel="noreferrer" className="w-fit text-xs font-semibold text-brand-secondary hover:underline">
                   Эх бичвэр legalinfo.mn →
                 </a>
               </li>

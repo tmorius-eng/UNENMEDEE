@@ -15,7 +15,7 @@ import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { type ArticleDetail, getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
-import { absoluteUrl, jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
+import { absoluteUrl, jsonLd, safeHttpUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import { topicFor } from "@/lib/topics";
 
 /** Cache Components requires at least one param; unknown slugs render on demand (ISR). */
@@ -213,7 +213,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
             </p>
           </div>
           <a
-            href={article.originalUrl}
+            href={safeHttpUrl(article.originalUrl)}
             target="_blank"
             rel="noreferrer nofollow"
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-brand-solid_hover"

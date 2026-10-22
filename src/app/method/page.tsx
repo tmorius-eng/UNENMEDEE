@@ -137,6 +137,13 @@ export default function MethodPage() {
             </a>{" "}
             дагуу нууцаар мэдэгдээрэй.
           </li>
+          <li>
+            Манай AI хураангуй, тойм, тооцоолсон өгөгдлийг{" "}
+            <a className="font-semibold text-brand-secondary hover:underline" href={repoFile("LICENSE-CONTENT.md")} target="_blank" rel="noreferrer license">
+              CC BY 4.0
+            </a>{" "}
+            нөхцөлөөр чөлөөтэй ашиглаж болно: эх сурвалжаа iltodmedee.mn гэж холбоостой дурдана уу. Код нь MIT лицензтэй.
+          </li>
         </ul>
       </section>
     </div>

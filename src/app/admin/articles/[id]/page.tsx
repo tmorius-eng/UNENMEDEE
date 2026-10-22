@@ -10,6 +10,7 @@ import { ReanalyzeButtons } from "@/components/admin/row-actions";
 import { getDb } from "@/db";
 import { articles } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
+import { safeHttpUrl } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Нийтлэл засах", robots: { index: false } };
 export const maxDuration = 60;
@@ -27,7 +28,7 @@ async function Editor({ params }: { params: PageProps<"/admin/articles/[id]">["p
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <a href={a.originalUrl} target="_blank" rel="noreferrer" className="text-sm text-brand-secondary hover:underline">
+        <a href={safeHttpUrl(a.originalUrl)} target="_blank" rel="noreferrer" className="text-sm text-brand-secondary hover:underline">
           {a.originalUrl}
         </a>
         <ReanalyzeButtons id={a.id} />

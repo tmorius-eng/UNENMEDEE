@@ -1,5 +1,5 @@
 import { getSitemapArticles } from "@/lib/queries";
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, xmlEscape } from "@/lib/site";
+import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL, xmlEscape } from "@/lib/site";
 
 /** RSS 2.0 of the newest analyzed stories (feed readers, Google Discover, aggregators). */
 export async function GET() {
@@ -26,6 +26,7 @@ export async function GET() {
     <atom:link href="${xmlEscape(absoluteUrl("/feed.xml"))}" rel="self" type="application/rss+xml" />
     <description>${xmlEscape(SITE_DESCRIPTION)}</description>
     <language>mn</language>
+    <copyright>${xmlEscape(`© ${SITE_NAME} · CC BY 4.0 (эх сурвалжаа ${SITE_URL} гэж дурдана уу). Анхны мэдээ тухайн байгууллагынх.`)}</copyright>
 ${items}
   </channel>
 </rss>
