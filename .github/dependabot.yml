@@ -22,12 +22,14 @@ updates:
       npm-minor-patch:
         update-types: [minor, patch]
     ignore:
-      # Types follow the Node.js we run (package.json engines: 24.x), not the newest Node.
+      # Types follow the Node.js we run (package.json engines: 24.x). Vercel offers 22.x and 24.x
+      # only; Node 26 is not LTS yet. Move both together when Vercel adds 26.x.
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]
-      # typescript-eslint (via eslint-config-next) does not support TypeScript 7 yet.
+      # typescript-eslint (via eslint-config-next) supports TypeScript >=4.8.4 <6.1.0 and refuses
+      # TS 7 (the Go port). Lift this when its peer range includes the next version.
       - dependency-name: typescript
-        update-types: [version-update:semver-major]
+        versions: [">=6.1.0"]
 
   - package-ecosystem: github-actions
     directory: /
