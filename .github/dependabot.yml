@@ -16,7 +16,6 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
-    labels: [dependencies]
     commit-message:
       prefix: deps
     groups:
@@ -39,7 +38,6 @@ updates:
       timezone: Asia/Ulaanbaatar
     cooldown:
       default-days: 7
-    labels: [dependencies]
     commit-message:
       prefix: ci
     groups:
