@@ -17,11 +17,33 @@ export interface BudgetShare {
   share: number;
 }
 
+/** Monthly НДШ and ХХОАТ for a gross salary (an estimate: no tax credit, no 2026 changes). */
+export function payrollParts(grossMonthly: number): { si: number; pit: number; total: number } {
+  if (!Number.isFinite(grossMonthly) || grossMonthly <= 0) return { si: 0, pit: 0, total: 0 };
+  const si = Math.round(grossMonthly * SI_RATE);
+  const pit = Math.round((grossMonthly - grossMonthly * SI_RATE) * PIT_RATE);
+  return { si, pit, total: si + pit };
+}
+
 /** Rough monthly ХХОАТ + НДШ for a gross salary (shown to the reader as an estimate). */
 export function estimatePayrollTax(grossMonthly: number): number {
-  if (!Number.isFinite(grossMonthly) || grossMonthly <= 0) return 0;
-  const si = grossMonthly * SI_RATE;
-  return Math.round(si + (grossMonthly - si) * PIT_RATE);
+  return payrollParts(grossMonthly).total;
+}
+
+/** The exact amount from a payslip wins; otherwise the estimate from the salary. */
+export function payrollFromInputs(input: { salary: number; exact: number }): { monthly: number; source: "exact" | "estimate" | "none" } {
+  if (Number.isFinite(input.exact) && input.exact > 0) return { monthly: input.exact, source: "exact" };
+  const monthly = estimatePayrollTax(input.salary);
+  return { monthly, source: monthly > 0 ? "estimate" : "none" };
+}
+
+/**
+ * A "withheld tax" that is really a salary typed into the wrong field: 40%+ of the salary, or
+ * 1 000 000 ₮+ when no salary is given (НДШ + ХХОАТ is about 20% of pay).
+ */
+export function looksLikeSalary(exact: number, salary: number): boolean {
+  if (!(exact > 0)) return false;
+  return salary > 0 ? exact >= salary * 0.4 : exact >= 1_000_000;
 }
 
 export interface TaxReceipt {

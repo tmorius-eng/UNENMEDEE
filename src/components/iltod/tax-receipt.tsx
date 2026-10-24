@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { formatMntShort, formatNumber } from "@/lib/format";
-import { type BudgetShare, estimatePayrollTax, PIT_RATE, SI_RATE, taxReceipt } from "@/lib/tax/receipt";
+import { type BudgetShare, looksLikeSalary, payrollFromInputs, payrollParts, PIT_RATE, SI_RATE, taxReceipt } from "@/lib/tax/receipt";
 
 const toNumber = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
 const pct = (x: number) => `${(x * 100).toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
 
-function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: string; hint: string; value: string; onChange: (v: string) => void }) {
+function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: string; hint: ReactNode; value: string; onChange: (v: string) => void }) {
   return (
     <label htmlFor={id} className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold text-primary">{label}</span>
@@ -22,7 +22,7 @@ function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: s
           placeholder="0"
           className="w-full bg-transparent px-3.5 py-2.5 text-md text-primary tabular-nums outline-none"
         />
-        <span className="pr-3.5 text-sm text-tertiary">₮ / сар</span>
+        <span className="shrink-0 pr-3.5 text-sm whitespace-nowrap text-tertiary">₮ / сар</span>
       </span>
       <span className="text-xs text-tertiary">{hint}</span>
     </label>
@@ -31,28 +31,43 @@ function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: s
 
 /** Calculator for /tax. Nothing typed here leaves the browser. */
 export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; year: string }) {
-  const [payroll, setPayroll] = useState("");
-  const [purchases, setPurchases] = useState("");
   const [salary, setSalary] = useState("");
-  const r = taxReceipt({ payrollMonthly: toNumber(payroll), purchasesMonthly: toNumber(purchases) }, shares);
+  const [exact, setExact] = useState("");
+  const [purchases, setPurchases] = useState("");
+  const parts = payrollParts(toNumber(salary));
+  const payroll = payrollFromInputs({ salary: toNumber(salary), exact: toNumber(exact) });
+  const suspicious = looksLikeSalary(toNumber(exact), toNumber(salary));
+  const r = taxReceipt({ payrollMonthly: payroll.monthly, purchasesMonthly: toNumber(purchases) }, shares);
   const max = r.lines[0]?.amount || 1;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-5 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:grid-cols-2 md:p-6">
         <div className="flex flex-col gap-3">
-          <MoneyInput id="payroll" label="Цалингаас суутгадаг ХХОАТ + НДШ" hint="Цалингийн хуудас эсвэл e-barimt-аас харна. Цалингүй бол хоосон орхи." value={payroll} onChange={setPayroll} />
-          <details className="text-sm">
-            <summary className="cursor-pointer text-xs font-semibold text-brand-secondary">Мэдэхгүй байна: цалингаараа ойролцоо тооцох</summary>
+          <MoneyInput
+            id="salary"
+            label="Сарын цалин (татвар суутгахаас өмнө)"
+            hint={
+              parts.total > 0 ? (
+                <>
+                  ≈ НДШ {formatNumber(parts.si)} + ХХОАТ {formatNumber(parts.pit)} = <strong className="font-semibold text-secondary">{formatNumber(parts.total)} ₮</strong> сард суутгагдана (НДШ {pct(SI_RATE)}, ХХОАТ {pct(PIT_RATE)} НДШ хассаны дараа).
+                </>
+              ) : (
+                "Цалингүй бол хоосон орхи. Хөнгөлөлт, 2026 оны өөрчлөлтийг тооцоогүй тул ойролцоо."
+              )
+            }
+            value={salary}
+            onChange={setSalary}
+          />
+          <details className="text-sm" open={toNumber(exact) > 0 || undefined}>
+            <summary className="cursor-pointer text-xs font-semibold text-brand-secondary">Цалингийн хуудсан дээрх яг дүнгээ оруулах</summary>
             <div className="mt-2 flex flex-col gap-2">
-              <MoneyInput id="salary" label="Татвар суутгахаас өмнөх цалин" hint={`НДШ ${pct(SI_RATE)} + ХХОАТ ${pct(PIT_RATE)} (НДШ хассаны дараа). Хөнгөлөлт, 2026 оны өөрчлөлтийг тооцоогүй тул ойролцоо.`} value={salary} onChange={setSalary} />
-              <button
-                type="button"
-                onClick={() => setPayroll(formatNumber(estimatePayrollTax(toNumber(salary))))}
-                className="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
-              >
-                Тооцоод дээр бичих
-              </button>
+              <MoneyInput id="exact" label="Суутгагдсан ХХОАТ + НДШ (татварын дүн)" hint="Цалингийн хуудас эсвэл e-barimt-аас харна. Оруулбал дээрх тооцооллын оронд үүнийг ашиглана." value={exact} onChange={setExact} />
+              {suspicious && (
+                <p role="status" className="rounded-lg bg-warning-primary px-3 py-2 text-xs text-warning-primary">
+                  Энэ дүн цалингийн 40%-иас их байна. Цалингаа энд биш, дээрх &quot;Сарын цалин&quot; талбарт оруулсан уу? Ихэнх хүний суутгал цалингийн ~20% байдаг.
+                </p>
+              )}
             </div>
           </details>
         </div>
@@ -65,7 +80,12 @@ export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; 
             <p className="text-sm text-tertiary">Таны жилд төлдөг татвар (ойролцоо)</p>
             <p className="text-display-xs font-semibold text-primary tabular-nums">{formatNumber(r.total)} ₮</p>
             <p className="text-xs text-tertiary">
-              ХХОАТ + НДШ {formatMntShort(r.payrollYear)} · НӨАТ {formatMntShort(r.vatYear)}
+              {payroll.source === "estimate"
+                ? `НДШ ${formatMntShort(parts.si * 12)} · ХХОАТ ${formatMntShort(parts.pit * 12)} (цалингаас тооцоолсон)`
+                : payroll.source === "exact"
+                  ? `ХХОАТ + НДШ ${formatMntShort(r.payrollYear)} (цалингийн хуудаснаас)`
+                  : "Цалингийн татвар оруулаагүй"}{" "}
+              · НӨАТ {formatMntShort(r.vatYear)}
             </p>
           </header>
           <h2 className="text-sm font-semibold text-primary">{year} оны улсын төсвийн бүтцээр хуваавал:</h2>
