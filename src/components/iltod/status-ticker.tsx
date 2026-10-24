@@ -1,38 +1,13 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { timeAgoMn } from "@/lib/format";
 import { useLocalStorage } from "@/lib/local-store";
+import { useNow } from "@/lib/now-store";
 import { parseIds, READ_KEY } from "@/lib/read-state";
 import { nextRunLabel } from "@/lib/ticker";
 import { cx } from "@/utils/cx";
-
-/** A shared minute clock. The server snapshot is 0, so prerendered HTML never shows a time. */
-let now = 0;
-const subscribers = new Set<() => void>();
-let timer: ReturnType<typeof setInterval> | undefined;
-function subscribe(cb: () => void) {
-  subscribers.add(cb);
-  timer ??= setInterval(() => {
-    now = Date.now();
-    subscribers.forEach((f) => f());
-  }, 30_000);
-  return () => {
-    subscribers.delete(cb);
-    if (!subscribers.size && timer) {
-      clearInterval(timer);
-      timer = undefined;
-    }
-  };
-}
-function useNow(): number {
-  return useSyncExternalStore(
-    subscribe,
-    () => (now ||= Date.now()),
-    () => 0,
-  );
-}
 
 const ROTATE_MS = 4_000;
 
