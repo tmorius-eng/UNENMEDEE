@@ -16,6 +16,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import type { SourceDiff } from "@/lib/scraper/recheck";
 import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
@@ -85,6 +86,15 @@ export const articles = pgTable(
     contentPrunedAt: timestamp("content_pruned_at", { withTimezone: true }),
     /** The summary is the article's first sentences because no AI could process it (see src/lib/ai/fallback.ts). */
     summaryFallback: boolean("summary_fallback").notNull().default(false),
+    /** Last time scripts/recheck-sources.ts fetched the source page again (src/lib/scraper/recheck.ts). */
+    sourceCheckedAt: timestamp("source_checked_at", { withTimezone: true }),
+    /** "ok" | "changed" (the page's text differs from our copy) | "gone" (404 or redirected away on 2+ checks). */
+    sourceStatus: varchar("source_status", { length: 12 }),
+    /** When the change or removal was first seen. */
+    sourceChangedAt: timestamp("source_changed_at", { withTimezone: true }),
+    sourceMissingCount: integer("source_missing_count").notNull().default(0),
+    /** Sentences that changed or disappeared (only for "changed"; capped at MAX_DIFF). */
+    sourceDiff: jsonb("source_diff").$type<SourceDiff>(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -95,6 +105,7 @@ export const articles = pgTable(
     index("articles_risk_idx").on(t.riskFlag, t.riskScore),
     index("articles_published_at_idx").on(t.publishedAt),
     index("articles_created_at_idx").on(t.createdAt),
+    index("articles_source_status_idx").on(t.sourceStatus).where(sql`${t.sourceStatus} in ('changed', 'gone')`),
     // /search: must match the expression in searchArticles() exactly.
     index("articles_search_idx").using("gin", sql`to_tsvector('simple', ${t.title} || ' ' || coalesce(${t.tldrSummary}, ''))`),
   ],

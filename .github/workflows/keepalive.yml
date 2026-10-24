@@ -23,6 +23,6 @@ jobs:
     steps:
       - name: Re-enable scheduled workflows
         run: |
-          for wf in autonomous-news-pipeline.yml news-digest.yml officials-sync.yml discover-sources.yml watchdog.yml keepalive.yml; do
+          for wf in autonomous-news-pipeline.yml news-digest.yml officials-sync.yml discover-sources.yml source-recheck.yml watchdog.yml keepalive.yml; do
             if gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/enable" --silent; then echo "✓ $wf"; else echo "::warning::could not enable $wf"; fi
           done

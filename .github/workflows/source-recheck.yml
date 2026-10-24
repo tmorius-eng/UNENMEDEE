@@ -1,0 +1,56 @@
+# Re-checks the last 30 days of articles against their source pages, weekly (Sunday 03:47
+# Ulaanbaatar time), and records pages the government site changed or removed ("Эх хуудасны
+# өөрчлөлт", /changes). robots.txt and 8 s per host, hosts in parallel, 40-minute budget.
+# A manual run is a dry run unless dry_run is "false".
+name: Source page re-check
+
+on:
+  schedule:
+    - cron: "47 19 * * 6"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would be recorded (true/false)"
+        required: false
+        default: "true"
+
+concurrency:
+  group: source-recheck
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  recheck:
+    # Forks keep the code but never run the scheduled jobs (no secrets, no Actions minutes).
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run != 'false' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Re-check source pages
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then npm run sources:recheck -- --dry-run; else npm run sources:recheck; fi

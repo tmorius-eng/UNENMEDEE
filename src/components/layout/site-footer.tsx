@@ -22,6 +22,9 @@ export function SiteFooter() {
           <Link className="text-tertiary hover:text-secondary" href="/transparency">
             Зардлын тайлан (AI токен бүрээр)
           </Link>
+          <Link className="text-tertiary hover:text-secondary" href="/changes">
+            Төрийн сайтын засвар, устгалт
+          </Link>
           <Link className="text-tertiary hover:text-secondary" href="/clusters">
             Олон эх сурвалжид гарсан сэдвүүд
           </Link>

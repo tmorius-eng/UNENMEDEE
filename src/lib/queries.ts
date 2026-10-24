@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
+import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
 import { toPrefixQuery } from "@/lib/search";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { ubMidnight } from "@/lib/ticker";
@@ -275,6 +276,10 @@ export interface ArticleDetail extends ArticleListItem {
   editedAt: Date | null;
   contentPrunedAt: Date | null;
   summaryFallback: boolean;
+  /** Re-check of the source page (src/lib/scraper/recheck.ts): null = not checked yet. */
+  sourceStatus: SourceStatus | null;
+  sourceChangedAt: Date | null;
+  sourceDiff: SourceDiff | null;
   /** The model that actually wrote the summary / deep analysis (from ai_usage_logs); null = rule-based or unknown. */
   tier1Model: AIModelRef | null;
   tier2Model: AIModelRef | null;
@@ -315,6 +320,9 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
         editedAt: articles.editedAt,
         contentPrunedAt: articles.contentPrunedAt,
         summaryFallback: articles.summaryFallback,
+        sourceStatus: articles.sourceStatus,
+        sourceChangedAt: articles.sourceChangedAt,
+        sourceDiff: articles.sourceDiff,
         tier1Model: modelUsed(["tier1"]),
         tier2Model: modelUsed(["tier2", "admin"]),
       })
@@ -337,6 +345,9 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       editedAt: r.editedAt,
       contentPrunedAt: r.contentPrunedAt,
       summaryFallback: r.summaryFallback,
+      sourceStatus: r.sourceStatus as SourceStatus | null,
+      sourceChangedAt: r.sourceChangedAt,
+      sourceDiff: r.sourceDiff,
       tier1Model: parseModelRef(r.tier1Model),
       tier2Model: parseModelRef(r.tier2Model),
     };
@@ -825,5 +836,51 @@ export async function getWeekNumbers(): Promise<WeekNumbers | null> {
       .innerJoin(sources, eq(articles.sourceId, sources.id))
       .where(and(visible, sql`${articles.publishedAt} > ${since}`));
     return r && r.articles > 0 ? r : null;
+  });
+}
+
+export interface SourceChangeItem {
+  slug: string;
+  title: string;
+  sourceName: string;
+  status: "changed" | "gone";
+  changedAt: Date;
+  publishedAt: Date | null;
+  /** Share of our sentences still on the page (changed only). */
+  containment: number | null;
+  edits: number;
+}
+
+/** Articles whose source page changed or disappeared after we stored them (/changes), newest first. */
+export async function getSourceChanges(limit = 100): Promise<SourceChangeItem[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("articles");
+  return safe("getSourceChanges", [], async () => {
+    const rows = await getDb()
+      .select({
+        slug: articles.slug,
+        title: articles.title,
+        sourceName: sources.name,
+        status: articles.sourceStatus,
+        changedAt: articles.sourceChangedAt,
+        publishedAt: articles.publishedAt,
+        diff: articles.sourceDiff,
+      })
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(and(visible, inArray(articles.sourceStatus, ["changed", "gone"]), isNotNull(articles.sourceChangedAt)))
+      .orderBy(desc(articles.sourceChangedAt))
+      .limit(limit);
+    return rows.map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      sourceName: r.sourceName,
+      status: r.status as "changed" | "gone",
+      changedAt: r.changedAt!,
+      publishedAt: r.publishedAt,
+      containment: r.diff?.containment ?? null,
+      edits: (r.diff?.pairs.length ?? 0) + (r.diff?.removed.length ?? 0),
+    }));
   });
 }

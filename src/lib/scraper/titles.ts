@@ -57,7 +57,7 @@ export function isGenericTitle(title: string, siteNames: (string | null | undefi
 }
 
 /** A line that is only a date ("2026 оны 10 -р сарын 21, Лхагва", "2026-10-21 10:30"). */
-function isDateLine(line: string): boolean {
+export function isDateLine(line: string): boolean {
   const rest = line
     .replace(/20\d{2}\s*оны\s*\d{1,2}\s*(?:-р|дугаар|дүгээр)?\s*сарын\s*\d{1,2}/g, "")
     .replace(/20\d{2}[./-]\d{1,2}[./-]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?/g, "")
