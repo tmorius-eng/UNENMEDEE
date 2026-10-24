@@ -31,7 +31,7 @@ export function MoneyTags({ amounts, max = 3 }: { amounts: string[]; max?: numbe
     <div className="flex flex-wrap gap-1.5">
       {amounts.slice(0, max).map((a) => (
         <Badge key={a} type="color" color="warning" size="sm">
-          💰 {a}
+          {a}
         </Badge>
       ))}
       {amounts.length > max && (

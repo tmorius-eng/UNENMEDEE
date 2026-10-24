@@ -6,7 +6,7 @@ import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
 import { looksOld } from "./dates";
-import { firstSentenceTitle, isGenericTitle, looksLikeNavigation } from "./titles";
+import { firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "./titles";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Hard cap per article to protect the 500 MB Supabase free tier (~15 KB of text). */
@@ -47,6 +47,7 @@ export function createDbSink(db: DB): ArticleSink {
       // again) but never publish it.
       const notNews = siteTitle && looksLikeNavigation(item.text);
       if (siteTitle && !notNews) title = firstSentenceTitle(item.text);
+      title = unshoutTitle(title);
       const meta = { ...item.meta, ...(item.publishedAt ? {} : { date_unknown: true }) };
       const inserted = await db
         .insert(articles)

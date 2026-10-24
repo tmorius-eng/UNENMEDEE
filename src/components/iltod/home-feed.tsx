@@ -1,4 +1,4 @@
-import { ArrowRight } from "@untitledui/icons";
+import { ArrowRight, Stars02 } from "@untitledui/icons";
 import { cacheLife } from "next/cache";
 import Link from "next/link";
 
@@ -36,6 +36,19 @@ function onePerStory(items: ArticleListItem[]): ArticleListItem[] {
   });
 }
 
+/** The most important of the newest stories leads the home page as a card (ties: the newer one). */
+function pickLead(stories: ArticleListItem[]): number | undefined {
+  let best: ArticleListItem | undefined;
+  for (const s of stories.slice(0, 8)) if (!best || (s.importanceScore ?? -1) > (best.importanceScore ?? -1)) best = s;
+  return best?.id;
+}
+
+/** "ӨГЛӨӨНИЙ ТОЙМ" / "ОРОЙН ТОЙМ" by the Ulaanbaatar hour the 12h edition closed; "САРЫН ТОЙМ" for 30d. Written in capitals like the topic tags. */
+function editionLabel(d: DigestView): string {
+  if (d.kind === "30d") return "САРЫН ТОЙМ";
+  return (new Date(d.periodEnd).getUTCHours() + 8) % 24 < 15 ? "ӨГЛӨӨНИЙ ТОЙМ" : "ОРОЙН ТОЙМ";
+}
+
 async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; digest: DigestView | undefined; topicLabel?: string }) {
   return (
     <header className="flex flex-col gap-4 pb-2">
@@ -45,6 +58,7 @@ async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; diges
           <span className="sr-only">{topicLabel ? `${topicLabel} — шинэ мэдээ` : "Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ"}, </span>
           {await todayMn()}
         </h1>
+        <span aria-hidden className="mt-2 block h-1 w-12 rounded-full bg-brand-solid" />
         <StatusTicker
           stats={`${stats.activeSources} төрийн эх сурвалж · ${stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал ${formatUsd(stats.aiCostThisMonthUsd)}`}
           lastArticleAt={stats.lastArticleAt}
@@ -52,12 +66,12 @@ async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; diges
         />
       </div>
       {digest && (
-        <Link href="/digest" className="group flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3.5 transition hover:bg-secondary_hover">
-          <span aria-hidden className="text-xl">
-            📰
+        <Link href="/digest" className="group flex items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 shadow-xs ring-1 ring-secondary transition ring-inset hover:bg-primary_hover">
+          <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-secondary text-fg-brand-primary">
+            <Stars02 className="size-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold tracking-wider text-brand-secondary uppercase">Онцлох тойм</span>
+            <span className="block text-xs font-semibold tracking-wider text-brand-secondary uppercase">{editionLabel(digest)}</span>
             <span className="block truncate text-md font-semibold text-primary">{digest.title}</span>
           </span>
           <ArrowRight className="size-5 shrink-0 text-fg-quaternary transition group-hover:translate-x-0.5" />
@@ -85,7 +99,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       {topic && <h2 className={`pt-6 text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>}
       <div className="mt-2">
         {stories.length ? (
-          <StoryList stories={stories} />
+          <StoryList stories={stories} leadId={filter === "all" ? pickLead(stories) : undefined} />
         ) : (
           <Empty
             title={filter === "all" ? "Шинэ мэдээ хараахан алга" : "Энэ сэдвээр мэдээ алга"}

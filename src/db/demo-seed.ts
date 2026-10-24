@@ -19,6 +19,7 @@ import { parliamentArticleToScraped, parseParliamentPage } from "@/lib/scraper/a
 import { parsePoliceArticle, parsePoliceList } from "@/lib/scraper/adapters/police";
 import { parseZasagFeed } from "@/lib/scraper/adapters/zasag";
 import { extractArticle } from "@/lib/scraper/extractor";
+import { unshoutTitle } from "@/lib/scraper/titles";
 import { parseSoeReport } from "@/lib/soe/shilendans";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { contentHash, slugify } from "@/lib/text";
@@ -61,7 +62,8 @@ export async function seedDemo(db: DB, fixtures = "tests/fixtures", now = new Da
   // Articles, through the scrapers' own parsers
   const items: DemoItem[] = [];
   const add = (domain: string, i: { url: string; title: string; text: string; publishedAt: Date | null } | null) => {
-    if (i && i.text.length >= 200) items.push({ domain, ...i });
+    // Same title clean-up as the scraper's db-sink.
+    if (i && i.text.length >= 200) items.push({ domain, ...i, title: unshoutTitle(i.title) });
   };
   for (const a of parseParliamentPage(json("parliament-articles.json"))) add("parliament.mn", parliamentArticleToScraped(a));
   for (const i of parseZasagFeed(read("zasag-feed.xml"))) add("zasag.mn", i);
