@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/iltod/page-header";
 import { budgetConfig } from "@/lib/ai/limits";
 import { DIGEST_SYSTEM, TIER1_MAX_CHARS, TIER1_SYSTEM, TIER2_MAX_CHARS, TIER2_SYSTEM } from "@/lib/ai/prompts";
+import { CHANGED_BELOW, GONE_CHECKS, GONE_MIN_DAYS } from "@/lib/scraper/recheck";
 import { REPO_URL, repoFile } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -33,6 +34,11 @@ const STEPS = [
   {
     title: "5. Тайлагнана",
     text: "AI дуудлага бүрийн токен, долларын зардлыг бүртгэж Ил тод байдлын тайланд шууд харуулна.",
+  },
+  {
+    title: "6. Дахин шалгана",
+    id: "recheck",
+    text: `Сүүлийн 30 хоногийн мэдээг долоо хоног бүр эх хуудастай нь тулгана. Бидний хадгалсан өгүүлбэрийн ${Math.round(CHANGED_BELOW * 100)}%-иас бага нь хуудсанд үлдсэн эсвэл тоо өөрчлөгдсөн бол "өөрчлөгдсөн", хуудас ${GONE_CHECKS} удаа (${GONE_MIN_DAYS}+ өдрийн зайтай) нээгдэхгүй бол "устгагдсан" гэж тэмдэглэнэ. Сүлжээний алдаа хэзээ ч тооцогдохгүй.`,
   },
 ];
 
@@ -75,7 +81,7 @@ export default function MethodPage() {
         </h2>
         <ol className="grid gap-3 sm:grid-cols-2">
           {STEPS.map((s) => (
-            <li key={s.title} className="rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+            <li key={s.title} id={"id" in s ? s.id : undefined} className="scroll-mt-24 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
               <p className="font-semibold text-primary">{s.title}</p>
               <p className="mt-1 text-sm text-tertiary">{s.text}</p>
             </li>

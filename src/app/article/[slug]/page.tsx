@@ -10,6 +10,7 @@ import { ArticleGrid } from "@/components/iltod/article-grid";
 import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod/badges";
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { HashBadge } from "@/components/iltod/hash-badge";
+import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
@@ -222,6 +223,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           </a>
         </div>
         <HashBadge hash={article.contentHash} />
+        <SourceChangeNotice status={article.sourceStatus} changedAt={article.sourceChangedAt} diff={article.sourceDiff} />
         {article.contentPrunedAt && (
           <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary">
             Хадгалах зай хэмнэхийн тулд 6 сараас дээш хугацааны мэдээний эх текстийн зөвхөн эхний хэсгийг хадгалдаг. Бүтэн текстийг эх сурвалжаас уншина уу; SHA-256 хэш анхны бүтэн текстийнх.

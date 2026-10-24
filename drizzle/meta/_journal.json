@@ -85,6 +85,13 @@
       "when": 1792594486298,
       "tag": "0011_autopilot",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792840500592,
+      "tag": "0012_simple_blue_blade",
+      "breakpoints": true
     }
   ]
 }

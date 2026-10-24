@@ -111,6 +111,16 @@ backs off 2^n hours. From GitHub's US runners `.gov.mn` hosts are ~250–300 ms 
 **Discovery.** `sources:discover` reads hub pages (government portals, aimag lists) weekly and adds new
 `*.gov.mn` / `*.khural.mn` sites.
 
+**Re-checking sources.** Government sites sometimes edit or delete a post after publishing it.
+`source-recheck.yml` (weekly, `npm run sources:recheck`) fetches the last 30 days of articles again
+(robots.txt, 8 s per host) with the same text getter that first read them. Hashes are never compared,
+because widgets and counters change every page. Instead [`recheck.ts`](../src/lib/scraper/recheck.ts)
+asks how many sentences of our stored copy are still on the page. Below 80 %, or a sentence whose
+numbers changed, marks the article `changed` and stores the before/after sentences (`source_diff`,
+capped at 12). A 404/410, or a redirect to the homepage or another site, on two checks at least six
+days apart marks it `gone`. Timeouts, 5xx and failed extraction prove nothing and are skipped. The
+article page shows the diff, and `/changes` lists every case. A manual run is a dry run by default.
+
 ## AI pipeline
 
 Library code in [`src/lib/ai`](../src/lib/ai); the prompts are public in
