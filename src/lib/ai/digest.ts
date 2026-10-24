@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, lte, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lte, notInArray, or } from "drizzle-orm";
 
 import type { DB } from "@/db";
 import { articles, clusters, digests, sources, type Digest } from "@/db/schema";
@@ -93,7 +93,25 @@ interface CandidateRow extends DigestCandidate {
   score: number;
 }
 
-async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>): Promise<CandidateRow[]> {
+/** Clusters of the articles featured in earlier editions: the same story under a new article id is still a repeat. */
+async function clustersOf(db: DB, articleIds: Set<number>): Promise<Set<number>> {
+  if (articleIds.size === 0) return new Set();
+  const rows = await db.select({ clusterId: articles.clusterId }).from(articles).where(inArray(articles.id, [...articleIds]));
+  return new Set(rows.map((r) => r.clusterId).filter((c): c is number => c !== null));
+}
+
+/**
+ * The edition's final story list. The editor model may answer with fewer valid ids than the
+ * minimum (invented ids are dropped): then the rule-based ranking, which has enough candidates,
+ * decides instead, so no 1-story edition is published or pushed.
+ */
+export function finalItems(aiItems: DigestItem[], candidates: CandidateRow[], plan: DigestPlan): { items: DigestItem[]; fromAI: boolean } {
+  const min = plan.kind === "12h" ? MIN_DIGEST_STORIES : 1;
+  if (aiItems.length >= min) return { items: aiItems, fromAI: true };
+  return { items: ruleBasedDigest(candidates, plan).items, fromAI: false };
+}
+
+async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>, excludeClusters: Set<number> = new Set()): Promise<CandidateRow[]> {
   const { periodStart: start, periodEnd: end } = plan;
   // Published in the period, or scraped in the period when the site posted it up to 3 days earlier.
   const lateStart = new Date(start.getTime() - 3 * 86_400_000);
@@ -131,7 +149,7 @@ async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>): P
     .limit(3_000);
 
   const scored = rows
-    .filter((r) => !exclude.has(r.id))
+    .filter((r) => !exclude.has(r.id) && (r.clusterId === null || !excludeClusters.has(r.clusterId)))
     .map<CandidateRow>((r) => {
       const otherSources = Math.max(0, (r.clusterSize ?? 1) - 1);
       return {
@@ -222,13 +240,14 @@ export async function createDigest(db: DB, opts: DigestOptions): Promise<DigestR
   const plan = planDigest(opts.kind, now, last?.periodEnd ?? null);
   // Do not repeat stories featured in the last few editions of the same kind.
   const exclude = new Set(previous.flatMap((d) => d.items.map((i) => i.articleId)));
-  let candidates = await loadCandidates(db, plan, exclude);
+  const excludeClusters = await clustersOf(db, exclude);
+  let candidates = await loadCandidates(db, plan, exclude, excludeClusters);
   // A quiet night: look back 24 h before giving up, and never publish (or push) a 1-story edition.
   if (plan.kind === "12h" && candidates.length < MIN_DIGEST_STORIES) {
     const dayAgo = new Date(now.getTime() - 24 * 3_600_000);
     if (plan.periodStart > dayAgo) {
       plan.periodStart = dayAgo;
-      candidates = await loadCandidates(db, plan, exclude);
+      candidates = await loadCandidates(db, plan, exclude, excludeClusters);
     }
   }
   if (candidates.length === 0) return { status: "empty", reason: "no analyzed articles in this period" };
@@ -269,10 +288,17 @@ export async function createDigest(db: DB, opts: DigestOptions): Promise<DigestR
         if (items.length >= plan.pick) break;
       }
       if (items.length === 0) throw new Error("the model chose no valid article ids");
-      title = res.data.title;
-      intro = res.data.intro;
-      generatedBy = `${res.provider}/${res.model}`;
+      const final = finalItems(items, candidates, plan);
       costUsd = res.costUsd;
+      if (final.fromAI) {
+        title = res.data.title;
+        intro = res.data.intro;
+        generatedBy = `${res.provider}/${res.model}`;
+      } else {
+        console.warn(`[digest] the model kept only ${items.length} valid stories (need ${MIN_DIGEST_STORIES}): using the rule-based ranking`);
+        ({ title, intro } = ruleBasedDigest(candidates, plan));
+        items = final.items;
+      }
     } catch (err) {
       const why = err instanceof AIUnavailableError ? err.attempts.join(" | ") || err.message : err instanceof Error ? err.message : String(err);
       console.warn(`[digest] AI unavailable, using the rule-based ranking: ${why.slice(0, 300)}`);

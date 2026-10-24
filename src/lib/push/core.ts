@@ -87,3 +87,18 @@ export function digestPayload(d: { title: string; intro: string; kind: string })
     tag: "digest",
   };
 }
+
+/**
+ * What a push service's answer means for the stored subscription. 404/410 = the browser dropped it
+ * (delete). Another 4xx (a VAPID mismatch, a bad key) is this subscription's own problem and counts
+ * towards its removal. 429, 5xx and network errors are the service's problem: never count them, or
+ * a few hours of outage would delete every subscriber.
+ */
+export function classifyPushFailure(status: number | undefined): "gone" | "permanent" | "transient" {
+  if (status === 404 || status === 410) return "gone";
+  if (status !== undefined && status >= 400 && status < 500 && status !== 429 && status !== 408) return "permanent";
+  return "transient";
+}
+
+/** Consecutive permanent failures after which a subscription is dropped. */
+export const MAX_PUSH_FAILURES = 5;

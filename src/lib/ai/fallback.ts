@@ -21,3 +21,23 @@ export function extractiveSummary(text: string, maxSentences = 2, maxChars = 320
   }
   return picked.join("\n");
 }
+
+/** An attempt that got a reply from the model but could not use it (bad or cut-off JSON, schema). */
+const BAD_OUTPUT = /Invalid JSON|no JSON object|Unexpected (token|end|non-whitespace)|Unterminated|in JSON at position|Expected|Required|invalid_type|too_small|too_big/i;
+const SKIPPED = /skipped \(/;
+
+/**
+ * Whether an article should be parked (ai_error) after a failed run instead of being retried every
+ * two hours: at least two replies were unusable, or every provider that answered gave an unusable
+ * reply. Network, auth and quota failures of other providers do not hide that. Before this only the
+ * exact "Invalid JSON" wording parked, so a reply cut off at "position 523" blocked the queue.
+ */
+export function shouldPark(attempts: string[]): boolean {
+  const answered = attempts.filter((a) => !SKIPPED.test(a));
+  const bad = answered.filter((a) => BAD_OUTPUT.test(a)).length;
+  return bad >= 2 || (bad >= 1 && bad === answered.length);
+}
+
+/** Articles still carrying the extractive fallback are offered to the AI again, at most this many per run. */
+export const RETRY_FALLBACK_PER_RUN = 10;
+export const RETRY_FALLBACK_DAYS = 3;

@@ -57,7 +57,8 @@ async function digestPayloads(): Promise<{ payloads: PushPayload[]; digestId: nu
   const [latest] = await db
     .select()
     .from(digests)
-    .where(gte(digests.createdAt, new Date(Date.now() - 3 * 3_600_000)))
+    // 12 h: a push step that failed is retried by the next pipeline run, not lost.
+    .where(gte(digests.createdAt, new Date(Date.now() - 12 * 3_600_000)))
     .orderBy(desc(digests.createdAt))
     .limit(1);
   if (!latest) return { payloads: [], digestId: null };
@@ -108,7 +109,9 @@ async function main() {
   const res = await sendToAll(db, plan.payloads);
   // Mark as notified even with zero subscribers: future subscribers should not get a backlog.
   if ("ids" in plan && plan.ids.length) await db.update(articles).set({ notifiedAt: new Date() }).where(inArray(articles.id, plan.ids));
-  if ("digestId" in plan && plan.digestId !== null) {
+  // A digest counts as notified once something was delivered (or there was nobody to deliver to);
+  // a run where every send failed leaves it for the next run.
+  if ("digestId" in plan && plan.digestId !== null && !(res.sent === 0 && res.failed > 0)) {
     await db
       .insert(appSettings)
       .values({ key: LAST_DIGEST_KEY, value: String(plan.digestId) })

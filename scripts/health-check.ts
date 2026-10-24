@@ -28,6 +28,8 @@ async function main() {
       (select count(*) from articles where tldr_summary is null)::int as ai_backlog,
       (select count(*) from sources where is_active)::int as active_sources,
       (select count(*) from sources where is_active and consecutive_failures > 0)::int as failing_sources,
+      (select count(*) from push_subscriptions)::int as push_subs,
+      (select count(*) from push_subscriptions where failures >= 3)::int as push_failing,
       pg_database_size(current_database()) / 1048576.0 as db_mb`)
   ).rows as Record<string, number | string | null>[];
   const num = (v: unknown) => (v === null || v === undefined ? Infinity : Number(v));
@@ -37,10 +39,12 @@ async function main() {
   if (num(r.hours_since_digest) > 26) problems.push(`Онцлох тойм ${Math.round(num(r.hours_since_digest))} цаг гараагүй.`);
   const failing = Number(r.failing_sources) / Math.max(1, Number(r.active_sources));
   if (failing > 0.6) problems.push(`Эх сурвалжийн ${Math.round(failing * 100)}% алдаатай (${r.failing_sources}/${r.active_sources}).`);
+  const pushSubs = Number(r.push_subs);
+  if (pushSubs >= 5 && Number(r.push_failing) > pushSubs / 2) problems.push(`Push мэдэгдэл: ${r.push_failing}/${pushSubs} захиалга дараалан алдаатай (VAPID түлхүүр, push үйлчилгээ шалгах).`);
   if (Number(r.db_mb) > DB_LIMIT_MB * 0.8) problems.push(`Өгөгдлийн сан ${Math.round(Number(r.db_mb))} MB / ${DB_LIMIT_MB} MB: RETENTION_DAYS-ийг багасгах.`);
 
   console.log(
-    `articles ${Math.round(num(r.hours_since_article))} h ago · AI ${Math.round(num(r.hours_since_ai))} h ago · digest ${Math.round(num(r.hours_since_digest))} h ago · backlog ${r.ai_backlog} · sources ${r.failing_sources}/${r.active_sources} failing · DB ${Math.round(Number(r.db_mb))} MB`,
+    `articles ${Math.round(num(r.hours_since_article))} h ago · AI ${Math.round(num(r.hours_since_ai))} h ago · digest ${Math.round(num(r.hours_since_digest))} h ago · backlog ${r.ai_backlog} · sources ${r.failing_sources}/${r.active_sources} failing · push ${r.push_failing}/${r.push_subs} failing · DB ${Math.round(Number(r.db_mb))} MB`,
   );
   if (problems.length) {
     for (const p of problems) console.log(`- ${p}`);
