@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { planDigest, rankScore } from "@/lib/ai/digest";
+import { isDigestDue, planDigest, rankScore } from "@/lib/ai/digest";
 import { digestMessages } from "@/lib/ai/prompts";
 import { DigestSchema, Tier1Schema } from "@/lib/ai/schemas";
 import { formatPeriodMn } from "@/lib/format";
@@ -78,5 +78,20 @@ describe("digest schemas and prompt", () => {
   it("formats the period in Ulaanbaatar time", () => {
     assert.equal(formatPeriodMn(new Date("2026-10-20T00:00:00Z"), new Date("2026-10-20T12:00:00Z")), "10-р сарын 20, 08:00 – 20:00");
     assert.equal(formatPeriodMn(new Date("2026-10-19T12:00:00Z"), new Date("2026-10-20T00:00:00Z")), "10-р сарын 19 20:00 – 10-р сарын 20 08:00");
+  });
+});
+
+describe("digest schedule", () => {
+  // Ulaanbaatar is UTC+8.
+  const at = (ubHour: number) => new Date(Date.UTC(2026, 9, 24, (ubHour - 8 + 24) % 24, 30));
+  it("writes only inside the morning and evening windows", () => {
+    assert.equal(isDigestDue(at(8), null), true);
+    assert.equal(isDigestDue(at(21), null), true);
+    assert.equal(isDigestDue(at(13), null), false);
+    assert.equal(isDigestDue(at(1), null), false);
+  });
+  it("writes one edition per window", () => {
+    assert.equal(isDigestDue(at(21), new Date(at(21).getTime() - 2 * H)), false);
+    assert.equal(isDigestDue(at(21), new Date(at(21).getTime() - 9 * H)), true);
   });
 });

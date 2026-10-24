@@ -1,7 +1,9 @@
-# AI news digest ("Онцлох тойм") twice a day: 08:00 and 20:00 Ulaanbaatar time (UTC+8),
-# plus the opendata.mn data sync for /data. Runs at :07, after the pipeline's even-hour run
-# has started analyzing; it has its own concurrency group because GitHub cancels a pending
-# run when another one queues in the same group.
+# Data syncs twice a day (opendata.mn, Mongolbank, budget, retention pruning) plus the AI news
+# digest ("Онцлох тойм") when it is due. GitHub starts this schedule ~4.5 h late (12:30 and 01:00
+# Ulaanbaatar), so the 12h edition is normally written by the 2-hourly pipeline inside the
+# morning/evening window (`npm run digest -- --due`); a manual run with force=true still writes
+# one at once. It has its own concurrency group because GitHub cancels a pending run when
+# another one queues in the same group.
 name: News digest (12h)
 
 on:
@@ -96,7 +98,7 @@ jobs:
           if [ "$IN_FORCE" = "true" ]; then
             npm run digest -- --kind "$IN_KIND" --force
           else
-            npm run digest -- --kind "$IN_KIND"
+            npm run digest -- --kind "$IN_KIND" --due
           fi
 
       - name: Notify subscribers about the new digest
