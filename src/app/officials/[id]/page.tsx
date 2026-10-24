@@ -49,7 +49,14 @@ function money(v: unknown): string {
 }
 
 /** Plenary attendance from opendata.mn, matched by short name ("Х.Баттулга"). */
-async function Attendance({ shortName }: { shortName: string }) {
+async function Attendance({ shortName, nameShared }: { shortName: string; nameShared: boolean }) {
+  if (nameShared) {
+    return (
+      <p className="rounded-2xl bg-secondary p-4 text-sm text-secondary">
+        Ирцийн өгөгдөл гишүүдийг зөвхөн нэрээр ({shortName}) ялгадаг бөгөөд энэ нэртэй гишүүн хоёр байгаа тул ирцийг хэнийх нь гэж хэлэх боломжгүй: харуулаагүй.
+      </p>
+    );
+  }
   const data = await getAttendance();
   const m = data?.highlight.top.find((x) => x.name === shortName);
   if (!data || !m) return null;
@@ -97,8 +104,8 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
   if (!Number.isInteger(id) || id <= 0) notFound();
   const data = await getPolitician(id);
   if (!data) notFound();
-  const { politician: p, declarations: rows, mentions } = data;
-  const flags = declarationFlags(rows.map((r) => ({ ...r, totalAssets: r.totalAssets ?? 0 })));
+  const { politician: p, declarations: rows, hiddenYears, mentions, nameShared } = data;
+  const flags = declarationFlags(rows);
   const latest = rows.at(-1);
 
   return (
@@ -138,7 +145,21 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
         цалин г.м.) эх мэдүүлгээс шалгана уу.
       </p>
 
-      <Attendance shortName={p.shortName} />
+      <Attendance shortName={p.shortName} nameShared={nameShared} />
+
+      {hiddenYears.length > 0 && (
+        <p className="rounded-2xl bg-secondary p-4 text-sm text-secondary">
+          {hiddenYears.join(", ")} оны мэдүүлгийг редактор харьцуулалтаас хассан (эх мэдүүлэгт нэгжийн алдаа илэрсэн). Тоо нь{" "}
+          {p.xacxomId ? (
+            <a href={`https://xacxom.iaac.mn/xacxom/${p.xacxomId}`} target="_blank" rel="noreferrer" className="font-semibold text-brand-secondary hover:underline">
+              ХАСХОМ-ын эх мэдүүлэгт
+            </a>
+          ) : (
+            "ХАСХОМ-ын эх мэдүүлэгт"
+          )}{" "}
+          хэвээр байна.
+        </p>
+      )}
 
       {rows.length === 0 ? (
         <p className="text-tertiary">Энэ гишүүний мэдүүлэг ХАСХОМ системээс олдсонгүй.</p>
@@ -234,6 +255,8 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
               </li>
             ))}
           </ul>
+        ) : nameShared ? (
+          <p className="text-sm text-tertiary">Энэ нэртэй ({p.shortName}) гишүүн хоёр байгаа тул мэдээн дэх дурдлагыг хэнийх нь гэж ялгах боломжгүй: харуулаагүй.</p>
         ) : (
           <p className="text-sm text-tertiary">Төрийн эх сурвалжуудын мэдээнд {p.shortName} одоогоор дурдагдаагүй байна.</p>
         )}

@@ -1,5 +1,7 @@
 import { clip, type PushPayload } from "@/lib/push/core";
 
+import { sharedShortNames } from "./flags";
+
 /** Server-side half of "Миний гишүүн" (see ./follow.ts). */
 export interface MentionArticle {
   slug: string;
@@ -14,8 +16,11 @@ export function mentionAlerts(
   subs: { endpoint: string; follows: number[] }[],
 ): { endpoint: string; payload: PushPayload }[] {
   const out: { endpoint: string; payload: PushPayload }[] = [];
+  // Two members can share a short name (Д.Цогтбаатар ×2 in 2024): an article naming it cannot be
+  // attributed to either, so neither follower is alerted.
+  const shared = sharedShortNames(politicians);
   for (const sub of subs) {
-    const followed = politicians.filter((p) => sub.follows.includes(p.id));
+    const followed = politicians.filter((p) => sub.follows.includes(p.id) && !shared.has(p.shortName));
     if (!followed.length) continue;
     const hits = articles.filter((a) => followed.some((p) => a.people.includes(p.shortName)));
     if (!hits.length) continue;

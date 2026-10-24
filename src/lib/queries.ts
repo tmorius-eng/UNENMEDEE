@@ -4,6 +4,8 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
+import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
+import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
 import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
 import { toPrefixQuery } from "@/lib/search";
 import { SOURCE_SEEDS } from "@/lib/sources";
@@ -636,7 +638,17 @@ export interface PoliticianSummary {
   latestYear: number | null;
   latestIncome: number | null;
   latestAssets: number | null;
+  /** The newest earlier year the latest one can be compared with (unit-suspect and hidden years skipped). */
+  previousYear: number | null;
   previousAssets: number | null;
+  /** True when a filing year was left out of the comparison (suspected unit error or editor-hidden). */
+  comparisonLimited: boolean;
+}
+
+/** Declaration years an editor took out of the comparison (see src/lib/officials/hidden.ts). */
+async function loadHiddenYears(): Promise<HiddenYears> {
+  const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, HIDDEN_YEARS_KEY)).limit(1);
+  return parseHiddenYears(row?.value);
 }
 
 /** Active members with their latest declared income and assets (from ХАСХОМ). */
@@ -648,13 +660,22 @@ export async function getPoliticians(): Promise<PoliticianSummary[]> {
     const db = getDb();
     const people = await db.select().from(politicians).where(eq(politicians.isActive, true)).orderBy(politicians.fullName);
     if (people.length === 0) return [];
-    const decl = await db
-      .select({ politicianId: assetDeclarations.politicianId, year: assetDeclarations.year, incomeOwn: assetDeclarations.incomeOwn, totalAssets: assetDeclarations.totalAssets })
-      .from(assetDeclarations)
-      .where(inArray(assetDeclarations.politicianId, people.map((p) => p.id)))
-      .orderBy(desc(assetDeclarations.year));
+    const [decl, hidden] = await Promise.all([
+      db
+        .select({ politicianId: assetDeclarations.politicianId, year: assetDeclarations.year, incomeOwn: assetDeclarations.incomeOwn, totalAssets: assetDeclarations.totalAssets })
+        .from(assetDeclarations)
+        .where(inArray(assetDeclarations.politicianId, people.map((p) => p.id)))
+        .orderBy(desc(assetDeclarations.year)),
+      loadHiddenYears(),
+    ]);
     return people.map((p) => {
-      const mine = decl.filter((d) => d.politicianId === p.id);
+      const hiddenYears = hidden[String(p.id)] ?? [];
+      const mine = decl.filter((d) => d.politicianId === p.id && !hiddenYears.includes(d.year));
+      const suspect = new Set(suspectUnitYears(mine));
+      // The latest filing is shown as declared; the change is only computed between years that
+      // are comparable (no suspected unit error on either side).
+      const latest = mine[0];
+      const previous = latest && !suspect.has(latest.year) ? mine.slice(1).find((d) => d.totalAssets !== null && !suspect.has(d.year)) : undefined;
       return {
         id: p.id,
         fullName: p.fullName,
@@ -662,10 +683,12 @@ export async function getPoliticians(): Promise<PoliticianSummary[]> {
         party: p.party,
         constituency: p.constituency,
         photoUrl: p.photoUrl,
-        latestYear: mine[0]?.year ?? null,
-        latestIncome: mine[0]?.incomeOwn ?? null,
-        latestAssets: mine[0]?.totalAssets ?? null,
-        previousAssets: mine[1]?.totalAssets ?? null,
+        latestYear: latest?.year ?? null,
+        latestIncome: latest?.incomeOwn ?? null,
+        latestAssets: latest?.totalAssets ?? null,
+        previousYear: previous?.year ?? null,
+        previousAssets: previous?.totalAssets ?? null,
+        comparisonLimited: suspect.size > 0 || hiddenYears.length > 0,
       };
     });
   });
@@ -684,7 +707,11 @@ export async function getPoliticianIds(): Promise<number[]> {
 export interface PoliticianDetail {
   politician: Politician;
   declarations: AssetDeclaration[];
+  /** Years an editor left out of the comparison (shown as a note with the original filing's link). */
+  hiddenYears: number[];
   mentions: { slug: string; title: string; publishedAt: Date | null; sourceName: string }[];
+  /** Another active member has the same short name: attendance and news mentions cannot be told apart. */
+  nameShared: boolean;
 }
 
 export async function getPolitician(id: number): Promise<PoliticianDetail | null> {
@@ -695,18 +722,26 @@ export async function getPolitician(id: number): Promise<PoliticianDetail | null
     const db = getDb();
     const [politician] = await db.select().from(politicians).where(eq(politicians.id, id)).limit(1);
     if (!politician) return null;
-    const [declarations, mentions] = await Promise.all([
+    const [allDeclarations, hidden, namesakes] = await Promise.all([
       db.select().from(assetDeclarations).where(eq(assetDeclarations.politicianId, id)).orderBy(assetDeclarations.year),
-      // News that names the person the way Mongolian text does ("Ж.Алдаржавхлан").
-      db
-        .select({ slug: articles.slug, title: articles.title, publishedAt: articles.publishedAt, sourceName: sources.name })
-        .from(articles)
-        .innerJoin(sources, eq(articles.sourceId, sources.id))
-        .where(and(visible, sql`jsonb_exists(coalesce(${articles.extractedEntities}->'people', '[]'::jsonb), ${politician.shortName})`))
-        .orderBy(desc(articles.publishedAt))
-        .limit(20),
+      loadHiddenYears(),
+      db.select({ shortName: politicians.shortName }).from(politicians).where(and(eq(politicians.shortName, politician.shortName), eq(politicians.isActive, true))),
     ]);
-    return { politician, declarations, mentions };
+    const hiddenYears = hidden[String(id)] ?? [];
+    const declarations = allDeclarations.filter((d) => !hiddenYears.includes(d.year));
+    const nameShared = sharedShortNames(namesakes).size > 0;
+    // News that names the person the way Mongolian text does ("Ж.Алдаржавхлан"); a short name two
+    // members share cannot be attributed to either.
+    const mentions = nameShared
+      ? []
+      : await db
+          .select({ slug: articles.slug, title: articles.title, publishedAt: articles.publishedAt, sourceName: sources.name })
+          .from(articles)
+          .innerJoin(sources, eq(articles.sourceId, sources.id))
+          .where(and(visible, sql`jsonb_exists(coalesce(${articles.extractedEntities}->'people', '[]'::jsonb), ${politician.shortName})`))
+          .orderBy(desc(articles.publishedAt))
+          .limit(20);
+    return { politician, declarations, hiddenYears, mentions, nameShared };
   });
 }
 
@@ -732,6 +767,13 @@ export async function getDonation(): Promise<Donation> {
     const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, DONATION_KEY)).limit(1);
     return row ? parseDonation(row.value) : DEFAULT_DONATION;
   });
+}
+
+/** The editor-hidden declaration years as "id:year" pairs for the admin form (not cached: admin only). */
+export async function getHiddenYearsText(): Promise<string> {
+  if (!hasDatabase()) return "";
+  const { hiddenYearsToText } = await import("@/lib/officials/hidden");
+  return hiddenYearsToText(await loadHiddenYears());
 }
 
 /** Expression of the GIN index articles_search_idx (schema.ts): keep both identical. */

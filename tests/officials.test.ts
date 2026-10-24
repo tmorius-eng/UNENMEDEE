@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { declarationFlags } from "@/lib/officials/flags";
+import { declarationFlags, formatPercent, sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
+import { hiddenYearsFromText, hiddenYearsToText, parseHiddenYears } from "@/lib/officials/hidden";
 import { parseMemberDetail, parseRoster, xacxomIdFromUrl } from "@/lib/officials/parliament";
 import { parseDeclarations } from "@/lib/officials/xacxom";
 
@@ -43,6 +44,14 @@ describe("ХАСХОМ declarations", () => {
     assert.equal(y21.totalAssets, 120_000_000 + 29_000_000 + 2_000_000 + 56_453_450);
     assert.match(y21.details.transports ?? "", /X-Trail/);
   });
+
+  it("stores an empty filing as no total, not 0 ₮", () => {
+    const sample = (json("xacxom-declarations.json") as { retdata: Record<string, unknown>[] }).retdata[0];
+    const empty = Object.fromEntries(Object.keys(sample).map((k) => [k, k === "year" ? 2024 : null]));
+    const rows = parseDeclarations({ retdata: [empty] });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].totalAssets, null);
+  });
 });
 
 describe("neutral declaration flags", () => {
@@ -51,7 +60,7 @@ describe("neutral declaration flags", () => {
     const flags = declarationFlags([
       { year: 2021, totalAssets: 100_000_000, ...base },
       { year: 2022, totalAssets: 200_000_000, ...base },
-      { year: 2024, totalAssets: 210_000_000, ...base, loans: 300_000_000 },
+      { year: 2024, totalAssets: 210_000_000, ...base, loans: 350_000_000 },
     ]);
     assert.deepEqual(flags.map((f) => [f.year, f.kind]).sort(), [
       [2022, "asset_jump"],
@@ -61,7 +70,51 @@ describe("neutral declaration flags", () => {
     assert.ok(flags.every((f) => !/хулгай|авлига|буруу/i.test(f.text)), "flags state numbers, never accusations");
   });
 
-  it("ignores jumps on very small totals", () => {
+  it("ignores jumps on very small totals and loans below three times the income", () => {
     assert.equal(declarationFlags([{ year: 2021, totalAssets: 1_000_000, ...base }, { year: 2022, totalAssets: 10_000_000, ...base }]).length, 0);
+    assert.equal(declarationFlags([{ year: 2022, totalAssets: 100_000_000, ...base, loans: 250_000_000 }]).length, 0);
+  });
+
+  it("treats a year 20× away from the others as a suspected unit error and keeps it out of comparisons", () => {
+    // Д.Ганмаа's case: one savings line typed in ₮ instead of thousand ₮ made 2025 look 78× richer.
+    const two = [
+      { year: 2024, totalAssets: 4_160_000_000, ...base },
+      { year: 2025, totalAssets: 324_000_000_000, ...base },
+    ];
+    assert.deepEqual(suspectUnitYears(two), [2024, 2025]);
+    const flags = declarationFlags(two);
+    assert.deepEqual(flags.map((f) => f.kind), ["unit_suspect"]);
+    assert.match(flags[0].text, /2024 ба 2025/);
+    assert.match(flags[0].text, /нэгжийн/);
+    assert.ok(flags.every((f) => f.kind !== "asset_jump"), "no 7691% jump");
+
+    const three = [
+      { year: 2022, totalAssets: 3_900_000_000, ...base },
+      { year: 2023, totalAssets: 4_000_000_000, ...base },
+      { year: 2024, totalAssets: 4_160_000_000, ...base },
+      { year: 2025, totalAssets: 324_000_000_000, ...base },
+    ];
+    assert.deepEqual(suspectUnitYears(three), [2025]);
+    assert.deepEqual(declarationFlags(three).map((f) => [f.year, f.kind]), [[2025, "unit_suspect"]]);
+    assert.deepEqual(suspectUnitYears([{ year: 2024, totalAssets: null }, { year: 2025, totalAssets: 5_000_000_000 }]), []);
+  });
+
+  it("caps the shown percentage and keeps colours out of the numbers", () => {
+    assert.equal(formatPercent(0.734), "73%");
+    assert.equal(formatPercent(-0.2), "20%");
+    assert.equal(formatPercent(76.9), "500%+");
+  });
+
+  it("finds short names two members share", () => {
+    assert.deepEqual([...sharedShortNames([{ shortName: "Д.Цогтбаатар" }, { shortName: "Б.Бейсен" }, { shortName: "Д.Цогтбаатар" }])], ["Д.Цогтбаатар"]);
+  });
+
+  it("parses editor-hidden declaration years defensively", () => {
+    assert.deepEqual(hiddenYearsFromText("46:2025, 12 : 2023, junk, 46:2025"), { "46": [2025], "12": [2023] });
+    assert.equal(hiddenYearsToText({ "46": [2025], "12": [2023] }), "12:2023, 46:2025"); // integer keys come out ascending
+    assert.deepEqual(parseHiddenYears(JSON.stringify({ "46": [2025] })), { "46": [2025] });
+    assert.deepEqual(parseHiddenYears("{\"46\": [\"x\"]}"), {});
+    assert.deepEqual(parseHiddenYears("not json"), {});
+    assert.deepEqual(parseHiddenYears(null), {});
   });
 });
