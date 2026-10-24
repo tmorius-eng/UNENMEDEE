@@ -67,7 +67,9 @@ function openaiClient(baseURL: string, apiKey: string, timeoutMs: number): OpenA
   const key = `${baseURL}|${apiKey.slice(-6)}`;
   let c = clients.get(key);
   if (!c) {
-    c = new OpenAI({ baseURL, apiKey, timeout: timeoutMs, maxRetries: 2 });
+    // The router owns retries (one repair, one 429 wait, then the next provider): with the SDK's
+    // default of 2 a single attempt could mean three requests and three timeouts per provider.
+    c = new OpenAI({ baseURL, apiKey, timeout: timeoutMs, maxRetries: 0 });
     clients.set(key, c);
   }
   return c;
@@ -245,7 +247,8 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
       let reportedCost: number | undefined;
       try {
         await throttleProvider(p.provider);
-        const res = await p.complete({ messages, temperature: opts.temperature ?? 0.2, maxTokens: opts.maxTokens ?? 1_500 });
+        // The repair attempt gets more room: a reply cut off mid-JSON is the most common invalid one.
+        const res = await p.complete({ messages, temperature: opts.temperature ?? 0.2, maxTokens: (opts.maxTokens ?? 1_500) * (attempt ? 2 : 1) });
         promptTokens = res.promptTokens;
         completionTokens = res.completionTokens;
         reportedCost = res.costUsd;

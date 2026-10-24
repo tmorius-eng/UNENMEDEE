@@ -165,6 +165,8 @@ export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptio
       // Keep an earlier deep analysis if this run did not produce a new one.
       ...(tier2 ? { grokDeepAnalysis: formatDeepAnalysis(tier2) } : {}),
       aiError: null,
+      // A real analysis replaces the extractive "AI ажиллаагүй" summary and its label.
+      summaryFallback: false,
     })
     .where(eq(articles.id, id));
   const clusterId = await assignCluster(db, id, opts.log, opts.budget);

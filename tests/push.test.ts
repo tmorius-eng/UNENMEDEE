@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { articlePayload, clip, digestPayload, isAllowedPushEndpoint, newsPayload, SubscriptionSchema } from "@/lib/push/core";
+import { articlePayload, classifyPushFailure, clip, digestPayload, isAllowedPushEndpoint, MAX_PUSH_FAILURES, newsPayload, SubscriptionSchema } from "@/lib/push/core";
 
 describe("push subscriptions", () => {
   it("accepts only browser push services over https", () => {
@@ -49,5 +49,21 @@ describe("push payloads", () => {
     const many = newsPayload([article, { ...article, id: 8 }, { ...article, id: 9 }])!;
     assert.equal(many.url, "/article/tosov-2027");
     assert.match(many.body, /\+2 чухал мэдээ$/);
+  });
+});
+
+describe("push failure accounting", () => {
+  it("deletes only subscriptions the browser dropped, counts only their own errors, ignores outages", () => {
+    assert.equal(classifyPushFailure(404), "gone");
+    assert.equal(classifyPushFailure(410), "gone");
+    assert.equal(classifyPushFailure(400), "permanent");
+    assert.equal(classifyPushFailure(401), "permanent"); // VAPID mismatch
+    assert.equal(classifyPushFailure(403), "permanent");
+    assert.equal(classifyPushFailure(413), "permanent");
+    assert.equal(classifyPushFailure(429), "transient");
+    assert.equal(classifyPushFailure(500), "transient");
+    assert.equal(classifyPushFailure(503), "transient");
+    assert.equal(classifyPushFailure(undefined), "transient"); // network error
+    assert.ok(MAX_PUSH_FAILURES >= 3);
   });
 });

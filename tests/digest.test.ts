@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isDigestDue, planDigest, rankScore } from "@/lib/ai/digest";
+import { finalItems, isDigestDue, MIN_DIGEST_STORIES, planDigest, rankScore } from "@/lib/ai/digest";
 import { digestMessages } from "@/lib/ai/prompts";
 import { DigestSchema, Tier1Schema } from "@/lib/ai/schemas";
 import { formatPeriodMn } from "@/lib/format";
@@ -93,5 +93,30 @@ describe("digest schedule", () => {
   it("writes one edition per window", () => {
     assert.equal(isDigestDue(at(21), new Date(at(21).getTime() - 2 * H)), false);
     assert.equal(isDigestDue(at(21), new Date(at(21).getTime() - 9 * H)), true);
+  });
+});
+
+describe("digest final list", () => {
+  const now = new Date("2026-10-24T12:00:00Z");
+  const plan = planDigest("12h", now, null);
+  const candidate = (id: number) => ({ id, slug: `s${id}`, title: `Мэдээ ${id}`, sourceName: "Яам", publishedAt: now, tldr: `Товч ${id}`, amounts: [], riskScore: 10, otherSources: 0, clusterId: null, score: 100 - id });
+  const candidates = Array.from({ length: 8 }, (_, i) => candidate(i + 1));
+  const aiItem = (id: number) => ({ articleId: id, slug: `s${id}`, title: `Мэдээ ${id}`, sourceName: "Яам", publishedAt: null, riskScore: 10, headline: "AI гарчиг", whyItMatters: "Учир нь", otherSources: 0 });
+
+  it("keeps the editor model's list when it has enough valid stories", () => {
+    const ai = [1, 2, 3, 4, 5].map(aiItem);
+    assert.deepEqual(finalItems(ai, candidates, plan), { items: ai, fromAI: true });
+  });
+
+  it("falls back to the rule-based ranking when the model kept too few valid ids (no 1-story edition)", () => {
+    const res = finalItems([aiItem(1), aiItem(2)], candidates, plan);
+    assert.equal(res.fromAI, false);
+    assert.ok(res.items.length >= MIN_DIGEST_STORIES);
+    assert.deepEqual(res.items.map((i) => i.articleId), [1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("lets a 30-day review publish whatever the model kept", () => {
+    const monthly = planDigest("30d", now, null);
+    assert.equal(finalItems([aiItem(1)], candidates, monthly).fromAI, true);
   });
 });

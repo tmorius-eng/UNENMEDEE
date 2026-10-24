@@ -18,12 +18,12 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 
-import { and, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
-import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE } from "@/lib/ai/fallback";
+import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE, RETRY_FALLBACK_DAYS, RETRY_FALLBACK_PER_RUN, shouldPark } from "@/lib/ai/fallback";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { budgetConfig } from "@/lib/ai/limits";
 import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
@@ -107,13 +107,26 @@ async function main() {
   await applyFallbacks(db);
   const limit = Math.max(1, Number(values.limit));
   const batchSize = Math.max(1, Number(values.batch));
-  const pending = await db
+  const fresh = await db
     .select({ id: articles.id, title: articles.title })
     .from(articles)
     .where(and(isNull(articles.tldrSummary), isNull(articles.aiError)))
     // Newest news first: after a backfill, today's stories are analyzed before last month's.
     .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.id))
     .limit(limit);
+  // Articles that got the extractive fallback during an outage get a real analysis once providers
+  // are back: a few per run, newest first, for a few days. (A failed run stops before reaching them.)
+  const retries =
+    fresh.length < limit
+      ? await db
+          .select({ id: articles.id, title: articles.title })
+          .from(articles)
+          .where(and(eq(articles.summaryFallback, true), isNull(articles.aiError), eq(articles.isPublished, true), gte(articles.createdAt, new Date(Date.now() - RETRY_FALLBACK_DAYS * 86_400_000))))
+          .orderBy(desc(articles.id))
+          .limit(Math.min(RETRY_FALLBACK_PER_RUN, limit - fresh.length))
+      : [];
+  const pending = [...fresh, ...retries];
+  if (retries.length) console.log(`🔁 ${retries.length} article(s) with a no-AI fallback summary retried.`);
 
   console.log(`🧠 ${pending.length} article(s) to analyze, in batches of ${batchSize}.`);
   let done = 0;
@@ -157,7 +170,7 @@ async function main() {
       }
       const message = err instanceof Error ? err.message : String(err);
       const details = err instanceof AIUnavailableError ? err.attempts.join(" | ") : message;
-      const badOutput = /Invalid JSON|no JSON object/.test(details) && !/40[13]|429|5\d\d|ECONN|timeout/i.test(details);
+      const badOutput = err instanceof AIUnavailableError ? shouldPark(err.attempts) : false;
       if (badOutput) {
         // The model cannot handle this text: park it so we do not pay for it every run.
         await db.update(articles).set({ aiError: details.slice(0, 500) }).where(eq(articles.id, a.id));

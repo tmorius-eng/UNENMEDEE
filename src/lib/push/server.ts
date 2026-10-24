@@ -1,10 +1,10 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { count, eq, inArray, sql } from "drizzle-orm";
 import webpush from "web-push";
 
 import type { DB } from "@/db";
 import { appSettings, pushSubscriptions } from "@/db/schema";
 
-import type { PushPayload } from "./core";
+import { classifyPushFailure, MAX_PUSH_FAILURES, type PushPayload } from "./core";
 
 /**
  * Web Push sending (GitHub Actions) and key storage.
@@ -30,6 +30,10 @@ export async function ensureVapidKeys(db: DB): Promise<{ publicKey: string; priv
   const pub = rows.find((r) => r.key === PUBLIC_KEY)?.value;
   const priv = rows.find((r) => r.key === PRIVATE_KEY)?.value;
   if (pub && priv) return { publicKey: pub, privateKey: priv };
+  // Subscriptions are bound to the pair they were created with: a new pair would make every one of
+  // them fail (and get deleted). Missing rows with subscribers present means the settings were lost.
+  const [{ n }] = await db.select({ n: count() }).from(pushSubscriptions);
+  if (n > 0) throw new Error(`VAPID keys are missing from app_settings while ${n} push subscription(s) exist: restore the keys, never generate a new pair`);
   const keys = webpush.generateVAPIDKeys();
   // onConflictDoNothing: if two runs race, the first pair wins and both re-read it.
   await db
@@ -82,6 +86,7 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
     await Promise.all(
       subs.slice(i, i + 50).map(async (s) => {
         let ok = true;
+        let transient = false;
         for (const p of payloads) {
           try {
             await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(p), {
@@ -92,17 +97,22 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
             result.sent++;
           } catch (err) {
             const status = (err as { statusCode?: number }).statusCode;
-            if (status === 404 || status === 410) {
+            const kind = classifyPushFailure(status);
+            if (kind === "gone") {
               gone.push(s.id);
               return;
             }
             ok = false;
+            if (kind === "transient") transient = true;
             result.failed++;
             // Host only: the endpoint path identifies a device.
             const body = (err as { body?: string }).body ?? (err as Error).message;
             console.warn(`  ✗ push to ${new URL(s.endpoint).host} failed: ${status ?? "?"} ${String(body).slice(0, 200)}`);
           }
         }
+        // A push-service outage (429/5xx/network) leaves the counter alone: only the subscription's
+        // own permanent errors count towards its removal.
+        if (!ok && transient) return;
         await db
           .update(pushSubscriptions)
           .set(ok ? { lastSuccessAt: new Date(), failures: 0 } : { failures: sql`${pushSubscriptions.failures} + 1` })
@@ -111,7 +121,7 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
     );
   }
   if (gone.length) await db.delete(pushSubscriptions).where(inArray(pushSubscriptions.id, gone));
-  const stale = await db.delete(pushSubscriptions).where(sql`${pushSubscriptions.failures} >= 5`).returning({ id: pushSubscriptions.id });
+  const stale = await db.delete(pushSubscriptions).where(sql`${pushSubscriptions.failures} >= ${MAX_PUSH_FAILURES}`).returning({ id: pushSubscriptions.id });
   result.removed = gone.length + stale.length;
   return result;
 }
