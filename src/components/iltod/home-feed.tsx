@@ -8,6 +8,7 @@ import { findTopic } from "@/lib/topics";
 
 import { Empty } from "./empty";
 import { FollowTopicButton } from "./follow-topic";
+import { IntroStrip } from "./intro-strip";
 import { MacroStrip } from "./macro-strip";
 import { StatusTicker } from "./status-ticker";
 import { StoryList } from "./story-list";
@@ -95,6 +96,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
     // Narrow reading column like Kagi News; extra bottom space for the phone topic bar.
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-20 md:pb-0">
       <Masthead stats={stats} digest={edition ?? review} topicLabel={topic?.label} />
+      {filter === "all" && <IntroStrip sources={stats.activeSources} />}
       {filter === "all" && <MacroStrip compact />}
       <TopicBar active={filter} placement="inline" />
       {topic && (
