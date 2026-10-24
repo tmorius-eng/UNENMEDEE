@@ -57,6 +57,8 @@ describe("source recheck", () => {
     const stored = `АЛБА ХААГЧИД ФЕСТИВАЛЬД ХАМРАГДЛАА 2026-10-19 33 ${body}`;
     const fresh = `Алба хаагчид фестивальд хамрагдлаа\n2026-10-19\n412 уншсан\n${STORED}\nХолбоотой мэдээ: Өөр нэг мэдээний гарчиг энд байна.`;
     assert.equal(decide(prev, stored, { kind: "text", text: fresh }).status, "ok");
+    // The same glued blob a week later, with a higher view count after the date.
+    assert.equal(decide(prev, stored, { kind: "text", text: stored.replace("2026-10-19 33", "2026-10-19 69") }).status, "ok");
   });
 
   it("calls a page gone only after two misses days apart", () => {
