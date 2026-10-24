@@ -7,6 +7,7 @@ import { type ArticleListItem, type DigestView, type FeedFilter, getDigests, get
 import { findTopic } from "@/lib/topics";
 
 import { Empty } from "./empty";
+import { FollowTopicButton } from "./follow-topic";
 import { MacroStrip } from "./macro-strip";
 import { StatusTicker } from "./status-ticker";
 import { StoryList } from "./story-list";
@@ -96,7 +97,12 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       <Masthead stats={stats} digest={edition ?? review} topicLabel={topic?.label} />
       {filter === "all" && <MacroStrip compact />}
       <TopicBar active={filter} placement="inline" />
-      {topic && <h2 className={`pt-6 text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>}
+      {topic && (
+        <div className="flex items-center justify-between gap-3 pt-6">
+          <h2 className={`text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>
+          <FollowTopicButton topic={topic.key} />
+        </div>
+      )}
       <div className="mt-2">
         {stories.length ? (
           <StoryList stories={stories} leadId={filter === "all" ? pickLead(stories) : undefined} />

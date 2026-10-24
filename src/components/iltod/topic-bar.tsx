@@ -9,6 +9,7 @@ import { cx } from "@/utils/cx";
 
 const ITEMS: { key: string; label: string; href: string }[] = [
   { key: "all", label: "Бүгд", href: "/" },
+  { key: "my", label: "⭐ Миний", href: "/my" },
   { key: "digest", label: "Онцлох тойм", href: "/digest" },
   { key: "risk", label: "🚨 Эрсдэл", href: "/topic/risk" },
   ...TOPICS.filter((t) => t.key !== "data").map((t) => ({ key: t.key, label: t.label, href: `/topic/${t.key}` })),

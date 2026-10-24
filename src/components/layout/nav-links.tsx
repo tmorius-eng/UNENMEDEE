@@ -23,6 +23,7 @@ export const NAV_PRIMARY: NavItem[] = [
 
 /** Under "Бусад ▾" in the desktop bar; a labelled second group in the mobile menu. */
 export const NAV_MORE: NavItem[] = [
+  { href: "/my", label: "Миний мэдээ" },
   { href: "/data", label: "Өгөгдөл" },
   { href: "/risk", label: "Эрсдэл" },
   { href: "/laws", label: "Хууль" },
