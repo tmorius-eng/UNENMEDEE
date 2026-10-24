@@ -66,6 +66,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="mn" className={`${inter.variable} h-full scroll-smooth antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Before the first paint: hide the first-visit intro for readers who dismissed it (no layout shift). */}
+        <script dangerouslySetInnerHTML={{ __html: "try{localStorage.getItem('iltod-intro')&&(document.documentElement.dataset.intro='seen')}catch(e){}" }} />
+      </head>
       <body className="flex min-h-full flex-col bg-secondary_alt text-primary">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
         <Providers>

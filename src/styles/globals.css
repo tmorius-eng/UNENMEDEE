@@ -135,3 +135,8 @@ html[data-text-size="lg"] {
 html[data-text-size="xl"] {
     font-size: 125%;
 }
+
+/* First-visit intro (src/components/iltod/intro-strip.tsx): hidden before paint once dismissed. */
+html[data-intro="seen"] .intro-strip {
+    display: none;
+}
