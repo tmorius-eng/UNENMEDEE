@@ -5,12 +5,16 @@
 
 const HOUR = 3_600_000;
 
-/** The news pipeline's cron runs every 2 hours on even UTC hours ("0 *\/2 * * *"). */
+/** Minute past the hour the pipeline's cron fires at ("17 *\/2 * * *": off the congested minute 0). */
+export const PIPELINE_MINUTE = 17;
+
+/** The next pipeline run: every 2 hours at even UTC hours, PIPELINE_MINUTE past. */
 export function nextRunAt(now: number): number {
   const d = new Date(now);
-  d.setUTCMinutes(0, 0, 0);
   const h = d.getUTCHours();
-  d.setUTCHours(h + (h % 2 === 0 ? 2 : 1));
+  const evenHour = h - (h % 2);
+  d.setUTCHours(evenHour, PIPELINE_MINUTE, 0, 0);
+  if (d.getTime() <= now) d.setUTCHours(evenHour + 2, PIPELINE_MINUTE, 0, 0);
   return d.getTime();
 }
 

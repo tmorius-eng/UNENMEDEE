@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { amountValue, largestAmount } from "@/lib/format";
+
 import { toPrefixQuery } from "@/lib/search";
 
 describe("search query", () => {
@@ -18,5 +20,15 @@ describe("search query", () => {
 
   it("caps the number of terms", () => {
     assert.equal(toPrefixQuery("aa bb cc dd ee ff gg hh")?.split(" & ").length, 6);
+  });
+});
+
+describe("₮ chips", () => {
+  it("reads amounts with Mongolian units and picks the largest", () => {
+    assert.equal(amountValue("12,5 тэрбум ₮"), 12_500_000_000);
+    assert.equal(amountValue("850 сая ₮"), 850_000_000);
+    assert.equal(amountValue("1 250 000 ₮"), 1_250_000);
+    assert.equal(largestAmount(["850 сая ₮", "1,2 тэрбум ₮", "3 000 000 ₮"]), "1,2 тэрбум ₮");
+    assert.equal(largestAmount([]), undefined);
   });
 });

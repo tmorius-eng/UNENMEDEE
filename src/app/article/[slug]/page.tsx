@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: PageProps<"/article/[slug]">)
       description,
       siteName: SITE_NAME,
       locale: "mn_MN",
-      publishedTime: article.publishedAt?.toISOString(),
+      publishedTime: article.scrapeMeta?.date_unknown ? undefined : article.publishedAt?.toISOString(),
       modifiedTime: (article.editedAt ?? article.createdAt).toISOString(),
       section: topic.label,
       tags: article.entities.orgs.slice(0, 5),
@@ -63,7 +63,8 @@ export async function generateMetadata({ params }: PageProps<"/article/[slug]">)
 function articleJsonLd(article: ArticleDetail) {
   const url = absoluteUrl(`/article/${article.slug}`);
   const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
-  const published = (article.publishedAt ?? article.createdAt).toISOString();
+  // An undated page is dated by when we found it, which is not a publication date: leave it out.
+  const published = article.scrapeMeta?.date_unknown ? undefined : (article.publishedAt ?? article.createdAt).toISOString();
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -75,7 +76,7 @@ function articleJsonLd(article: ArticleDetail) {
         headline: article.title.length > 110 ? `${article.title.slice(0, 109)}…` : article.title,
         description: summaryOf(article),
         image: [absoluteUrl(`/article/${article.slug}/opengraph-image`)],
-        datePublished: published,
+        ...(published ? { datePublished: published } : {}),
         dateModified: (article.editedAt ?? article.createdAt).toISOString(),
         inLanguage: "mn",
         articleSection: topic.label,

@@ -13,6 +13,15 @@ describe("SSRF guard", () => {
     for (const ip of ["8.8.8.8", "172.32.0.1", "202.131.0.1", "2606:4700:4700::1111"]) assert.equal(isPrivateAddress(ip), false, ip);
   });
 
+  it("sees through every IPv6 spelling of an IPv4 host", () => {
+    // mapped in hex, compatible, NAT64 and 6to4 forms of 127.0.0.1 / 169.254.169.254 / 10.0.0.1
+    for (const ip of ["::ffff:7f00:1", "::7f00:1", "::127.0.0.1", "64:ff9b::7f00:1", "64:ff9b::169.254.169.254", "2002:a9fe:a9fe::", "2002:0a00:0001::1", "::ffff:10.0.0.1", "0:0:0:0:0:ffff:a9fe:a9fe"]) {
+      assert.equal(isPrivateAddress(ip), true, ip);
+    }
+    for (const ip of ["::ffff:8.8.8.8", "64:ff9b::808:808", "2002:808:808::1", "2001:db8::1"]) assert.equal(isPrivateAddress(ip), false, ip);
+    assert.equal(isPrivateAddress("1:2:3:4:5:6:7:8:9"), true, "malformed is refused");
+  });
+
   it("rejects internal hosts and non-http URLs before any request", async () => {
     for (const url of ["http://127.0.0.1/admin", "http://169.254.169.254/latest/meta-data/", "http://[::1]/", "file:///etc/passwd", "http://user:pw@example.com/", "http://example.com:8080/", "http://localhost/"]) {
       await assert.rejects(assertPublicUrl(url), BlockedUrlError, url);

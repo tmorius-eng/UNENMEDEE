@@ -2,7 +2,7 @@
 
 import { Check } from "@untitledui/icons";
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useLocalStorage } from "@/lib/local-store";
 import { addIds, bumpStreak, currentStreak, parseIds, parseStreak, READ_KEY, STREAK_KEY, ubDay } from "@/lib/read-state";
@@ -22,12 +22,16 @@ function useDigestRead(ids: number[]) {
   const [raw, setRaw] = useLocalStorage(READ_KEY, "[]");
   const [streakRaw, setStreak] = useLocalStorage(STREAK_KEY, "");
   const read = parseIds(raw);
-  const markRead = (more: number[]) => {
-    const next = addIds(raw, more);
-    setRaw(next);
-    const done = parseIds(next);
-    if (ids.every((id) => done.has(id))) setStreak(JSON.stringify(bumpStreak(parseStreak(streakRaw), ubDay(Date.now()))));
-  };
+  const complete = ids.length > 0 && ids.every((id) => read.has(id));
+  // The read list is shared with the home page: an edition finished there (or in another tab)
+  // counts too. This writes localStorage, not React state, and only when the day is not recorded.
+  useEffect(() => {
+    if (!complete) return;
+    const today = ubDay(Date.now());
+    const prev = parseStreak(streakRaw);
+    if (prev?.d !== today) setStreak(JSON.stringify(bumpStreak(prev, today)));
+  }, [complete, streakRaw, setStreak]);
+  const markRead = (more: number[]) => setRaw(addIds(raw, more));
   return { read, markRead, streakRaw };
 }
 

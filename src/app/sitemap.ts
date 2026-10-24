@@ -6,7 +6,7 @@ import { TOPICS } from "@/lib/topics";
 
 /** Every public page and article. Builds without a database (static pages only). */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [articles, officials] = await Promise.all([getSitemapArticles(2000), getPoliticianIds()]);
+  const [articles, officials] = await Promise.all([getSitemapArticles(45_000) /* a sitemap holds 50k URLs: every published article is listed */, getPoliticianIds()]);
   const newest = articles[0]?.lastModified;
   const pages: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), lastModified: newest, changeFrequency: "hourly", priority: 1 },

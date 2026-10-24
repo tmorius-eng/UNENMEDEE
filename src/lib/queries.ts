@@ -50,6 +50,8 @@ export interface ArticleListItem {
   topic: string | null;
   /** National significance 0-100 from Tier 1 (null = not scored). */
   importanceScore: number | null;
+  /** The source page printed no date (`scrape_meta.date_unknown`): publishedAt is when we found it. */
+  dateUnknown: boolean;
 }
 
 /**
@@ -58,6 +60,9 @@ export interface ArticleListItem {
  * cached entry is simply refreshed on a later request.
  */
 const QUERY_TIMEOUT_MS = Number(process.env.QUERY_TIMEOUT_MS ?? 10_000);
+
+/** `next build` prerenders without a reachable database being a build failure: the empty state is right there. */
+const BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build";
 
 async function safe<T>(label: string, fallback: T, fn: () => Promise<T>): Promise<T> {
   if (!hasDatabase()) return fallback;
@@ -69,6 +74,9 @@ async function safe<T>(label: string, fallback: T, fn: () => Promise<T>): Promis
     return await Promise.race([fn(), timeout]);
   } catch (err) {
     console.error(`[queries] ${label} failed:`, err instanceof Error ? err.message : err);
+    // At runtime the error propagates: a rejected 'use cache' call is not cached, so a database
+    // blip costs one request, not an hour of "article not found" served from the cache.
+    if (!BUILD_PHASE) throw err;
     return fallback;
   } finally {
     clearTimeout(timer);
@@ -94,6 +102,7 @@ const listColumns = {
   topic: articles.topic,
   importanceScore: articles.importanceScore,
   clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
+  dateUnknown: sql<boolean>`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false)`,
 };
 
 type ListRow = {
@@ -115,6 +124,7 @@ type ListRow = {
   topic: string | null;
   importanceScore: number | null;
   clusterSize: number | null;
+  dateUnknown: boolean;
 };
 
 function toListItem(r: ListRow): ArticleListItem {
@@ -137,6 +147,7 @@ function toListItem(r: ListRow): ArticleListItem {
     topic: r.topic,
     importanceScore: r.importanceScore,
     clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
+    dateUnknown: r.dateUnknown === true,
   };
 }
 

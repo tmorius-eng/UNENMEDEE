@@ -7,7 +7,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge, BadgeWithIcon } from "@/components/base/badges/badges";
 import { PushInvite } from "@/components/pwa/push-invite";
-import { tldrSentences } from "@/lib/format";
+import { largestAmount, tldrSentences } from "@/lib/format";
 import { useLocalStorage } from "@/lib/local-store";
 import { parseIds, READ_KEY, READ_MAX } from "@/lib/read-state";
 import type { ArticleListItem } from "@/lib/queries";
@@ -73,12 +73,12 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
           </a>
           {teaser && !isOpen && <p className={cx("mt-1.5 text-sm text-tertiary", lead ? "line-clamp-3 md:text-md" : "line-clamp-2")}>{teaser}</p>}
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-quaternary">
-            <TimeAgo date={s.publishedAt} />
+            {s.dateUnknown ? <span title="Эх хуудсанд огноо байхгүй">Огноо тодорхойгүй</span> : <TimeAgo date={s.publishedAt} />}
             <span aria-hidden>·</span>
             <span className="max-w-full truncate">{s.sourceName}</span>
-            {s.amounts[0] && (
+            {s.amounts.length > 0 && (
               <Badge type="pill-color" color="warning" size="sm">
-                {s.amounts[0]}
+                {largestAmount(s.amounts)}
               </Badge>
             )}
             {s.clusterSize > 1 && (

@@ -80,3 +80,25 @@ export function formatMntShort(value: number): string {
   if (abs >= 1e6) return fmt(abs / 1e6, "сая");
   return `${formatNumber(Math.round(value))} ₮`;
 }
+
+const AMOUNT_UNITS: Record<string, number> = { "их наяд": 1e12, тэрбум: 1e9, сая: 1e6, мянга: 1e3 };
+
+/** "12,5 тэрбум ₮" → 12 500 000 000 (best effort, null when unreadable). Mirrors amountToNumber in the scraper. */
+export function amountValue(amount: string): number | null {
+  const m = amount.match(/([\d ,.]+)\s*(их наяд|тэрбум|сая|мянга)?/i);
+  if (!m) return null;
+  const unit = AMOUNT_UNITS[m[2]?.toLowerCase() ?? ""] ?? 1;
+  const raw = unit > 1 ? m[1].trim().replace(/\s/g, "").replace(",", ".") : m[1].trim().replace(/[ ,.](?=\d{3}\b)/g, "").replace(",", ".");
+  const n = Number(raw);
+  return Number.isFinite(n) ? n * unit : null;
+}
+
+/** The biggest of the extracted ₮ amounts (the chip on a story row), or the first when none parse. */
+export function largestAmount(amounts: string[]): string | undefined {
+  let best: { text: string; value: number } | undefined;
+  for (const text of amounts) {
+    const value = amountValue(text);
+    if (value !== null && (!best || value > best.value)) best = { text, value };
+  }
+  return best?.text ?? amounts[0];
+}
