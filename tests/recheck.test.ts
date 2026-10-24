@@ -45,6 +45,20 @@ describe("source recheck", () => {
     assert.equal(decide(prev, STORED, { kind: "error" }).status, null);
   });
 
+  it("skips copies too short to judge and ignores attachment labels", () => {
+    const stored = "Эрдэс баялгийн мэргэжлийн зөвлөлийн хуралдаан боллоо.\n2026 10 05 ЭБМЗ-ийн дүрэм төсөлDownload";
+    const fresh = "Эрдэс баялгийн мэргэжлийн зөвлөлийн хуралдаан боллоо.\nЭБМЗ-ийн дүрмийн төсөл (PDF)\n" + "Цэс ".repeat(80);
+    assert.equal(decide(prev, stored, { kind: "text", text: fresh }).status, null);
+    assert.deepEqual(splitSentences("Үндэсний_хиймэл_дагуул_ерөнхий_санал_авах_RFIТатах\nGeneral_RFI_National_Communication_Satellite_Project ENGТатах"), []);
+  });
+
+  it("compares a glued title+date+counter+body blob in pieces", () => {
+    const body = STORED.replace(/\n/g, " ");
+    const stored = `АЛБА ХААГЧИД ФЕСТИВАЛЬД ХАМРАГДЛАА 2026-10-19 33 ${body}`;
+    const fresh = `Алба хаагчид фестивальд хамрагдлаа\n2026-10-19\n412 уншсан\n${STORED}\nХолбоотой мэдээ: Өөр нэг мэдээний гарчиг энд байна.`;
+    assert.equal(decide(prev, stored, { kind: "text", text: fresh }).status, "ok");
+  });
+
   it("calls a page gone only after two misses days apart", () => {
     const now = new Date("2026-10-24T00:00:00Z");
     const first = decide(prev, STORED, { kind: "missing" }, now);

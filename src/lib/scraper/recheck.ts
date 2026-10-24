@@ -20,6 +20,11 @@ export const GONE_MIN_DAYS = 6;
 export const MIN_FRESH_CHARS = 200;
 /** Diff entries kept per changed article (~4 KB). */
 export const MAX_DIFF = 12;
+/** Fewer comparable sentences than this in our copy: too little text to judge, the check is skipped. */
+export const MIN_SENTENCES = 3;
+/** Sentences longer than this (text glued together by the site) are compared in WINDOW-word pieces. */
+const LONG_SENTENCE = 160;
+const WINDOW = 12;
 
 export type SourceStatus = "ok" | "changed" | "gone";
 
@@ -33,13 +38,26 @@ export interface SourceDiff {
 }
 
 const COUNTER = /\d[\d\s,.]*\s*(уншсан|үзсэн|views?|сэтгэгдэл)/iu;
+/** Attachment and link labels ("…төсөлDownload", "…_RFIТатах", "file.pdf"): sites rename them freely. */
+const ATTACHMENT = /download|татах|татаж авах|\.(pdf|docx?|xlsx?|zip)\b|\S+_\S+_\S+/iu;
 
-/** Sentences worth comparing: no dates, counters or short menu-like lines. */
+/**
+ * Pieces of text worth comparing: sentences without dates, counters, attachment labels or short
+ * menu-like lines; a very long "sentence" (a page's title, date and body glued together) becomes
+ * WINDOW-word pieces so one glued counter does not hide the whole text.
+ */
 export function splitSentences(text: string): string[] {
   return normalizeText(text)
     .split(/\n+|(?<=[.!?])\s+/)
     .map((s) => s.replace(/\s+/g, " ").trim())
-    .filter((s) => s.length >= 25 && !isDateLine(s) && !COUNTER.test(s));
+    .filter((s) => s.length >= 25 && !isDateLine(s) && !COUNTER.test(s) && !ATTACHMENT.test(s))
+    .flatMap((s) => {
+      if (s.length <= LONG_SENTENCE) return [s];
+      const w = s.split(" ");
+      const pieces: string[] = [];
+      for (let i = 0; i < w.length; i += WINDOW) pieces.push(w.slice(i, i + WINDOW).join(" "));
+      return pieces.filter((p) => p.length >= 25 && !COUNTER.test(p));
+    });
 }
 
 /** For matching: lower case, unified quotes and dashes, letters/digits/spaces only. */
@@ -62,9 +80,15 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 const numbers = (s: string) => (s.match(/\d+(?:[.,]\d+)*/g) ?? []).join("|");
+const wordsOnly = (s: string) => new Set([...words(s)].filter((w) => !/\d/.test(w)));
+
+/** The same sentence with a different number in it: the wording matches, the numbers do not. */
+const numberEdited = (p: { before: string; after: string }) => numbers(p.before) !== numbers(p.after) && jaccard(wordsOnly(p.before), wordsOnly(p.after)) >= 0.8;
 
 export interface Comparison extends SourceDiff {
   numbersChanged: boolean;
+  /** How many pieces of our copy were compared (below MIN_SENTENCES the result is not trusted). */
+  compared: number;
 }
 
 export function compareTexts(stored: string, fresh: string): Comparison {
@@ -86,14 +110,17 @@ export function compareTexts(stored: string, fresh: string): Comparison {
       const score = jaccard(w, t.w);
       if (score >= 0.5 && (!best || score > best.score)) best = { s: t.s, score };
     }
-    if (best) pairs.push({ before: s, after: best.s });
+    // Only glued extras differ (a title, date or counter stuck to the sentence): still the same text.
+    if (best && (key(s).includes(key(best.s)) || key(best.s).includes(key(s)))) found++;
+    else if (best) pairs.push({ before: s, after: best.s });
     else removed.push(s);
   }
   return {
+    compared: ours.length,
     containment: ours.length ? found / ours.length : 1,
     pairs,
     removed,
-    numbersChanged: pairs.some((p) => numbers(p.before) !== numbers(p.after)),
+    numbersChanged: pairs.some(numberEdited),
   };
 }
 
@@ -123,6 +150,7 @@ export function decide(prev: CheckState, stored: string, result: FetchResult, no
   }
   if (result.text.length < MIN_FRESH_CHARS) return { status: null, missingCount: prev.missingCount };
   const c = compareTexts(stored, result.text);
+  if (c.compared < MIN_SENTENCES) return { status: null, missingCount: prev.missingCount };
   if (c.containment < CHANGED_BELOW || c.numbersChanged) {
     return {
       status: "changed",

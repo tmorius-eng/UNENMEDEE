@@ -21,7 +21,7 @@ import { legalinfoDetailText } from "@/lib/scraper/adapters/legalinfo";
 import { parsePoliceArticle } from "@/lib/scraper/adapters/police";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { politeFetch } from "@/lib/scraper/http";
-import { decide, type FetchResult, type SourceDiff, type SourceStatus } from "@/lib/scraper/recheck";
+import { decide, type FetchResult, MIN_FRESH_CHARS, type SourceDiff, type SourceStatus } from "@/lib/scraper/recheck";
 
 const { values } = parseArgs({
   options: {
@@ -108,6 +108,7 @@ async function main() {
   console.log(`🔁 ${rows.length} article(s) on ${byHost.size} site(s) to re-check${dry ? " (dry run)" : ""}.`);
 
   const counts: Record<SourceStatus | "skip" | "new", number> = { ok: 0, changed: 0, gone: 0, skip: 0, new: 0 };
+  const skipped: Record<string, number> = {};
   const samples: string[] = [];
   const queues = [...byHost.values()];
 
@@ -119,6 +120,10 @@ async function main() {
         const now = new Date();
         const d = decide({ status: row.status as SourceStatus | null, missingCount: row.missingCount, checkedAt: row.checkedAt }, row.text, result, now);
         counts[d.status ?? "skip"]++;
+        if (!d.status) {
+          const why = result.kind === "error" ? "fetch error" : result.kind === "missing" ? "missing once" : result.text.length < MIN_FRESH_CHARS ? "no text extracted" : "too short to judge";
+          skipped[why] = (skipped[why] ?? 0) + 1;
+        }
         const isNew = (d.status === "changed" || d.status === "gone") && row.status !== d.status;
         if (isNew) {
           counts.new++;
@@ -145,6 +150,7 @@ async function main() {
   await Promise.all(Array.from({ length: HOSTS_IN_PARALLEL }, worker));
 
   console.log(`✓ ok ${counts.ok} · changed ${counts.changed} · gone ${counts.gone} · skipped ${counts.skip} · newly flagged ${counts.new}`);
+  console.log(`   skipped: ${Object.entries(skipped).map(([k, v]) => `${k} ${v}`).join(" · ") || "none"}`);
   for (const s of samples) console.log(`   ${s}`);
 }
 
