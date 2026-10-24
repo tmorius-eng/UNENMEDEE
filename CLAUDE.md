@@ -98,6 +98,7 @@ We are building a 100% transparent, open-source investigative news and public da
 ## 6c. Performance budget (PageSpeed mobile)
 - Keep heavy client libraries off shared and home bundles. `AIMessage` must not import streamdown (`Response`): markdown blocks use `AIMarkdownMessage` (`ai-markdown.tsx`). Header, StoryList and PWA sheets animate with CSS (`tailwindcss-animate` `animate-in …`), not `motion`. `Empty` is plain markup (Untitled's EmptyState pulled ~200 KB of illustrations; its file-icons loader ~470 KB).
 - Check with Lighthouse before merging UI work: `npx lighthouse <url> --form-factor=mobile`. Text needs 4.5:1 contrast: topic labels use `utility-*-700`, the logo's teal is `#047c78` in light mode.
+- Home JS (Oct 2026): ~216 KB gzip, of which ~185 KB is React + the Next runtime (the floor); our own code is ~30 KB (header ~13 KB, StoryList ~11 KB, PWA ~6 KB). Vercel Web Analytics loads as Vercel's plain script (`/_vercel/insights/script.js` + `window.va` stub in the layout, only when `VERCEL` is set), not the npm client; Speed Insights was removed (Lighthouse is our measure). `ShareButton` in StoryList is `next/dynamic` (loads on the first opened story).
 - `experimental.inlineCss` was measured and rejected: the 197 KB theme CSS was inlined three times (670 KB HTML).
 
 ## 6b. SEO

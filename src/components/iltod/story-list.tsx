@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, Check } from "@untitledui/icons";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
@@ -15,9 +16,13 @@ import { cx } from "@/utils/cx";
 
 import { AIMessage } from "./ai-message";
 import { MoneyTags } from "./badges";
-import { ShareButton } from "./share-button";
 import { SpinMeter } from "./spin-meter";
 import { TimeAgo } from "./time-ago";
+
+// Shown only inside an opened story: loaded on the first open, not with the home page.
+const ShareButton = dynamic(() => import("./share-button").then((m) => m.ShareButton), {
+  loading: () => <span aria-hidden className="h-10 w-34 rounded-lg ring-1 ring-primary ring-inset" />,
+});
 
 /**
  * Kagi News-style story list: colored topic label, big headline, a check to mark it read.
