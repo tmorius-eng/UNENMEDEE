@@ -6,17 +6,12 @@ import { ImageResponse } from "next/og";
 /** Social preview cards (Facebook, Messenger, X, Google Discover): 1200×630 PNG. */
 export const OG_SIZE = { width: 1200, height: 630 };
 
-// Satori reads WOFF (not WOFF2). Inter 700 subsets cover Mongolian Cyrillic (Ө, Ү) and Latin.
-// Each subset needs its own family name: Satori keeps one font per name + weight.
-const FONTS = [
-  { name: "InterLatin", file: "inter-700-latin.woff" },
-  { name: "InterCyrillic", file: "inter-700-cyrillic.woff" },
-  { name: "InterCyrillicExt", file: "inter-700-cyrillic-ext.woff" },
-];
-const FONT_FAMILY = FONTS.map((f) => f.name).join(", ");
-let fonts: Promise<Buffer[]> | undefined;
+// Satori reads WOFF (not WOFF2). One Inter 700 subset covers Latin, Mongolian Cyrillic (Ө, Ү) and ₮
+// (U+20AE), built from the Inter release with pyftsubset (see CLAUDE.md §6c).
+const FONT_FAMILY = "Inter";
+let fonts: Promise<Buffer> | undefined;
 function loadFonts() {
-  fonts ??= Promise.all(FONTS.map((f) => readFile(join(process.cwd(), "src/assets/fonts", f.file))));
+  fonts ??= readFile(join(process.cwd(), "src/assets/fonts/inter-700.woff"));
   return fonts;
 }
 let mark: Promise<string> | undefined;
@@ -43,7 +38,7 @@ export async function ogImage({ eyebrow, title, footer }: { eyebrow: string; tit
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts: data.map((d, i) => ({ name: FONTS[i].name, data: d, weight: 700 as const, style: "normal" as const })) },
+    { ...OG_SIZE, fonts: [{ name: FONT_FAMILY, data, weight: 700 as const, style: "normal" as const }] },
   );
 }
 
@@ -68,6 +63,6 @@ export async function storyImage({ eyebrow, title, footer }: { eyebrow: string; 
         </div>
       </div>
     ),
-    { ...STORY_SIZE, fonts: data.map((d, i) => ({ name: FONTS[i].name, data: d, weight: 700 as const, style: "normal" as const })) },
+    { ...STORY_SIZE, fonts: [{ name: FONT_FAMILY, data, weight: 700 as const, style: "normal" as const }] },
   );
 }

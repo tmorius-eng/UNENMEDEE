@@ -105,6 +105,8 @@ We are building a 100% transparent, open-source investigative news and public da
 ## 6c. Performance budget (PageSpeed mobile)
 - Keep heavy client libraries off shared and home bundles. `AIMessage` must not import streamdown (`Response`): markdown blocks use `AIMarkdownMessage` (`ai-markdown.tsx`). Header, StoryList and PWA sheets animate with CSS (`tailwindcss-animate` `animate-in …`), not `motion`. `Empty` is plain markup (Untitled's EmptyState pulled ~200 KB of illustrations; its file-icons loader ~470 KB).
 - Check with Lighthouse before merging UI work: `npx lighthouse <url> --form-factor=mobile`. Text needs 4.5:1 contrast: topic labels use `utility-*-700`, the logo's teal is `#047c78` in light mode.
+- Fonts: self-hosted `src/assets/fonts/inter-var.woff2` via `next/font/local` (`weight: "100 900"`, preloaded, 56 KB): Inter variable instanced to `opsz=14` and subset to Latin + Cyrillic + Ө Ү (U+04AE-04AF, U+04E8-04E9) + ₮ + the arrows/checks we print, with `tnum`. Google's `next/font/google` Inter needed three files (175 KB) and did not preload the 83 KB cyrillic-ext one that holds Ө/Ү. Rebuild both files with `fonttools varLib.instancer InterVariable.ttf opsz=14` + `pyftsubset --unicodes=… --layout-features+=tnum,case,ccmp,locl --flavor=woff2` (and `Inter-Bold.ttf` → `--flavor=woff` for OG) when glyphs are missing; never add the `cyrillic-ext` Google subset back.
+- Clock: `src/lib/now-store.ts` `useNow()` is the one shared 30 s clock (server snapshot 0) for every `TimeAgo` and the masthead ticker: no per-row effect, interval or setState. `StoryList` rows are `memo(StoryRow)` with handlers whose identity never changes (the read set is read through a ref), so a tap re-renders one row. `prefetch={false}` on the digest strip and TopicBar links (15 topic pages prefetched on every visit cost ~45 KB).
 - Home JS (Oct 2026): ~216 KB gzip, of which ~185 KB is React + the Next runtime (the floor); our own code is ~30 KB (header ~13 KB, StoryList ~11 KB, PWA ~6 KB). Vercel Web Analytics loads as Vercel's plain script (`/_vercel/insights/script.js` + `window.va` stub in the layout, only when `VERCEL` is set), not the npm client; Speed Insights was removed (Lighthouse is our measure). `ShareButton` in StoryList is `next/dynamic` (loads on the first opened story).
 - `experimental.inlineCss` was measured and rejected: the 197 KB theme CSS was inlined three times (670 KB HTML).
 
@@ -113,7 +115,7 @@ We are building a 100% transparent, open-source investigative news and public da
 - `robots.ts` (disallows `/admin`), `sitemap.ts` (pages, topics `/topic/<key>`, every article), `news-sitemap.xml` (Google News, last 48 h), `feed.xml` (RSS).
 - Every public page sets its own `alternates.canonical`. Never put a canonical or `openGraph.url` in the root layout: children inherit it and every page would point at `/`.
 - JSON-LD: `NewsMediaOrganization` + `WebSite` in the layout, `NewsArticle` + `BreadcrumbList` on articles (`jsonLd()` escapes `<`).
-- OG images: `src/lib/og.tsx` (next/og) with Inter 700 WOFF subsets in `src/assets/fonts`. Satori keeps one font per family name, so each subset has its own name.
+- OG images: `src/lib/og.tsx` (next/og) with one Inter 700 WOFF subset (`src/assets/fonts/inter-700.woff`: Latin + Cyrillic + Ө Ү + ₮ U+20AE, built with pyftsubset from the Inter release, see §6c).
 - Search Console: set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (and optionally `NEXT_PUBLIC_BING_SITE_VERIFICATION`) on Vercel, then submit `/sitemap.xml` and `/news-sitemap.xml`.
 
 ## 6d. Officials & civic data (facts only)

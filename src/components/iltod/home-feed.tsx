@@ -74,7 +74,7 @@ async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; diges
         />
       </div>
       {digest && (
-        <Link href="/digest" className="group flex items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 shadow-xs ring-1 ring-secondary transition ring-inset hover:bg-primary_hover">
+        <Link href="/digest" prefetch={false} className="group flex items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 shadow-xs ring-1 ring-secondary transition ring-inset hover:bg-primary_hover">
           <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-secondary text-fg-brand-primary">
             <Stars02 className="size-5" />
           </span>

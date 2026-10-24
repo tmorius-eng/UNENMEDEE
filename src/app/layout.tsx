@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -11,8 +11,10 @@ import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS
 
 import "./globals.css";
 
-// Untitled UI's theme reads --font-inter; Cyrillic subset is required for Mongolian.
-const inter = Inter({ subsets: ["latin", "cyrillic", "cyrillic-ext"], variable: "--font-inter", display: "swap" });
+// Untitled UI's theme reads --font-inter. One self-hosted variable subset (Latin + Cyrillic + Ө Ү ₮,
+// 56 KB, preloaded) replaces Google's three files (175 KB, the 83 KB cyrillic-ext one not preloaded
+// although Ө and Ү live there). Rebuild with pyftsubset from the Inter release (CLAUDE.md §6c).
+const inter = localFont({ src: "../assets/fonts/inter-var.woff2", weight: "100 900", variable: "--font-inter", display: "swap", preload: true });
 
 const verification: Metadata["verification"] = {
   google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,

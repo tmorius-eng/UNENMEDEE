@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { formatDateMn, timeAgoMn } from "@/lib/format";
+import { useNow } from "@/lib/now-store";
 
-/** Absolute date on the server (cacheable), relative time once hydrated. */
+/**
+ * Absolute date on the server (cacheable), relative time once hydrated. Every label reads the one
+ * shared clock (now-store.ts): 40 of them on the home page used to mean 40 effects, 40 intervals
+ * and 40 separate re-renders right after hydration.
+ */
 export function TimeAgo({ date, className }: { date: Date | string | null; className?: string }) {
-  const [label, setLabel] = useState(() => formatDateMn(date));
-  useEffect(() => {
-    const update = () => setLabel(timeAgoMn(date));
-    update();
-    const t = setInterval(update, 60_000);
-    return () => clearInterval(t);
-  }, [date]);
+  const now = useNow();
   const iso = date ? new Date(date).toISOString() : undefined;
   return (
     <time dateTime={iso} title={formatDateMn(date)} className={className} suppressHydrationWarning>
-      {label}
+      {now ? timeAgoMn(date, now) : formatDateMn(date)}
     </time>
   );
 }

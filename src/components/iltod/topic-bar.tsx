@@ -109,6 +109,8 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
                 <Link
                   ref={isActive ? activeRef : undefined}
                   href={it.href}
+                  // 15 topic pages prefetched on every visit cost ~45 KB of RSC on slow connections.
+                  prefetch={false}
                   aria-current={isActive ? "page" : undefined}
                   className={cx(
                     "relative block px-3 py-3.5 text-md whitespace-nowrap transition-colors",

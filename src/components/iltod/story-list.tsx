@@ -3,7 +3,7 @@
 import { ArrowUpRight, Check, LayersTwo01 } from "@untitledui/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge, BadgeWithIcon } from "@/components/base/badges/badges";
 import { PushInvite } from "@/components/pwa/push-invite";
@@ -25,6 +25,118 @@ const ShareButton = dynamic(() => import("./share-button").then((m) => m.ShareBu
   loading: () => <span aria-hidden className="h-10 w-34 rounded-lg ring-1 ring-primary ring-inset" />,
 });
 
+interface RowProps {
+  s: ArticleListItem;
+  isRead: boolean;
+  isOpen: boolean;
+  lead: boolean;
+  onOpen: (id: number) => void;
+  onToggleRead: (id: number) => void;
+}
+
+/** One story. Memoised with stable handlers, so marking or opening one story re-renders one row, not 40. */
+const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onToggleRead }: RowProps) {
+  const { tag, color, dot } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName, s.topic);
+  const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
+  return (
+    <li key={s.id} className={cx(lead ? "relative rounded-2xl bg-primary p-5 shadow-xs ring-1 ring-secondary ring-inset md:p-6" : "py-5")}>
+      {lead && <span aria-hidden className={cx("absolute inset-x-0 top-0 h-1 rounded-t-2xl", dot)} />}
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={cx("flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", color)}>
+              <span aria-hidden className={cx("size-2 rounded-full", dot)} />
+              {lead ? `Гол мэдээ · ${tag}` : tag}
+            </span>
+            {s.riskFlag && (
+              <Badge type="pill-color" color="error" size="sm">
+                Өндөр эрсдэл {s.riskScore}
+              </Badge>
+            )}
+          </p>
+          {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place. */}
+          <a
+            href={`/article/${s.slug}`}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              onOpen(s.id);
+            }}
+            aria-expanded={isOpen}
+            className={cx(
+              "mt-1.5 block w-full cursor-pointer text-left font-semibold text-balance transition-colors",
+              lead ? "text-display-xs tracking-tight" : "story-headline",
+              isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary",
+            )}
+          >
+            {s.title}
+          </a>
+          {teaser && !isOpen && <p className={cx("mt-1.5 text-sm text-tertiary", lead ? "line-clamp-3 md:text-md" : "line-clamp-2")}>{teaser}</p>}
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-quaternary">
+            <TimeAgo date={s.publishedAt} />
+            <span aria-hidden>·</span>
+            <span className="max-w-full truncate">{s.sourceName}</span>
+            {s.amounts[0] && (
+              <Badge type="pill-color" color="warning" size="sm">
+                {s.amounts[0]}
+              </Badge>
+            )}
+            {s.clusterSize > 1 && (
+              <BadgeWithIcon type="pill-color" color="brand" size="sm" iconLeading={LayersTwo01}>
+                {s.clusterSize} эх сурвалж
+              </BadgeWithIcon>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onToggleRead(s.id)}
+          aria-pressed={isRead}
+          aria-label={isRead ? "Уншаагүй болгох" : "Уншсан гэж тэмдэглэх"}
+          className={cx(
+            "mt-5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition",
+            isRead ? "bg-quaternary text-secondary" : "text-fg-quaternary ring-1 ring-primary ring-inset hover:ring-brand",
+          )}
+        >
+          <Check className="size-5" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {/* CSS enter animation (tailwindcss-animate): keeps motion out of the home page bundle. */}
+      {isOpen && (
+        <div className="flex animate-in flex-col gap-4 pt-4 duration-200 fade-in slide-in-from-top-1">
+          <AIMessage compact tier="tier1" title="AI товчлол · баримт ба пи-ар ялгасан">
+            <ul className="mt-2 flex flex-col gap-2 text-md text-secondary">
+              {tldrSentences(s.tldr).map((b) => (
+                <li key={b} className="flex gap-2">
+                  <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-solid" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </AIMessage>
+          <MoneyTags amounts={s.amounts} />
+          <SpinMeter neutrality={s.neutralityScore} />
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/article/${s.slug}`} className="rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover">
+              Бүтэн шинжилгээ{s.hasDeepAnalysis ? " ⚡" : ""}
+            </Link>
+            <a
+              href={safeHttpUrl(s.originalUrl)}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
+            >
+              Эх сурвалж <ArrowUpRight className="size-4" />
+            </a>
+            <ShareButton path={`/article/${s.slug}`} title={s.title} />
+          </div>
+        </div>
+      )}
+    </li>
+  );
+});
+
 /**
  * Kagi News-style story list: colored topic label, big headline, the AI's first sentence as a
  * teaser, ₮ / source-count chips and a check to mark it read. `leadId` renders that story as a
@@ -37,125 +149,31 @@ export function StoryList({ stories, leadId }: { stories: ArticleListItem[]; lea
   const read = useMemo(() => parseIds(raw), [raw]);
   const [open, setOpen] = useState<number | null>(null);
 
+  // The handlers read the current set through a ref so their identity never changes: a changing
+  // callback would re-render every memoised row on each tap.
+  const readRef = useRef(read);
+  useEffect(() => {
+    readRef.current = read;
+  }, [read]);
   const update = useCallback(
     (fn: (s: Set<number>) => void) => {
-      const next = new Set(read);
+      const next = new Set(readRef.current);
       fn(next);
       setRaw(JSON.stringify([...next].slice(-READ_MAX)));
     },
-    [read, setRaw],
+    [setRaw],
   );
-
-  const toggleOpen = (id: number) => {
-    setOpen((cur) => (cur === id ? null : id));
-    update((s) => s.add(id));
-  };
+  const toggleOpen = useCallback(
+    (id: number) => {
+      setOpen((cur) => (cur === id ? null : id));
+      update((s) => s.add(id));
+    },
+    [update],
+  );
+  const toggleRead = useCallback((id: number) => update((set) => (set.has(id) ? set.delete(id) : set.add(id))), [update]);
   const unread = stories.filter((s) => !read.has(s.id)).length;
 
-  const item = (s: ArticleListItem) => {
-    const isRead = read.has(s.id);
-    const isOpen = open === s.id;
-    const { tag, color, dot } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName, s.topic);
-    const lead = s.id === leadId;
-    const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
-    return (
-      <li key={s.id} className={cx(lead ? "relative rounded-2xl bg-primary p-5 shadow-xs ring-1 ring-secondary ring-inset md:p-6" : "py-5")}>
-        {lead && <span aria-hidden className={cx("absolute inset-x-0 top-0 h-1 rounded-t-2xl", dot)} />}
-        <div className="flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className={cx("flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", color)}>
-                <span aria-hidden className={cx("size-2 rounded-full", dot)} />
-                {lead ? `Гол мэдээ · ${tag}` : tag}
-              </span>
-              {s.riskFlag && (
-                <Badge type="pill-color" color="error" size="sm">
-                  Өндөр эрсдэл {s.riskScore}
-                </Badge>
-              )}
-            </p>
-            {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place. */}
-            <a
-              href={`/article/${s.slug}`}
-              onClick={(e) => {
-                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                e.preventDefault();
-                toggleOpen(s.id);
-              }}
-              aria-expanded={isOpen}
-              className={cx(
-                "mt-1.5 block w-full cursor-pointer text-left font-semibold text-balance transition-colors",
-                lead ? "text-display-xs tracking-tight" : "story-headline",
-                isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary",
-              )}
-            >
-              {s.title}
-            </a>
-            {teaser && !isOpen && <p className={cx("mt-1.5 text-sm text-tertiary", lead ? "line-clamp-3 md:text-md" : "line-clamp-2")}>{teaser}</p>}
-            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-quaternary">
-              <TimeAgo date={s.publishedAt} />
-              <span aria-hidden>·</span>
-              <span className="max-w-full truncate">{s.sourceName}</span>
-              {s.amounts[0] && (
-                <Badge type="pill-color" color="warning" size="sm">
-                  {s.amounts[0]}
-                </Badge>
-              )}
-              {s.clusterSize > 1 && (
-                <BadgeWithIcon type="pill-color" color="brand" size="sm" iconLeading={LayersTwo01}>
-                  {s.clusterSize} эх сурвалж
-                </BadgeWithIcon>
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => update((set) => (set.has(s.id) ? set.delete(s.id) : set.add(s.id)))}
-            aria-pressed={isRead}
-            aria-label={isRead ? "Уншаагүй болгох" : "Уншсан гэж тэмдэглэх"}
-            className={cx(
-              "mt-5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition",
-              isRead ? "bg-quaternary text-secondary" : "text-fg-quaternary ring-1 ring-primary ring-inset hover:ring-brand",
-            )}
-          >
-            <Check className="size-5" strokeWidth={2.5} />
-          </button>
-        </div>
-
-        {/* CSS enter animation (tailwindcss-animate): keeps motion out of the home page bundle. */}
-        {isOpen && (
-          <div className="flex animate-in flex-col gap-4 pt-4 duration-200 fade-in slide-in-from-top-1">
-            <AIMessage compact tier="tier1" title="AI товчлол · баримт ба пи-ар ялгасан">
-              <ul className="mt-2 flex flex-col gap-2 text-md text-secondary">
-                {tldrSentences(s.tldr).map((b) => (
-                  <li key={b} className="flex gap-2">
-                    <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-solid" />
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-            </AIMessage>
-            <MoneyTags amounts={s.amounts} />
-            <SpinMeter neutrality={s.neutralityScore} />
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/article/${s.slug}`} className="rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-primary_on-brand shadow-xs hover:bg-brand-solid_hover">
-                Бүтэн шинжилгээ{s.hasDeepAnalysis ? " ⚡" : ""}
-              </Link>
-              <a
-                href={safeHttpUrl(s.originalUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
-              >
-                Эх сурвалж <ArrowUpRight className="size-4" />
-              </a>
-              <ShareButton path={`/article/${s.slug}`} title={s.title} />
-            </div>
-          </div>
-        )}
-      </li>
-    );
-  };
+  const item = (s: ArticleListItem) => <StoryRow key={s.id} s={s} isRead={read.has(s.id)} isOpen={open === s.id} lead={s.id === leadId} onOpen={toggleOpen} onToggleRead={toggleRead} />;
   const lead = stories.find((s) => s.id === leadId);
   const rest = lead ? stories.filter((s) => s !== lead) : stories;
 
