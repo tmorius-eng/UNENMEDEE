@@ -35,10 +35,11 @@ export function cleanTitle(title: string): string {
   return t;
 }
 
-const MONTHS_MN: Record<string, number> = {
-  "1-р сар": 1, "2-р сар": 2, "3-р сар": 3, "4-р сар": 4, "5-р сар": 5, "6-р сар": 6,
-  "7-р сар": 7, "8-р сар": 8, "9-р сар": 9, "10-р сар": 10, "11-р сар": 11, "12-р сар": 12,
-};
+/** "11-р сар": the month number, never read as "1-р сар" (the lookbehind keeps "11" whole). */
+const MONTH_LABEL = /(20\d{2}).{0,6}(?<!\d)(1[0-2]|[1-9])-р сар.{0,6}(\d{1,2})/;
+
+/** Dates this long before now are archive material, not a publication date read from body text. */
+const STALE_TEXT_DATE_MS = 365 * 86_400_000;
 
 /** A date (and optional Ulaanbaatar wall-clock time, UTC+8) or null when it is not plausible. */
 function validDate(y: number, m: number, d: number, hour?: number, minute?: number): Date | null {
@@ -61,14 +62,27 @@ export function dateFromText(text: string): Date | null {
     const d = validDate(+mn[1], +mn[2], +mn[3]);
     if (d) return d;
   }
-  for (const [label, month] of Object.entries(MONTHS_MN)) {
-    const m = text.match(new RegExp(`(20\\d{2}).{0,6}${label}.{0,6}(\\d{1,2})`));
-    if (m) {
-      const d = validDate(+m[1], month, +m[2]);
-      if (d) return d;
-    }
+  const m = text.match(MONTH_LABEL);
+  if (m) {
+    const d = validDate(+m[1], +m[2], +m[3]);
+    if (d) return d;
   }
   return null;
+}
+
+/**
+ * A machine-readable date (meta tag, JSON-LD, <time datetime>). A value without a zone
+ * ("2026-10-23 17:41:12", "2026-10-23T17:41") is Ulaanbaatar wall-clock time (UTC+8): read as
+ * UTC it would be 8 hours late and the feed would sort it under the next morning's news.
+ */
+export function parseDateValue(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  let v = value.trim();
+  const local = v.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/);
+  if (local) v = `${local[1]}T${local[2]}+08:00`;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000 || d.getTime() > Date.now() + 86_400_000) return null;
+  return d;
 }
 
 const DATE_CLASS = /date|time|ognoo|огноо|publish|post-on|posted|calendar|meta/i;
@@ -88,15 +102,10 @@ function ownText(el: Element): string {
  * the body's end inside the headline's container count, so "related news" lists are ignored.
  */
 function dateNearHeadline(doc: Document, headline?: string): Date | null {
-  const key = headline ? normalizeText(headline).replace(/\s+/g, " ").slice(0, 40) : "";
-  const h1 =
-    [...doc.querySelectorAll("h1")].find((h) => (h.textContent ?? "").trim().length > 0) ??
-    // No <h1>: the element that holds the headline (mlsp.gov.mn uses <h5 class="blog-post-title">).
-    (key ? [...doc.querySelectorAll("h2, h3, h4, h5, h6, [class*=title]")].find((h) => normalizeText(h.textContent ?? "").replace(/\s+/g, " ").startsWith(key)) : undefined);
-  if (!h1) return null;
-  let box: Element = h1;
-  for (let i = 0; i < 3 && box.parentElement && box.parentElement !== doc.body; i++) box = box.parentElement;
+  const box = headlineBox(doc, headline);
+  if (!box) return null;
   const all = [...box.querySelectorAll("*")];
+  const h1 = all.find((el) => /^H[1-6]$/.test(el.tagName) && (el.textContent ?? "").trim().length > 0) ?? box;
   // The body starts at the first paragraph-like element after the headline with real text.
   const h1At = all.indexOf(h1);
   const bodyAt = all.findIndex((el, i) => i > h1At && /^(P|DIV|SECTION|ARTICLE)$/.test(el.tagName) && ownText(el).length > 150);
@@ -115,11 +124,45 @@ function dateNearHeadline(doc: Document, headline?: string): Date | null {
   return null;
 }
 
+/** The element that holds the headline and the box (up to three ancestors) its page chrome sits in. */
+function headlineBox(doc: Document, headline?: string): Element | null {
+  const key = headline ? normalizeText(headline).replace(/\s+/g, " ").slice(0, 40) : "";
+  const h1 =
+    [...doc.querySelectorAll("h1")].find((h) => (h.textContent ?? "").trim().length > 0) ??
+    // No <h1>: the element that holds the headline (mlsp.gov.mn uses <h5 class="blog-post-title">).
+    (key ? [...doc.querySelectorAll("h2, h3, h4, h5, h6, [class*=title]")].find((h) => normalizeText(h.textContent ?? "").replace(/\s+/g, " ").startsWith(key)) : undefined);
+  if (!h1) return null;
+  let box: Element = h1;
+  for (let i = 0; i < 3 && box.parentElement && box.parentElement !== doc.body; i++) box = box.parentElement;
+  return box;
+}
+
+/**
+ * The article's <time>. Pages also carry <time> elements for "latest news" lists, so the ones in
+ * the headline's box come first. judcouncil.mn prints the real date as the element's text while
+ * its datetime attribute is a template placeholder ("2019-10-22"): when the text gives a date more
+ * than a day away from the attribute, the text wins. A value more than a year older than the
+ * newest one on the page is a stray stamp and is ignored.
+ */
+function timeElementDate(doc: Document, headline?: string): Date | null {
+  const valueOf = (t: Element): Date | null => {
+    const attr = parseDateValue(t.getAttribute("datetime"));
+    const text = dateFromText(t.textContent ?? "");
+    return text && (!attr || Math.abs(text.getTime() - attr.getTime()) > 86_400_000) ? text : attr;
+  };
+  const all = [...doc.querySelectorAll("time[datetime]")];
+  const box = headlineBox(doc, headline);
+  const inBox = box ? all.filter((t) => box.contains(t)) : [];
+  const times = (inBox.length ? inBox : all).map(valueOf).filter((d): d is Date => d !== null);
+  if (!times.length) return null;
+  const newest = Math.max(...times.map((d) => d.getTime()));
+  return times.find((d) => d.getTime() >= newest - STALE_TEXT_DATE_MS) ?? null;
+}
+
 function jsonLdDate(doc: Document): Date | null {
   for (const s of doc.querySelectorAll('script[type="application/ld+json"]')) {
-    const m = (s.textContent ?? "").match(/"datePublished"\s*:\s*"([^"]+)"/);
-    const d = m ? new Date(m[1]) : null;
-    if (d && !Number.isNaN(d.getTime())) return d;
+    const d = parseDateValue((s.textContent ?? "").match(/"datePublished"\s*:\s*"([^"]+)"/)?.[1]);
+    if (d) return d;
   }
   return null;
 }
@@ -134,23 +177,22 @@ export function extractPublishedDate(doc: Document, url: string, text: string, h
     'meta[itemprop="datePublished"]',
   ];
   for (const sel of metaSelectors) {
-    const v = doc.querySelector(sel)?.getAttribute("content");
-    const d = v ? new Date(v) : null;
-    if (d && !Number.isNaN(d.getTime())) return d;
+    const d = parseDateValue(doc.querySelector(sel)?.getAttribute("content"));
+    if (d) return d;
   }
   const ld = jsonLdDate(doc);
   if (ld) return ld;
-  const timeAttr = doc.querySelector("time[datetime]")?.getAttribute("datetime");
-  if (timeAttr) {
-    const d = new Date(timeAttr);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
+  const time = timeElementDate(doc, headline);
+  if (time) return time;
   const fromUrl = decodeURIComponent(url).match(/\/(20\d{2})\/(\d{1,2})\/(\d{1,2})\//);
   if (fromUrl) {
     const d = validDate(+fromUrl[1], +fromUrl[2], +fromUrl[3]);
     if (d) return d;
   }
-  return dateNearHeadline(doc, headline) ?? dateFromText(text.slice(0, 600));
+  // A date printed in the page is only trusted when it is recent: an old one is a quoted
+  // resolution date or an archive page (mrpam.gov.mn stored 2007 stories as that day's news).
+  const printed = dateNearHeadline(doc, headline) ?? dateFromText(text.slice(0, 600));
+  return printed && printed.getTime() < Date.now() - STALE_TEXT_DATE_MS ? null : printed;
 }
 
 /** Turns an HTML page into clean article text with Readability. Never stores HTML. */

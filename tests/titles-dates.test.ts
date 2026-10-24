@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { looksOld, newestYearMentioned } from "@/lib/scraper/dates";
-import { dateFromText, extractArticle } from "@/lib/scraper/extractor";
+import { JSDOM } from "jsdom";
+
+import { dateFromText, extractArticle, extractPublishedDate, parseDateValue } from "@/lib/scraper/extractor";
 import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
@@ -85,7 +87,9 @@ describe("extractor on real pages", () => {
   it("uses the article heading instead of the site title", () => {
     const sspa = extractArticle(page("sspa"), "https://sspa.gov.mn/mn/read?id=7");
     assert.match(sspa?.title ?? "", /^Төрийн тусгай хамгаалалтын тухай хуульд/);
-    assert.equal(sspa?.publishedAt?.toISOString().slice(0, 10), "2020-05-05");
+    // The only date on the page is the 2020 one printed in the text: years old, so not trusted as
+    // the publication date (the story is stored as undated and, being old, unpublished).
+    assert.equal(sspa?.publishedAt, null);
   });
 });
 
@@ -105,5 +109,53 @@ describe("shouting headlines", () => {
   it("leaves normal and short titles alone", () => {
     assert.equal(unshoutTitle("АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт"), "АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт");
     assert.equal(unshoutTitle("ХУРАЛ БОЛНО"), "ХУРАЛ БОЛНО");
+  });
+});
+
+describe("date parsing fixes", () => {
+  const doc = (html: string) => new JSDOM(html).window.document;
+  const year = new Date().getUTCFullYear();
+
+  it("reads '11-р сар' as November, not January", () => {
+    const y = year - 1; // last year: November and December of this year may still be in the future
+    assert.equal(dateFromText(`${y} оны 11-р сар 5`)?.toISOString().slice(0, 10), `${y}-11-05`);
+    assert.equal(dateFromText(`${y} 12-р сар 1`)?.toISOString().slice(0, 10), `${y}-12-01`);
+    assert.equal(dateFromText(`${y} 1-р сар 9`)?.toISOString().slice(0, 10), `${y}-01-09`);
+  });
+
+  it("treats machine dates without a zone as Ulaanbaatar time", () => {
+    assert.equal(parseDateValue(`${year}-03-04 17:41:12`)?.toISOString(), `${year}-03-04T09:41:12.000Z`);
+    assert.equal(parseDateValue(`${year}-03-04T17:41`)?.toISOString(), `${year}-03-04T09:41:00.000Z`);
+    assert.equal(parseDateValue(`${year}-03-04T17:41:00+08:00`)?.toISOString(), `${year}-03-04T09:41:00.000Z`);
+    assert.equal(parseDateValue(`${year}-03-04T09:41:00Z`)?.toISOString(), `${year}-03-04T09:41:00.000Z`);
+    assert.equal(parseDateValue("1970-01-01"), null);
+    assert.equal(parseDateValue("not a date"), null);
+  });
+
+  it("ignores a stray <time> years older than the page's real one", () => {
+    const d = doc(`<html><body><header><time datetime="2019-10-22">2019</time></header>
+      <article><h1>Шүүхийн ерөнхий зөвлөлийн хуралдаан боллоо</h1><time datetime="${year}-03-04 17:41:12"></time><p>${"Текст. ".repeat(60)}</p></article></body></html>`);
+    assert.equal(extractPublishedDate(d as unknown as Document, "https://judcouncil.mn/site/news/1", "")?.toISOString(), `${year}-03-04T09:41:12.000Z`);
+  });
+
+  it("prefers the headline's <time> and its printed text over a placeholder attribute (judcouncil.mn)", () => {
+    // The article's <time> has a template placeholder in datetime and the real date as text; the
+    // "latest news" list further down carries other articles' <time> elements.
+    const d = doc(`<html><body><main><div class="row"><div class="col-md-8">
+      <div class="post-title"><h1>Шүүхийн ерөнхий зөвлөлийн шүүгч бус гишүүд томилогдов</h1></div>
+      <div class="post-atribute"><time datetime="2019-10-22"> ${year}-03-04 14:10:17 </time></div>
+      <p>${"Текст. ".repeat(60)}</p></div>
+      <div class="col-md-4"><h3><a href="/site/news_full/2">Өөр мэдээ</a></h3><time datetime="${year}-03-04 17:41:12">${year}-03-04 17:41:12</time></div>
+      </div></main></body></html>`);
+    assert.equal(extractPublishedDate(d as unknown as Document, "https://judcouncil.mn/site/news_full/1", "")?.toISOString(), `${year}-03-04T06:10:00.000Z`);
+  });
+
+  it("does not take a year-old date printed in the text as the publication date (mrpam.gov.mn)", () => {
+    const text = "Эрдэс баялаг, газрын тосны газрын даргын 2009 оны 05 дугаар сарын 05-ны өдрийн тушаал. " + "Текст. ".repeat(40);
+    const d = doc(`<html><body><article><h1>Тушаалын тухай</h1><p>${text}</p></article></body></html>`);
+    assert.equal(extractPublishedDate(d as unknown as Document, "https://mrpam.gov.mn/article/100", text), null);
+    // A recent date in the same place is still trusted.
+    const recent = doc(`<html><body><article><h1>Тушаалын тухай</h1><p>${year}-01-15. ${"Текст. ".repeat(40)}</p></article></body></html>`);
+    assert.equal(extractPublishedDate(recent as unknown as Document, "https://mrpam.gov.mn/article/100", `${year}-01-15. Текст.`)?.toISOString().slice(0, 10), `${year}-01-15`);
   });
 });

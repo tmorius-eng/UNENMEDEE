@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { opendataItemToScraped, parseOpendataResponse } from "@/lib/scraper/adapters/opendata";
 import { parliamentArticleToScraped, parseParliamentPage } from "@/lib/scraper/adapters/parliament";
 import { classifyDomain, harvestGovernmentHosts, isGovernmentHost, siteName } from "@/lib/scraper/discover";
-import { findFeedUrl, harvestArticleLinks, isWordPress, parseFeed, sameSite, scoreLink } from "@/lib/scraper/links";
+import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, scoreLink, wordPressApiBase, wordPressPostsUrl } from "@/lib/scraper/links";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -38,10 +38,49 @@ describe("harvestArticleLinks", () => {
     assert.equal(scoreLink(new URL("https://x.gov.mn/wp-content/uploads/a.jpg"), "x"), 0);
   });
 
-  it("treats www and subdomains as the same site", () => {
+  it("treats www and subdomains as the same site, never the parent domain", () => {
     assert.ok(sameSite("www.mimr.gov.mn", "mimr.gov.mn"));
     assert.ok(sameSite("www.gov.mn", "gov.mn"));
     assert.ok(!sameSite("mof.gov.mn", "moh.gov.mn"));
+    assert.ok(!sameSite("gov.mn", "moh.gov.mn"), "a link to the parent portal is another site");
+  });
+
+  it("keeps articles whose id lives in the query string (mod.gov.mn /?p=, ipom mn.php?page=&news=)", () => {
+    const html = `<html><body><main>
+      <a href="/?p=10849">Батлан хамгаалахын сайд ажлын хэсгийн тайланг хүлээн авлаа</a>
+      <a href="/mn.php?page=40&news=1633">Оюуны өмчийн газар шинэ журам баталлаа</a>
+      <a href="/mn.php?page=40">Мэдээ</a>
+      <a href="/?page=2">2</a>
+    </main></body></html>`;
+    const urls = harvestArticleLinks(html, "https://mod.gov.mn/", "mod.gov.mn").map((l) => l.url);
+    assert.deepEqual(urls.sort(), ["https://mod.gov.mn/?p=10849", "https://mod.gov.mn/mn.php?page=40&news=1633"]);
+  });
+
+  it("harvests links on any element with an href (JavaScript-rendered cards)", () => {
+    const html = `<div data-x><area href="/news/4411" alt="Орон нутгийн төсвийн хэлэлцүүлэг амжилттай боллоо"></area>
+      <link rel="stylesheet" href="/news/1"><a href="/news/4412">Эрүүл мэндийн даатгалын шинэ журам хэрэгжиж эхэллээ</a></div>`;
+    const urls = harvestArticleLinks(html, "https://x.gov.mn/", "x.gov.mn").map((l) => l.url);
+    assert.deepEqual(urls.sort(), ["https://x.gov.mn/news/4411", "https://x.gov.mn/news/4412"]);
+  });
+});
+
+describe("splash pages and WordPress REST bases", () => {
+  it("finds the news sections a splash page links to (govi-altai /home, dornod /j)", () => {
+    const html = `<html><body>
+      <a href="/home">Нүүр</a><a href="/c/medee-medeelel-210">Мэдээ мэдээлэл</a>
+      <a href="/j">Мэдээ</a><a href="/about">Бидний тухай</a><a href="https://gov.mn/">Засгийн газар</a>
+      <a href="/files/a.pdf">Мэдээ (pdf)</a></body></html>`;
+    const sections = harvestSectionLinks(html, "https://govi-altai.gov.mn/", "govi-altai.gov.mn");
+    assert.deepEqual(sections, ["https://govi-altai.gov.mn/c/medee-medeelel-210", "https://govi-altai.gov.mn/j", "https://govi-altai.gov.mn/home"]);
+  });
+
+  it("reads the advertised REST base and builds a posts URL for plain permalinks", () => {
+    const pretty = `<link rel="https://api.w.org/" href="https://mod.gov.mn/wp-json/">`;
+    assert.equal(wordPressApiBase(pretty, "https://mod.gov.mn/"), "https://mod.gov.mn/wp-json/");
+    const plain = `<link rel="https://api.w.org/" href="https://bnd.ub.gov.mn/index.php?rest_route=/">`;
+    const base = wordPressApiBase(plain, "https://bnd.ub.gov.mn/");
+    assert.equal(wordPressPostsUrl(base, "per_page=20&_fields=id,link"), "https://bnd.ub.gov.mn/index.php?rest_route=/wp/v2/posts&per_page=20&_fields=id,link");
+    assert.equal(wordPressPostsUrl(wordPressApiBase("<html></html>", "https://x.gov.mn/news/"), "per_page=5"), "https://x.gov.mn/wp-json/wp/v2/posts?per_page=5");
   });
 });
 

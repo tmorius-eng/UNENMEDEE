@@ -12,7 +12,7 @@ on:
         default: false
 
 concurrency:
-  group: news-pipeline
+  group: discover-sources # its own group: sharing news-pipeline let a queued pipeline run be dropped
   cancel-in-progress: false
 
 permissions:

@@ -2,8 +2,8 @@ import "./net-setup";
 import { CheerioCrawler, Configuration, log, PlaywrightCrawler } from "crawlee";
 
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
-import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS } from "./extractor";
-import { findFeedUrl, harvestArticleLinks, isWordPress, parseFeed, sameSite } from "./links";
+import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS, parseDateValue } from "./extractor";
+import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl } from "./links";
 import { BOT_NAME, MIN_DOMAIN_DELAY_MS, USER_AGENT } from "./robots";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
@@ -34,10 +34,12 @@ type Mode = "http" | "browser";
 interface UserData {
   label: Label;
   sourceId: number;
-  /** "primary" = source.urlPattern, "home" = homepage fallback */
-  attempt?: "primary" | "home";
+  /** "primary" = source.urlPattern, "home" = homepage fallback, "section" = a news section the splash page links to */
+  attempt?: "primary" | "home" | "section";
   /** Harvested HTML links to use if the WP API / feed path fails. */
   fallbackLinks?: string[];
+  /** The page's RSS feed: tried when the WordPress REST API fails or is empty. */
+  feedUrl?: string;
 }
 
 interface SourceState extends SourceRunResult {
@@ -48,6 +50,10 @@ interface SourceState extends SourceRunResult {
   needsBrowserListing: boolean;
   /** Article URLs whose raw HTML had no extractable body: retry them in the browser. */
   needsBrowserArticles: string[];
+  /** Section listings queued from a splash page that have not answered yet. */
+  pendingSections: number;
+  /** Sections are followed once per pass (a section page never fans out again). */
+  sectionsTried: boolean;
 }
 
 const BODY_MIME_TYPES = ["application/json", "application/rss+xml", "application/atom+xml", "application/xml", "text/xml"];
@@ -94,6 +100,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         triedHome: false,
         needsBrowserListing: false,
         needsBrowserArticles: [],
+        pendingSections: 0,
+        sectionsTried: false,
       },
     ]),
   );
@@ -166,16 +174,28 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
       if (!state) return;
       const message = errorMessage(error);
       if (data.label === "LISTING") {
-        if (mode === "http" && !state.triedHome && url !== homepage(state.source)) {
+        if (data.attempt === "section") {
+          state.pendingSections -= 1;
+          if (state.pendingSections <= 0) {
+            state.completed = true;
+            if (state.queuedArticles === 0 && state.inserted === 0 && !state.error) state.error = `listing failed: ${message}`;
+          }
+        } else if (mode === "http" && !state.triedHome && url !== homepage(state.source)) {
           state.triedHome = true;
           await add([listingRequest(state, homepage(state.source), "home")]);
         } else {
           state.error = `listing failed: ${message}`;
           state.completed = true;
         }
+      } else if (data.label === "WP_API" && data.feedUrl) {
+        await add([{ url: data.feedUrl, userData: { label: "FEED", sourceId: state.sourceId, fallbackLinks: data.fallbackLinks } satisfies UserData }]);
       } else if ((data.label === "WP_API" || data.label === "FEED") && data.fallbackLinks?.length) {
         const picked = await pickArticles(state, data.fallbackLinks);
         await add(picked.map((u) => articleRequest(state, u)));
+      } else if (data.label === "WP_API" || data.label === "FEED") {
+        // Nothing else to try: say so instead of counting the run as a success.
+        state.error = `${data.label === "WP_API" ? "WordPress API" : "feed"} failed: ${message}`;
+        if (mode === "http") state.needsBrowserListing = true;
       }
       progress(`  ✗ ${state.domain} ${data.label} ${url} — ${message}`);
     };
@@ -195,6 +215,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         {
           ...common,
           ignoreSslErrors: true,
+          // A 404/410 page is not an article (Crawlee hands other 4xx bodies to the handler).
+          additionalHttpErrorStatusCodes: [404, 410, 451],
           additionalMimeTypes: BODY_MIME_TYPES,
           preNavigationHooks: [
             (_ctx, gotOptions) => {
@@ -231,11 +253,13 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
               );
             },
           ],
-          requestHandler: async ({ page, request }) => {
+          requestHandler: async ({ page, request, response }) => {
+            const add: Adder = async (reqs) => void (reqs.length && (await p.addRequests(reqs)));
+            const status = response?.status() ?? 200;
+            if (status >= 400) return onFailure(request.url, request.userData as UserData, new Error(`HTTP ${status}`), add);
             // Let client-side rendering finish (SPAs fetch their news after load).
             await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
             const html = await page.content();
-            const add: Adder = async (reqs) => void (reqs.length && (await p.addRequests(reqs)));
             await handle(request.url, request.loadedUrl ?? request.url, request.userData as UserData, html, add);
           },
           failedRequestHandler: async ({ request }, error) => {
@@ -261,64 +285,88 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
 
   // ---------------------------------------------------------------- handlers
   async function handleListing(mode: Mode, state: SourceState, data: UserData, pageUrl: string, html: string, add: Adder) {
-    state.completed = true;
+    if (data.attempt === "section") state.pendingSections -= 1;
+    if (state.pendingSections <= 0) state.completed = true;
     const links = harvestArticleLinks(html, pageUrl, state.domain, opts.perSourceLimit * 4).map((l) => l.url);
-    const origin = new URL(pageUrl).origin;
+    const feed = mode === "http" ? findFeedUrl(html, pageUrl) : null;
+    const sameSiteFeed = feed && sameSite(new URL(feed).hostname, state.domain) ? feed : undefined;
 
     if (mode === "http" && isWordPress(html)) {
       const perPage = opts.since ? 100 : Math.min(opts.perSourceLimit * 2, 50);
       const after = opts.since ? `&after=${opts.since.toISOString().slice(0, 19)}` : "";
-      const api = `${origin}/wp-json/wp/v2/posts?per_page=${perPage}${after}&_fields=link,title,date_gmt,content`;
-      await add([{ url: api, userData: { label: "WP_API", sourceId: state.sourceId, fallbackLinks: links } satisfies UserData }]);
+      // The advertised REST base: "/index.php?rest_route=/" on sites without pretty permalinks.
+      const api = wordPressPostsUrl(wordPressApiBase(html, pageUrl), `per_page=${perPage}${after}&_fields=id,link,title,date,date_gmt,content`);
+      await add([{ url: api, userData: { label: "WP_API", sourceId: state.sourceId, fallbackLinks: links, feedUrl: sameSiteFeed } satisfies UserData }]);
       return;
     }
-    const feed = mode === "http" ? findFeedUrl(html, pageUrl) : null;
-    if (feed && sameSite(new URL(feed).hostname, state.domain)) {
-      await add([{ url: feed, userData: { label: "FEED", sourceId: state.sourceId, fallbackLinks: links } satisfies UserData }]);
+    if (sameSiteFeed) {
+      await add([{ url: sameSiteFeed, userData: { label: "FEED", sourceId: state.sourceId, fallbackLinks: links } satisfies UserData }]);
       return;
     }
-    if (links.length === 0 && mode === "http" && data.attempt === "primary" && !state.triedHome && pageUrl !== homepage(state.source)) {
+    // A splash page (govi-altai's "/" only links to "/home", dornod's to "/j"): follow its news
+    // sections once, in this pass, before giving up on the source.
+    if (links.length < 3 && !state.sectionsTried) {
+      const sections = harvestSectionLinks(html, pageUrl, state.domain).filter((u) => u !== pageUrl);
+      if (sections.length) {
+        state.sectionsTried = true;
+        state.pendingSections += sections.length;
+        state.completed = false;
+        await add(sections.map((u) => listingRequest(state, u, "section", mode)));
+      }
+    }
+    if (links.length > 0) {
+      state.error = null;
+      const picked = await pickArticles(state, links);
+      await add(picked.map((u) => articleRequest(state, u)));
+      return;
+    }
+    if (state.pendingSections > 0) return; // a section page may still deliver the news
+    if (mode === "http" && data.attempt === "primary" && !state.triedHome && pageUrl !== homepage(state.source)) {
       state.triedHome = true;
       state.completed = false;
       await add([listingRequest(state, homepage(state.source), "home")]);
       return;
     }
-    if (links.length === 0) {
-      if (mode === "http") state.needsBrowserListing = true;
-      state.error = mode === "http" ? "no article links in HTML" : "no article links found even after JavaScript rendering";
-      return;
-    }
-    state.error = null;
-    const picked = await pickArticles(state, links);
-    await add(picked.map((u) => articleRequest(state, u)));
+    if (state.queuedArticles > 0 || state.inserted > 0) return; // another listing of this source found the news
+    if (mode === "http") state.needsBrowserListing = true;
+    state.error = mode === "http" ? "no article links in HTML" : "no article links found even after JavaScript rendering";
   }
 
   async function handleWpApi(state: SourceState, data: UserData, body: string, add: Adder) {
-    let posts: { link?: string; title?: { rendered?: string }; date_gmt?: string; content?: { rendered?: string } }[] = [];
+    let posts: { id?: number; link?: string; title?: { rendered?: string }; date?: string; date_gmt?: string; content?: { rendered?: string } }[] = [];
     try {
       const parsed = JSON.parse(body);
       if (Array.isArray(parsed)) posts = parsed;
     } catch {
-      /* REST API disabled or not JSON: fall back to harvested links */
+      /* REST API disabled or not JSON: fall back to the feed or harvested links */
     }
     if (posts.length === 0) {
+      if (data.feedUrl) {
+        await add([{ url: data.feedUrl, userData: { label: "FEED", sourceId: state.sourceId, fallbackLinks: data.fallbackLinks } satisfies UserData }]);
+        return;
+      }
       const picked = await pickArticles(state, data.fallbackLinks ?? []);
       if (picked.length === 0 && !(data.fallbackLinks ?? []).length) state.needsBrowserListing = true;
       await add(picked.map((u) => articleRequest(state, u)));
       return;
     }
-    const urls = posts.map((p) => p.link).filter((u): u is string => Boolean(u));
+    // Some installs omit `link` from the REST response (bnd.ub.gov.mn); "?p=<id>" always resolves.
+    const origin = new URL(state.source.urlPattern).origin;
+    const linkOf = (p: (typeof posts)[number]) => p.link || (p.id ? `${origin}/?p=${p.id}` : undefined);
+    const urls = posts.map(linkOf).filter((u): u is string => Boolean(u));
     const fresh = await sink.filterNewUrls(urls);
     state.skippedDuplicates += urls.length - fresh.size;
     for (const post of posts) {
-      if (!post.link || !fresh.has(post.link) || state.queuedArticles >= opts.perSourceLimit) continue;
+      const link = linkOf(post);
+      if (!link || !fresh.has(link) || state.queuedArticles >= opts.perSourceLimit) continue;
       const text = htmlFragmentToText(post.content?.rendered ?? "");
       if (text.length < MIN_ARTICLE_CHARS) continue;
       state.queuedArticles += 1;
       state.found += 1;
-      const date = post.date_gmt ? new Date(`${post.date_gmt}Z`) : null;
+      // Some installs strip date_gmt from the response (bnd.ub.gov.mn): `date` is site-local time.
+      const date = post.date_gmt ? new Date(`${post.date_gmt}Z`) : parseDateValue(post.date);
       await saveItem(state, {
-        url: post.link,
+        url: link,
         title: cleanTitle(htmlFragmentToText(post.title?.rendered ?? "")) || text.slice(0, 100),
         text,
         publishedAt: date && !Number.isNaN(date.getTime()) ? date : null,
@@ -354,6 +402,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         for (const s of forBrowser) {
           if (s.needsBrowserListing) {
             s.completed = false;
+            s.sectionsTried = false;
+            s.pendingSections = 0;
             reqs.push(listingRequest(s, s.source.urlPattern, "primary", "browser"));
           }
           const retry = s.needsBrowserArticles.splice(0, Math.max(0, opts.perSourceLimit - s.queuedArticles));
@@ -376,15 +426,16 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
     inserted,
     skippedDuplicates,
     completed,
-    // A source that produced or already had articles is healthy even if one request failed.
-    error: inserted > 0 || skippedDuplicates > 0 ? null : error,
+    // A source that produced or already had articles is healthy even if one request failed. One
+    // that was reached but stored nothing and knew nothing is not: back it off and say why.
+    error: inserted > 0 || skippedDuplicates > 0 ? null : (error ?? (completed && found === 0 ? "listing reached but no articles were stored" : null)),
   }));
 }
 
 type CrawlRequest = { url: string; uniqueKey?: string; userData: UserData };
 type Adder = (reqs: CrawlRequest[]) => Promise<void>;
 
-function listingRequest(state: { sourceId: number }, url: string, attempt: "primary" | "home", mode: Mode = "http"): CrawlRequest {
+function listingRequest(state: { sourceId: number }, url: string, attempt: NonNullable<UserData["attempt"]>, mode: Mode = "http"): CrawlRequest {
   return { url, uniqueKey: `${mode}:${attempt}:${url}`, userData: { label: "LISTING", sourceId: state.sourceId, attempt } };
 }
 

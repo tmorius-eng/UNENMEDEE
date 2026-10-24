@@ -5,7 +5,7 @@ import { articles, sources } from "@/db/schema";
 import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
-import { looksOld } from "./dates";
+import { isDayLevel, MAX_AGE_DAYS, publishDecision } from "./dates";
 import { firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "./titles";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
@@ -15,7 +15,17 @@ export const MAX_STORED_CHARS = 15_000;
 /** Sources whose items legitimately share titles (a dataset name per release). */
 const REPEATING_TITLES = new Set(["opendata.gov.mn"]);
 
-export function createDbSink(db: DB): ArticleSink {
+export interface SinkOptions {
+  /** Dated items older than this many days are stored unpublished (a backfill passes its window). */
+  maxAgeDays?: number;
+}
+
+/** Day-level dates this old and shared by this many rows of one source are a stray stamp, not a date. */
+const SHARED_DATE_ROWS = 10;
+const SHARED_DATE_MIN_DAYS = 30;
+
+export function createDbSink(db: DB, options: SinkOptions = {}): ArticleSink {
+  const maxAgeDays = Math.max(options.maxAgeDays ?? MAX_AGE_DAYS, MAX_AGE_DAYS);
   return {
     async filterNewUrls(urls) {
       if (urls.length === 0) return new Set();
@@ -48,7 +58,17 @@ export function createDbSink(db: DB): ArticleSink {
       const notNews = siteTitle && looksLikeNavigation(item.text);
       if (siteTitle && !notNews) title = firstSentenceTitle(item.text);
       title = unshoutTitle(title);
-      const meta = { ...item.meta, ...(item.publishedAt ? {} : { date_unknown: true }) };
+      let publishedAt = item.publishedAt;
+      // A day-level date from weeks ago that this source already gave 10+ articles is a stamp in
+      // the page chrome (judcouncil.mn dated 39 stories "2019-10-22"): keep the story, drop the date.
+      if (publishedAt && isDayLevel(publishedAt) && publishedAt.getTime() < Date.now() - SHARED_DATE_MIN_DAYS * 86_400_000) {
+        const same = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(articles)
+          .where(and(eq(articles.sourceId, source.id), eq(articles.publishedAt, publishedAt)));
+        if ((same[0]?.n ?? 0) >= SHARED_DATE_ROWS) publishedAt = null;
+      }
+      const meta = { ...item.meta, ...(publishedAt ? {} : { date_unknown: true }) };
       const inserted = await db
         .insert(articles)
         .values({
@@ -61,8 +81,8 @@ export function createDbSink(db: DB): ArticleSink {
           scrapeMeta: Object.keys(meta).length ? meta : null,
           // Undated: the time we found it (feeds sort by date), flagged as unknown above. An undated
           // post whose text only mentions years before last year is an old page, not news.
-          publishedAt: item.publishedAt ?? new Date(),
-          isPublished: notNews ? false : item.publishedAt ? undefined : !looksOld(item.text),
+          publishedAt: publishedAt ?? new Date(),
+          isPublished: notNews ? false : (publishDecision(publishedAt, item.text, new Date(), maxAgeDays) ?? undefined),
           // tldr_summary stays null so `npm run ai:process` picks it up.
         })
         .onConflictDoNothing()

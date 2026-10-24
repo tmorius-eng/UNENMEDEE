@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
 
-/** Collapse whitespace, normalize Unicode and strip zero-width characters. */
+/**
+ * Collapse whitespace, normalize Unicode and strip invisible characters: zero-width marks, the soft
+ * hyphen and the "blank" letters (Hangul filler U+3164 / U+115F / U+1160, Braille blank U+2800,
+ * halfwidth filler U+FFA0) that editors paste for an empty-looking first line.
+ */
 export function normalizeText(text: string): string {
   return text
     .normalize("NFC")
-    .replace(/[​-‍﻿­]/g, "")
-    .replace(/ /g, " ")
+    .replace(/[\u200B-\u200D\uFEFF\u00AD\u3164\u115F\u1160\u2800\uFFA0]/g, "")
+    .replace(/\u00A0/g, " ")
     .replace(/[ \t\f\v]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
