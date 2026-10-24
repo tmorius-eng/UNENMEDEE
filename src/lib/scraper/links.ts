@@ -8,14 +8,16 @@ export interface LinkCandidate {
 
 const FILE_EXT = /\.(pdf|docx?|xlsx?|pptx?|zip|rar|7z|jpe?g|png|gif|webp|svg|mp4|mp3|avi|mov|apk|exe)(\?|$)/i;
 const NON_ARTICLE =
-  /\/(c|tag|tags|category|categories|author|page|search|login|signin|register|feed|rss|wp-admin|wp-content|wp-json|wp-login|cart|contact|about|sitemap|lang|language|static|download|files?|uploads?|gallery|video|photos?)(\/|$|\?)|[?&](page|lang|s|replytocom)=/i;
+  /\/(c|tag|tags|category|categories|author|page|search|login|signin|register|feed|rss|wp-admin|wp-content|wp-json|wp-login|cart|contact|about|sitemap|lang|language|static|download|files?|uploads?|gallery|video|photos?)(\/|$|\?)|[?&](lang|s|replytocom)=/i;
+/** "?p=123", "?id=45", "mn.php?page=40&news=1633": the article id lives in the query string. */
+const QUERY_ID = /[?&](id|p|news|post|item|news_id|post_id|nid|aid)=\d+/i;
 
 /** Path patterns used by Mongolian government CMSs for single articles. */
 const ARTICLE_PATTERNS: [RegExp, number][] = [
   [/\/20\d{2}\/\d{1,2}\/\d{1,2}\/[^/]+/, 5], // WordPress dated permalinks
   [/\/(news|medee|мэдээ|post|posts|article|articles|content\/detail|detail|view|read|n|p|c\/news)\/[^/?#]*\d[^/?#]*/i, 4],
   [/\/(news|medee|post|posts|article|articles|blog|announcement|zarlal|tender|shiidver|tushaal|niitlel)\/[^/?#]{8,}/i, 3],
-  [/[?&](id|news_id|post_id|nid|aid)=\d+/i, 3],
+  [QUERY_ID, 3],
   [/\/\d{3,}(\.(html?|php|aspx?))?(\/|$|\?)/, 3],
   [/\/[^/]*-[^/]*-[^/]*-[^/]+\/?$/, 2], // long hyphenated slugs
 ];
@@ -38,17 +40,23 @@ const CHROME_SELECTOR = [
   'li[class*="menu-item" i]',
 ].join(", ");
 
-/** Same organization if hosts match ignoring "www." (and allowing subdomains of the source). */
+/**
+ * Same organization if hosts match ignoring "www." (and allowing subdomains of the source). A
+ * parent domain is not the same site: gov.mn links on a ministry page are the portal's news.
+ */
 export function sameSite(host: string, sourceDomain: string): boolean {
   const h = host.replace(/^www\./, "").toLowerCase();
   const d = sourceDomain.replace(/^www\./, "").toLowerCase();
-  return h === d || h.endsWith(`.${d}`) || d.endsWith(`.${h}`);
+  return h === d || h.endsWith(`.${d}`);
 }
 
 export function scoreLink(url: URL, text: string): number {
   const path = decodeURIComponent(url.pathname + url.search);
   if (FILE_EXT.test(path) || NON_ARTICLE.test(path)) return 0;
-  if (url.pathname === "/" || url.pathname.length < 4) return 0;
+  const queryId = QUERY_ID.test(url.search);
+  // "?page=3" is pagination, unless the id is in the query too ("mn.php?page=40&news=1633").
+  if (/[?&]page=/i.test(url.search) && !queryId) return 0;
+  if (!queryId && (url.pathname === "/" || url.pathname.length < 4)) return 0;
   let score = 0;
   for (const [re, w] of ARTICLE_PATTERNS) if (re.test(path)) score = Math.max(score, w);
   const len = text.trim().length;
@@ -69,7 +77,9 @@ export function harvestArticleLinks(html: string, pageUrl: string, sourceDomain:
   const base = new URL(pageUrl);
   const best = new Map<string, LinkCandidate>();
 
-  $("a[href]").each((_, el) => {
+  // Any element with an href: some Next.js sites render <Link passHref> around a <div>.
+  $("[href]").each((_, el) => {
+    if (/^(link|base|script)$/i.test(el.tagName)) return;
     const href = $(el).attr("href")?.trim();
     if (!href || href.startsWith("#") || /^(mailto|tel|javascript):/i.test(href)) return;
     let url: URL;
@@ -128,4 +138,62 @@ export function parseFeed(xml: string): { url: string; title: string; publishedA
     if (url) items.push({ url, title, publishedAt: date && !Number.isNaN(date.getTime()) ? date : null });
   });
   return items;
+}
+
+const SECTION_TEXT = /мэдээ|мэдээлэл|шинэ мэдээ|news|сонин|үйл явдал/i;
+const SECTION_PATH = /^\/(home|news|medee|mn|j|n|d\/news|newses|c\/(medee|news)[^/]*|t\/\d+)\/?$/i;
+
+/**
+ * Where a splash page points for its news: links whose text or path says "news" (govi-altai's
+ * "/" only links to "/home"; dornod's to "/j"; mrt's to "/t/211"). Same site only, at most `max`.
+ */
+export function harvestSectionLinks(html: string, pageUrl: string, sourceDomain: string, max = 3): string[] {
+  const $ = cheerio.load(html);
+  const base = new URL(pageUrl);
+  const found = new Map<string, number>();
+  $("[href]").each((_, el) => {
+    if (/^(link|base|script)$/i.test(el.tagName)) return;
+    const href = $(el).attr("href")?.trim();
+    if (!href || href.startsWith("#") || /^(mailto|tel|javascript):/i.test(href)) return;
+    let url: URL;
+    try {
+      url = new URL(href, base);
+    } catch {
+      return;
+    }
+    if (!/^https?:$/.test(url.protocol) || !sameSite(url.hostname, sourceDomain) || FILE_EXT.test(url.pathname)) return;
+    url.hash = "";
+    if (url.toString() === base.toString()) return;
+    const text = $(el).text().replace(/\s+/g, " ").trim();
+    const path = decodeURIComponent(url.pathname);
+    const score = (SECTION_PATH.test(path) ? 2 : 0) + (SECTION_TEXT.test(text) && text.length <= 40 ? 2 : 0) + (/^\/(home|news)\/?$/i.test(path) ? 1 : 0);
+    if (score >= 2) found.set(url.toString(), Math.max(score, found.get(url.toString()) ?? 0));
+  });
+  return [...found.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([u]) => u);
+}
+
+/**
+ * The WordPress REST base the page advertises (`<link rel="https://api.w.org/">`), which is
+ * `/index.php?rest_route=/` on sites without pretty permalinks (mod.gov.mn, pcsp.gov.mn), where
+ * `/wp-json/` answers 404.
+ */
+export function wordPressApiBase(html: string, pageUrl: string): string {
+  const m = html.match(/<link[^>]+rel=["']https:\/\/api\.w\.org\/["'][^>]*href=["']([^"']+)["']/i) ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]*rel=["']https:\/\/api\.w\.org\/["']/i);
+  const origin = new URL(pageUrl).origin;
+  if (!m) return `${origin}/wp-json/`;
+  try {
+    const u = new URL(m[1].replace(/&amp;/g, "&"), pageUrl);
+    return u.toString();
+  } catch {
+    return `${origin}/wp-json/`;
+  }
+}
+
+/** "…/wp-json/" + "wp/v2/posts?…" or "…/index.php?rest_route=/" + "wp/v2/posts&…". */
+export function wordPressPostsUrl(apiBase: string, query: string): string {
+  if (/[?&]rest_route=/.test(apiBase)) return `${apiBase.replace(/\/?$/, "/")}wp/v2/posts&${query}`;
+  return `${apiBase.replace(/\/?$/, "/")}wp/v2/posts?${query}`;
 }

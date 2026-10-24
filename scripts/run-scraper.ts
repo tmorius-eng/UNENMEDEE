@@ -102,7 +102,7 @@ async function main() {
     const db = getDb();
     const due = await loadDueSources(db, domains);
     sourceRefs = due.map((s) => ({ id: s.id, domain: s.domain, name: s.name, urlPattern: s.urlPattern }));
-    sink = createDbSink(db);
+    sink = createDbSink(db, { maxAgeDays: backfillDays || undefined });
     console.log(
       `🔎 Scraping ${sourceRefs.length} due source(s); limit ${perSourceLimit}/source; budget ${budgetMs / 60000} min${since ? `; backfill since ${since.toISOString().slice(0, 10)}` : ""}.`,
     );

@@ -28,6 +28,7 @@
     "sources:recheck": "tsx scripts/recheck-sources.ts",
     "db:prune": "tsx scripts/prune-content.ts",
     "db:fix-titles": "tsx scripts/fix-generic-titles.ts",
+    "db:repair-dates": "tsx scripts/repair-dates.ts",
     "health": "tsx scripts/health-check.ts"
   },
   "dependencies": {

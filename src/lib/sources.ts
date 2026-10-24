@@ -55,7 +55,7 @@ export const SOURCE_SEEDS: SourceSeed[] = [
   // ---------------------------------------------------------------- judiciary
   s("agency", "supremecourt.mn", "Улсын Дээд шүүх", "https://supremecourt.mn/mn/"),
   s("agency", "judcouncil.mn", "Шүүхийн ерөнхий зөвлөл"),
-  s("agency", "constcourt.mn", "Үндсэн хуулийн цэц"),
+  s("agency", "conscourt.gov.mn", "Үндсэн хуулийн цэц"), // constcourt.mn no longer resolves
   s("agency", "cd.gov.mn", "Шүүхийн шийдвэр гүйцэтгэх ерөнхий газар"),
   s("agency", "nfa.gov.mn", "Шүүх шинжилгээний ерөнхий газар"),
 

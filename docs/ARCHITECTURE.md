@@ -85,8 +85,13 @@ Sites behind a Cloudflare browser challenge are marked inactive; we never try to
    opendata.gov.mn, parliament.mn, legalinfo.mn (`POST /mn/ajaxLlist/`), police.gov.mn, and zasag.mn via
    the `mongolia.gov.mn` RSS feed. These are the same JSON endpoints the sites' own pages call.
 2. **HTTP pass** ([`crawl.ts`](../src/lib/scraper/crawl.ts), Crawlee + cheerio): WordPress REST API
-   (`/wp-json/wp/v2/posts`), then RSS/Atom, then scored link harvesting from news listing pages, with
-   the homepage as a last resort.
+   (the base the page advertises in `<link rel="https://api.w.org/">`, so plain-permalink installs
+   with `?rest_route=` work too; a post without `link` is reached as `/?p=<id>`), then RSS/Atom, then
+   scored link harvesting from news listing pages ([`links.ts`](../src/lib/scraper/links.ts): article
+   ids in the query string such as `/?p=123` or `mn.php?page=40&news=1633` count, pagination does
+   not), with the homepage as a last resort. A splash page with fewer than three article links is
+   followed one hop into its news sections (`/home`, `/j`, `/c/medee…`, anchors reading "Мэдээ").
+   404/410 pages are never stored; a listing that was reached but yielded nothing is a failure.
 3. **Browser pass**: headless Chromium (Playwright) only for sources whose news list needs JavaScript.
 
 **Extraction.** Mozilla Readability on jsdom, with a cheerio fallback
@@ -99,9 +104,14 @@ word, the site's name or abbreviation, or a title the same site already used thi
 first sentence of the text ([`titles.ts`](../src/lib/scraper/titles.ts)); headlines a site publishes in
 capitals are stored in sentence case, keeping abbreviations and initials. The date comes from meta
 tags, JSON-LD, `<time>`, the URL, or a date printed between the headline and the body (dates in
-"related news" lists below the body are ignored). A page with no date is flagged `date_unknown` and
-shown as "Огноо тодорхойгүй"; if its text only mentions years before last year it is an archive page
-and is not published.
+"related news" lists below the body are ignored). Machine dates without a time zone are Ulaanbaatar
+time; a `<time>` more than a year older than the newest one on the page is a stray stamp in the page
+chrome and is skipped; a date printed in the text is only trusted when it is less than a year old
+(older ones are quoted resolution dates). A page with no date is flagged `date_unknown` and shown as
+"Огноо тодорхойгүй"; if its text only mentions years before last year it is an archive page and is
+not published. Dated items older than 60 days (`MAX_AGE_DAYS`) are stored unpublished too, so a
+crawler that reaches an archive never surfaces 2009 resolutions as today's news (a `--days` backfill
+widens the window to what it asked for).
 
 **Scheduling.** Sources rotate least-recently-scraped first inside a 30-minute budget. A failing source
 backs off 2^n hours. From GitHub's US runners `.gov.mn` hosts are ~250–300 ms away, so
