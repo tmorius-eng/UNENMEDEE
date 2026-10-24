@@ -61,7 +61,8 @@ export interface Declaration {
   otherAssets: number | null;
   loans: number | null;
   gifts: number | null;
-  totalAssets: number;
+  /** Null when the filing lists no asset line at all (an empty filing is not "0 ₮"). */
+  totalAssets: number | null;
   details: Record<string, string>;
 }
 
@@ -79,6 +80,7 @@ export function parseDeclarations(json: unknown): Declaration[] {
     const savings = sum(r.savings_mon_total, r.savings_other_total, r.savings_cash);
     const other = sum(r.animal_total_value, r.total_treasure_value, r.stock_total_value, r.license_total_value, r.virtual_value);
     const assets = sum(r.total_construction_value, r.transport_total_value, r.land_total_value, savings, r.receivable_total, other);
+    const filed = [r.total_construction_value, r.transport_total_value, r.land_total_value, r.savings_mon_total, r.savings_other_total, r.savings_cash, r.receivable_total, r.animal_total_value, r.total_treasure_value, r.stock_total_value, r.license_total_value, r.virtual_value].some((v) => v !== null && v !== undefined);
     const details = Object.fromEntries(
       Object.entries({ transports: r.transports, lands: r.lands, lenders: r.lenders, stocks: r.stock_owner_name, virtuals: r.virtuals, gifts: r.gift_type, organization: r.org_names }).filter(
         (e): e is [string, string] => e[1] !== null,
@@ -98,7 +100,7 @@ export function parseDeclarations(json: unknown): Declaration[] {
       otherAssets: toMnt(other),
       loans: toMnt(r.loan_total_balance ?? r.loan_total_value),
       gifts: toMnt(r.gift_total_value),
-      totalAssets: toMnt(assets) ?? 0,
+      totalAssets: filed ? toMnt(assets) : null,
       details,
     });
   }

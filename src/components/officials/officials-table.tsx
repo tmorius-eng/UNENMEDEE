@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { formatMntShort } from "@/lib/format";
+import { formatPercent } from "@/lib/officials/flags";
 import type { PoliticianSummary } from "@/lib/queries";
 import { cx } from "@/utils/cx";
 
@@ -16,6 +17,7 @@ const SORTS: { key: Sort; label: string }[] = [
   { key: "name", label: "Нэр" },
 ];
 
+/** Change against the newest comparable earlier year; null when the years cannot be compared. */
 function change(p: PoliticianSummary): number | null {
   return p.latestAssets !== null && p.previousAssets ? p.latestAssets / p.previousAssets - 1 : null;
 }
@@ -73,10 +75,12 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
                     <span className="text-sm text-secondary">
                       {p.latestYear}: хөрөнгө <b className="tabular-nums">{formatMntShort(p.latestAssets ?? 0)}</b>, орлого <span className="tabular-nums">{formatMntShort(p.latestIncome ?? 0)}</span>
                       {c !== null && Math.abs(c) >= 0.01 && (
-                        <span className={cx("ml-1 text-xs font-semibold tabular-nums", c > 0 ? "text-utility-red-700" : "text-utility-green-700")}>
-                          {c > 0 ? "▲" : "▼"} {Math.round(Math.abs(c) * 100)}%
+                        // Neutral colour on purpose: a change is a number, not a verdict.
+                        <span className="ml-1 text-xs font-semibold text-tertiary tabular-nums" title={`${p.previousYear}→${p.latestYear}`}>
+                          {c > 0 ? "▲" : "▼"} {formatPercent(c)} <span className="font-normal">({p.previousYear}→{p.latestYear})</span>
                         </span>
                       )}
+                      {c === null && p.comparisonLimited && <span className="ml-1 text-xs text-quaternary">харьцуулах боломжгүй</span>}
                     </span>
                   ) : (
                     <span className="text-sm text-quaternary">Мэдүүлэг олдоогүй</span>

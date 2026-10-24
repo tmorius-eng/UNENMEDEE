@@ -12,6 +12,7 @@ import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ACCOUNT_PATTERN, DONATION_KEY, normalizeAccount } from "@/lib/donation";
+import { HIDDEN_YEARS_KEY, hiddenYearsFromText } from "@/lib/officials/hidden";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { fetchPublicUrl } from "@/lib/scraper/public-url";
 import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
@@ -141,6 +142,22 @@ export async function saveDonation(_prev: ActionResult | null, formData: FormDat
     .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   updateTag("settings");
   return { ok: true, message: `Хадгаллаа: ${parsed.data.bank} ${parsed.data.account}` };
+}
+
+/** Declaration years taken out of the officials comparison ("46:2025, 12:2023"); the profile says so. */
+export async function saveHiddenYears(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const text = String(formData.get("pairs") ?? "").slice(0, 2000);
+  const hidden = hiddenYearsFromText(text);
+  if (text.trim() && Object.keys(hidden).length === 0) return { ok: false, message: "Формат: гишүүний id, хоёр цэг, он (46:2025), таслалаар тусгаарлана." };
+  const value = JSON.stringify(hidden);
+  await getDb()
+    .insert(appSettings)
+    .values({ key: HIDDEN_YEARS_KEY, value })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  updateTag("officials");
+  const n = Object.values(hidden).reduce((a, y) => a + y.length, 0);
+  return { ok: true, message: n ? `Хадгаллаа: ${n} жил харьцуулалтаас хасагдсан.` : "Хадгаллаа: хассан жил алга." };
 }
 
 /* ------------------------------------------------------------------ anti-brainwash filter */

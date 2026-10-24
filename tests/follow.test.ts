@@ -42,4 +42,14 @@ describe("Миний гишүүн", () => {
       ],
     );
   });
+
+  it("never attributes a shared short name to either member", () => {
+    const articles = [{ slug: "a", title: "Д.Цогтбаатар асуулга тавьлаа", people: ["Д.Цогтбаатар"] }];
+    const pols = [
+      { id: 110, shortName: "Д.Цогтбаатар" },
+      { id: 111, shortName: "Д.Цогтбаатар" },
+      { id: 1, shortName: "Б.Бейсен" },
+    ];
+    assert.deepEqual(mentionAlerts(articles, pols, [{ endpoint: "e1", follows: [110] }, { endpoint: "e2", follows: [111, 1] }]), []);
+  });
 });
