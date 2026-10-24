@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { opendataItemToScraped, parseOpendataResponse } from "@/lib/scraper/adapters/opendata";
 import { parliamentArticleToScraped, parseParliamentPage } from "@/lib/scraper/adapters/parliament";
 import { classifyDomain, harvestGovernmentHosts, isGovernmentHost, siteName } from "@/lib/scraper/discover";
-import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, scoreLink, wordPressApiBase, wordPressPostsUrl } from "@/lib/scraper/links";
+import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, scoreLink, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "@/lib/scraper/links";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -81,6 +81,13 @@ describe("splash pages and WordPress REST bases", () => {
     const base = wordPressApiBase(plain, "https://bnd.ub.gov.mn/");
     assert.equal(wordPressPostsUrl(base, "per_page=20&_fields=id,link"), "https://bnd.ub.gov.mn/index.php?rest_route=/wp/v2/posts&per_page=20&_fields=id,link");
     assert.equal(wordPressPostsUrl(wordPressApiBase("<html></html>", "https://x.gov.mn/news/"), "per_page=5"), "https://x.gov.mn/wp-json/wp/v2/posts?per_page=5");
+  });
+
+  it("resolves a REST post's URL: absolute link, relative link (conscourt.gov.mn) or ?p=<id> (bnd.ub.gov.mn)", () => {
+    assert.equal(wordPressPostUrl({ id: 1, link: "https://mod.gov.mn/?p=10849" }, "https://mod.gov.mn"), "https://mod.gov.mn/?p=10849");
+    assert.equal(wordPressPostUrl({ id: 11597, link: "index.php/?p=11597" }, "https://conscourt.gov.mn"), "https://conscourt.gov.mn/index.php/?p=11597");
+    assert.equal(wordPressPostUrl({ id: 10099 }, "https://bnd.ub.gov.mn"), "https://bnd.ub.gov.mn/?p=10099");
+    assert.equal(wordPressPostUrl({}, "https://x.gov.mn"), undefined);
   });
 });
 
