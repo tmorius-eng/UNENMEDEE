@@ -39,7 +39,7 @@ export function createDbSink(db: DB): ArticleSink {
         const seen = await db
           .select({ id: articles.id })
           .from(articles)
-          .where(and(eq(articles.sourceId, source.id), eq(articles.title, title), gte(articles.createdAt, new Date(Date.now() - 30 * 86_400_000))))
+          .where(and(eq(articles.sourceId, source.id), inArray(articles.title, [title, unshoutTitle(title)]), gte(articles.createdAt, new Date(Date.now() - 30 * 86_400_000))))
           .limit(1);
         siteTitle = seen.length > 0;
       }

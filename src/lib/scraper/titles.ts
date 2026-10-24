@@ -107,20 +107,31 @@ export function chooseTitle(candidates: (string | null | undefined)[], text: str
   return firstSentenceTitle(text);
 }
 
-/** Abbreviations that stay in capitals when a shouting headline is lowered (lowercase suffixes follow a hyphen: "УИХ-ын"). */
+/** Abbreviations that stay in capitals when a shouting headline is lowered. */
 const ACRONYMS = new Set(
-  "АНУ ОХУ БНХАУ БНСУ ХБНГУ ИБУИНВУ НҮБ ЕХ ОУВС ДБ АХБ ДЭМБ ЮНЕСКО ЮНИСЕФ НАТО УИХ ЗГ ЗГХЭГ ТӨК ТӨХК ХХК ХК ТББ ХХОАТ НӨАТ НДШ ААНОАТ ДНБ ГВУН ЕБС ИТХ АТГ ЦЕГ ТЕГ ГЕГ ШШГЕГ ҮАГ ҮСХ ХАСХОМ ХҮН МАН АН ИЗНН МҮЭ МУ УБ ХУД СХД БЗД СБД ЧД БГД НХД БНД СХД ЭМЯ БШУЯ ГХЯ СЯ ЗТХЯ ХЗДХЯ БОАЖЯ ЭБЯ УУХҮЯ ХНХЯ ЭЗХЯ ХХААХҮЯ БХЯ ЗЗЯ ЦДС ДЦС АЦС МСҮТ ЖДҮ ТУЗ IT AI USD COVID".split(" "),
+  "АНУ ОХУ БНХАУ БНСУ ХБНГУ ИБУИНВУ ИБУИНХУ НҮБ НҮБХХ ЕХ ОУВС ДБ АХБ ДЭМБ ГАВИ ШХАБ ЮНЕСКО ЮНИСЕФ НАТО УИХ ЗГ ЗГХЭГ ТӨК ТӨХК ХХК ХК ТББ ХХОАТ НӨАТ НДШ ААНОАТ ДНБ ГВУН ЕБС ИТХ АТГ ЦЕГ ТЕГ ГЕГ ШШГЕГ ҮАГ ҮСХ ХАСХОМ ХҮН МАН АН ИЗНН МҮЭ МУ УБ ХУД СХД БЗД СБД ЧД БГД НХД БНД ЭМЯ БШУЯ ГХЯ СЯ ЗТХЯ ХЗДХЯ БОАЖЯ ЭБЯ УУХҮЯ ХНХЯ ЭЗХЯ ХХААХҮЯ БХЯ ЗЗЯ АҮЭБЯ АҮЭБ ТНБД ЗДТГ АМГТГ ЭМДЕГ ЭМДҮЗ ХӨСҮТ УБЦТС ШТС ҮОМШӨ ЦДС ДЦС АЦС МСҮТ ЖДҮ ТУЗ".split(" "),
 );
 
+/** A Mongolian case ending after a hyphen marks the word before it as an abbreviation ("АҮЭБЯ-НЫ", "ШТС-УУДЫН"). */
+const CASE_SUFFIX = /^-(?:НЫ|ЫН|ИЙН|Н|НД|Д|Т|ЫГ|ИЙГ|Г|ТАЙ|ТЭЙ|ТОЙ|ААС|ЭЭС|ООС|ӨӨС|ЫНХ|ИЙНХ|УУД|ҮҮД|УУДЫН|ҮҮДИЙН|ЫХ|ИЙХ)(?!\p{L})/u;
+
 /** Proper-noun stems that keep a capital first letter ("МОНГОЛЫН" → "Монголын"). */
-const PROPER = ["МОНГОЛ", "УЛААНБААТАР", "ДАРХАН", "ЭРДЭНЭТ", "ХЯТАД", "ОРОС", "ЯПОН", "СОЛОНГОС", "АМЕРИК", "ЕВРОП", "ГЕРМАН", "ФРАНЦ", "ЭНЭТХЭГ", "КАЗАХСТАН", "КАНАД", "АВСТРАЛИ", "ТУРК", "АНГЛИ", "БРИТАНИ", "ТАЙВАН", "ОЮУ ТОЛГОЙ", "ТАВАН ТОЛГОЙ"];
+const PROPER = [
+  "МОНГОЛ", "УЛААНБААТАР", "ЧИНГИС", "ЭРДЭНЭТ", "ДАРХАН", "АРХАНГАЙ", "БАЯНХОНГОР", "БУЛГАН", "ДОРНОГОВЬ", "ДОРНОД", "ДУНДГОВЬ",
+  "ЗАВХАН", "ОРХОН", "ӨВӨРХАНГАЙ", "ӨМНӨГОВЬ", "СҮХБААТАР", "СЭЛЭНГЭ", "УВС", "ХОВД", "ХӨВСГӨЛ", "ХЭНТИЙ", "АЛТАЙ", "ХЯТАД",
+  "ОРОС", "ЯПОН", "СОЛОНГОС", "АМЕРИК", "ЕВРОП", "ЕВРАЗИ", "АЗИ", "ГЕРМАН", "ФРАНЦ", "ЭНЭТХЭГ", "КАЗАХСТАН", "КАНАД",
+  "АВСТРАЛИ", "ТУРК", "АНГЛИ", "БРИТАНИ", "ТАЙВАН", "БЕЛАРУСЬ", "ФИЛИППИН", "ИНДОНЕЗ", "МЕКСИК", "БУРИАД", "МОСКВА",
+];
+const PROPER_PAIRS = ["ОЮУ ТОЛГОЙ", "ТАВАН ТОЛГОЙ"];
 
 const UPPER = /\p{Lu}/gu;
 const LETTER = /\p{L}/gu;
+const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
 /**
  * Headlines some sites publish in capitals ("“1072 ХУВЬЦАА” НЭЭЛТТЭЙ ӨДӨРЛӨГ…") become sentence
- * case; abbreviations, initials ("Х.БАТТУЛГА" → "Х.Баттулга") and common proper nouns keep their
+ * case. Abbreviations (a list, plus any short word followed by a hyphenated case ending), Latin
+ * words, numbers, initials ("Б.ДАШПҮРЭВ" → "Б.Дашпүрэв") and common proper nouns keep their
  * capitals. Mixed-case titles are returned unchanged.
  */
 export function unshoutTitle(title: string): string {
@@ -129,18 +140,15 @@ export function unshoutTitle(title: string): string {
   const words = title.split(/\s+/).filter((w) => (w.match(LETTER)?.length ?? 0) >= 2).length;
   if (letters < 12 || words < 3 || upper / letters < 0.7) return title;
 
-  const lowered = title.replace(/[\p{L}\d]+(?:[.][\p{L}]+)?/gu, (w) => {
+  let out = title.replace(/[\p{L}\d]+/gu, (w: string, at: number, s: string) => {
     if (ACRONYMS.has(w) || /\d/.test(w) || /^[A-Z]+$/.test(w)) return w;
-    const initial = /^(\p{Lu})\.(\p{L})(\p{L}*)$/u.exec(w); // "Х.БАТТУЛГА"
-    if (initial) return `${initial[1]}.${initial[2]}${initial[3].toLowerCase()}`;
+    if (w.length === 1 && s[at + 1] === ".") return w; // an initial: "Б."
     const lower = w.toLowerCase();
-    return PROPER.some((p) => !p.includes(" ") && w.startsWith(p)) ? lower[0].toUpperCase() + lower.slice(1) : lower;
+    if (s[at - 1] === "." && /\p{Lu}/u.test(s[at - 2] ?? "")) return cap(lower); // the name after "Б." ("С.К.Шойгу-тай")
+    if (w.length <= 6 && CASE_SUFFIX.test(s.slice(at + w.length))) return w;
+    return PROPER.some((p) => w.startsWith(p)) ? cap(lower) : lower;
   });
-  let out = lowered;
-  for (const p of PROPER.filter((x) => x.includes(" "))) {
-    const lowerP = p.toLowerCase();
-    out = out.replaceAll(lowerP, lowerP.replace(/(^|\s)(\p{L})/gu, (_, s: string, c: string) => s + c.toUpperCase()));
-  }
-  // Capital at the start of the title and of every sentence (skipping opening quotes).
+  for (const p of PROPER_PAIRS) out = out.replaceAll(p.toLowerCase(), p.toLowerCase().split(" ").map(cap).join(" "));
+  // Capital at the start of the title and of every sentence (skipping quotes and emoji).
   return out.replace(/(^|[.!?]\s+)([^\p{L}\d]*)(\p{Ll})/gu, (_, a: string, b: string, c: string) => a + b + c.toUpperCase());
 }
