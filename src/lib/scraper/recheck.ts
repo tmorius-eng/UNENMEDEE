@@ -48,6 +48,8 @@ const ATTACHMENT = /download|татах|татаж авах|\.(pdf|docx?|xlsx?|z
  */
 export function splitSentences(text: string): string[] {
   return normalizeText(text)
+    // A view counter glued after the date ("2026-10-19 33 Шүүх…") changes on every visit.
+    .replace(/(20\d{2}[-./]\d{1,2}[-./]\d{1,2})\s+\d{1,6}(?=\s)/g, "$1")
     .split(/\n+|(?<=[.!?])\s+/)
     .map((s) => s.replace(/\s+/g, " ").trim())
     .filter((s) => s.length >= 25 && !isDateLine(s) && !COUNTER.test(s) && !ATTACHMENT.test(s))
