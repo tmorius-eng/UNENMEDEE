@@ -150,7 +150,7 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 8b. Autopilot (runs for months with nobody touching it)
 - `keepalive.yml` (monthly): re-enables every scheduled workflow through the API; GitHub otherwise disables schedules after 60 days without repository activity. Add new scheduled workflows to its list.
-- `npm run db:prune` (daily in news-digest): bodies of articles older than `RETENTION_DAYS` (180) are cut to a 600-character excerpt (`content_pruned_at`); title, AI summary, facts, link and the original SHA-256 stay, and the article page says so. Keeps the free 500 MB database at roughly one retention window (~6 KB per article).
+- `npm run db:prune` (daily in news-digest): bodies of articles older than `RETENTION_DAYS` (180) are cut to a 600-character excerpt (`content_pruned_at`); title, AI summary, facts, link and the original SHA-256 stay, and the article page says so. Keeps the free 500 MB database at roughly one retention window (~6 KB per article). It also stores headlines still in capitals in sentence case (`unshoutTitle`; slugs stay).
 - AI fallback (`src/lib/ai/fallback.ts`, start of `ai:process`): articles still unsummarized after 24 h, or parked with `ai_error`, get their first sentences as the summary (`summary_fallback`, importance 30, page label "AI ажиллаагүй", no fact/spin panel), so news keeps appearing if every provider fails.
 - `watchdog.yml` (daily) runs `npm run health`: no new articles > 26 h, no AI summary > 36 h, no digest > 26 h, > 60 % failing sources or DB > 400 MB → opens/updates a GitHub issue labelled `watchdog` (GitHub emails the owner) and closes it when healthy again.
 
