@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { looksOld, newestYearMentioned } from "@/lib/scraper/dates";
 import { dateFromText, extractArticle } from "@/lib/scraper/extractor";
-import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation } from "@/lib/scraper/titles";
+import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
 
@@ -86,5 +86,19 @@ describe("extractor on real pages", () => {
     const sspa = extractArticle(page("sspa"), "https://sspa.gov.mn/mn/read?id=7");
     assert.match(sspa?.title ?? "", /^Төрийн тусгай хамгаалалтын тухай хуульд/);
     assert.equal(sspa?.publishedAt?.toISOString().slice(0, 10), "2020-05-05");
+  });
+});
+
+describe("shouting headlines", () => {
+  it("lowers capitals to sentence case", () => {
+    assert.equal(unshoutTitle("“1072 ХУВЬЦАА” НЭЭЛТТЭЙ ӨДӨРЛӨГ ЗОХИОН БАЙГУУЛАГДАЖ БАЙНА"), "“1072 хувьцаа” нээлттэй өдөрлөг зохион байгуулагдаж байна");
+  });
+  it("keeps abbreviations, initials and proper nouns", () => {
+    assert.equal(unshoutTitle("УИХ-ЫН ГИШҮҮН Х.БАТТУЛГА МОНГОЛЫН ТӨМӨР ЗАМЫН ТАЛААР МЭДЭГДЭЛ ХИЙЛЭЭ"), "УИХ-ын гишүүн Х.Баттулга Монголын төмөр замын талаар мэдэгдэл хийлээ");
+    assert.equal(unshoutTitle("ОЮУ ТОЛГОЙ ТӨСЛИЙН ТАЛААР НӨАТ-ЫН БУЦААЛТ 2026 ОНД"), "Оюу Толгой төслийн талаар НӨАТ-ын буцаалт 2026 онд");
+  });
+  it("leaves normal and short titles alone", () => {
+    assert.equal(unshoutTitle("АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт"), "АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт");
+    assert.equal(unshoutTitle("ХУРАЛ БОЛНО"), "ХУРАЛ БОЛНО");
   });
 });

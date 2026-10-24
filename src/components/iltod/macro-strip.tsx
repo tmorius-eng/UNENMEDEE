@@ -26,7 +26,7 @@ export async function MacroStrip({ compact = false }: { compact?: boolean }) {
 
   return (
     <section aria-label="Монголбанкны үзүүлэлт" className="flex flex-col gap-2">
-      <div className={cx("grid gap-3", compact ? "scrollbar-hide max-sm:scroll-fade-x -mx-4 auto-cols-[78%] grid-flow-col overflow-x-auto px-4 sm:mx-0 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-3 sm:px-0" : "sm:grid-cols-3")}>
+      <div className={cx("grid gap-3", compact ? "scrollbar-hide max-sm:scroll-fade-x -mx-4 auto-cols-[78%] grid-flow-col items-start overflow-x-auto px-4 sm:items-stretch sm:mx-0 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-3 sm:px-0" : "sm:grid-cols-3")}>
         {policyRate && (
           <Card accent="border-utility-green-600">
             <p className="text-sm font-semibold text-primary">Бодлогын хүү</p>
@@ -60,8 +60,9 @@ export async function MacroStrip({ compact = false }: { compact?: boolean }) {
               reserves && { label: "ГВУН (сая $)", value: num(reserves.value), when: `${reserves.month} сар` },
             ]
               .filter((r): r is { label: string; value: string; when: string } => Boolean(r))
-              .map((r) => (
-                <div key={r.label} className="flex items-center justify-between gap-3 py-1.5">
+              .map((r, i) => (
+                // Phones (compact strip) show only the dollar rate, so the three cards stay short.
+                <div key={r.label} className={cx("flex items-center justify-between gap-3 py-1.5", compact && i > 0 && "max-sm:hidden")}>
                   <dt className="min-w-0">
                     <span className="block whitespace-nowrap text-secondary">{r.label}</span>
                     <span className="block text-xs text-quaternary">{r.when}</span>

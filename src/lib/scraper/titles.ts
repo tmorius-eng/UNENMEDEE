@@ -106,3 +106,41 @@ export function chooseTitle(candidates: (string | null | undefined)[], text: str
   }
   return firstSentenceTitle(text);
 }
+
+/** Abbreviations that stay in capitals when a shouting headline is lowered (lowercase suffixes follow a hyphen: "УИХ-ын"). */
+const ACRONYMS = new Set(
+  "АНУ ОХУ БНХАУ БНСУ ХБНГУ ИБУИНВУ НҮБ ЕХ ОУВС ДБ АХБ ДЭМБ ЮНЕСКО ЮНИСЕФ НАТО УИХ ЗГ ЗГХЭГ ТӨК ТӨХК ХХК ХК ТББ ХХОАТ НӨАТ НДШ ААНОАТ ДНБ ГВУН ЕБС ИТХ АТГ ЦЕГ ТЕГ ГЕГ ШШГЕГ ҮАГ ҮСХ ХАСХОМ ХҮН МАН АН ИЗНН МҮЭ МУ УБ ХУД СХД БЗД СБД ЧД БГД НХД БНД СХД ЭМЯ БШУЯ ГХЯ СЯ ЗТХЯ ХЗДХЯ БОАЖЯ ЭБЯ УУХҮЯ ХНХЯ ЭЗХЯ ХХААХҮЯ БХЯ ЗЗЯ ЦДС ДЦС АЦС МСҮТ ЖДҮ ТУЗ IT AI USD COVID".split(" "),
+);
+
+/** Proper-noun stems that keep a capital first letter ("МОНГОЛЫН" → "Монголын"). */
+const PROPER = ["МОНГОЛ", "УЛААНБААТАР", "ДАРХАН", "ЭРДЭНЭТ", "ХЯТАД", "ОРОС", "ЯПОН", "СОЛОНГОС", "АМЕРИК", "ЕВРОП", "ГЕРМАН", "ФРАНЦ", "ЭНЭТХЭГ", "КАЗАХСТАН", "КАНАД", "АВСТРАЛИ", "ТУРК", "АНГЛИ", "БРИТАНИ", "ТАЙВАН", "ОЮУ ТОЛГОЙ", "ТАВАН ТОЛГОЙ"];
+
+const UPPER = /\p{Lu}/gu;
+const LETTER = /\p{L}/gu;
+
+/**
+ * Headlines some sites publish in capitals ("“1072 ХУВЬЦАА” НЭЭЛТТЭЙ ӨДӨРЛӨГ…") become sentence
+ * case; abbreviations, initials ("Х.БАТТУЛГА" → "Х.Баттулга") and common proper nouns keep their
+ * capitals. Mixed-case titles are returned unchanged.
+ */
+export function unshoutTitle(title: string): string {
+  const letters = title.match(LETTER)?.length ?? 0;
+  const upper = title.match(UPPER)?.length ?? 0;
+  const words = title.split(/\s+/).filter((w) => (w.match(LETTER)?.length ?? 0) >= 2).length;
+  if (letters < 12 || words < 3 || upper / letters < 0.7) return title;
+
+  const lowered = title.replace(/[\p{L}\d]+(?:[.][\p{L}]+)?/gu, (w) => {
+    if (ACRONYMS.has(w) || /\d/.test(w) || /^[A-Z]+$/.test(w)) return w;
+    const initial = /^(\p{Lu})\.(\p{L})(\p{L}*)$/u.exec(w); // "Х.БАТТУЛГА"
+    if (initial) return `${initial[1]}.${initial[2]}${initial[3].toLowerCase()}`;
+    const lower = w.toLowerCase();
+    return PROPER.some((p) => !p.includes(" ") && w.startsWith(p)) ? lower[0].toUpperCase() + lower.slice(1) : lower;
+  });
+  let out = lowered;
+  for (const p of PROPER.filter((x) => x.includes(" "))) {
+    const lowerP = p.toLowerCase();
+    out = out.replaceAll(lowerP, lowerP.replace(/(^|\s)(\p{L})/gu, (_, s: string, c: string) => s + c.toUpperCase()));
+  }
+  // Capital at the start of the title and of every sentence (skipping opening quotes).
+  return out.replace(/(^|[.!?]\s+)([^\p{L}\d]*)(\p{Ll})/gu, (_, a: string, b: string, c: string) => a + b + c.toUpperCase());
+}

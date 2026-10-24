@@ -45,6 +45,8 @@ export interface ArticleListItem {
   clusterSize: number;
   /** Topic the AI read from the text (null = filed by source domain). */
   topic: string | null;
+  /** National significance 0-100 from Tier 1 (null = not scored). */
+  importanceScore: number | null;
 }
 
 /**
@@ -87,6 +89,7 @@ const listColumns = {
   clusterId: articles.clusterId,
   originalUrl: articles.originalUrl,
   topic: articles.topic,
+  importanceScore: articles.importanceScore,
   clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
 };
 
@@ -107,6 +110,7 @@ type ListRow = {
   clusterId: number | null;
   originalUrl: string;
   topic: string | null;
+  importanceScore: number | null;
   clusterSize: number | null;
 };
 
@@ -128,6 +132,7 @@ function toListItem(r: ListRow): ArticleListItem {
     clusterId: r.clusterId,
     originalUrl: r.originalUrl,
     topic: r.topic,
+    importanceScore: r.importanceScore,
     clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
   };
 }

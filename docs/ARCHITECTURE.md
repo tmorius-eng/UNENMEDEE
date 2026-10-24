@@ -96,7 +96,8 @@ SHA-256; an already-seen hash is skipped before any AI call, so duplicate press 
 **Headlines and dates.** Some sites put their own name on every page ("Мэдээ | ТТХГ"), so the
 headline is the first candidate (Readability, `og:title`, `<h1>`, `<title>`) that is not a section
 word, the site's name or abbreviation, or a title the same site already used this month; otherwise the
-first sentence of the text ([`titles.ts`](../src/lib/scraper/titles.ts)). The date comes from meta
+first sentence of the text ([`titles.ts`](../src/lib/scraper/titles.ts)); headlines a site publishes in
+capitals are stored in sentence case, keeping abbreviations and initials. The date comes from meta
 tags, JSON-LD, `<time>`, the URL, or a date printed between the headline and the body (dates in
 "related news" lists below the body are ignored). A page with no date is flagged `date_unknown` and
 shown as "Огноо тодорхойгүй"; if its text only mentions years before last year it is an archive page
