@@ -58,6 +58,25 @@ export interface DigestPlan {
   candidates: number;
 }
 
+/** A 12h edition needs at least this many stories; with fewer it widens to 24 h, then skips. */
+export const MIN_DIGEST_STORIES = 5;
+/** Ulaanbaatar hours [from, to) when a scheduled 12h edition may be written (morning, evening). */
+export const DIGEST_WINDOWS: [number, number][] = [
+  [6, 11],
+  [17, 23],
+];
+
+/**
+ * Whether a scheduled run should write a 12h edition now: inside a morning or evening window
+ * (GitHub starts scheduled jobs hours late, so the pipeline asks every run instead of trusting
+ * one cron time) and at least 8 h after the previous edition, so a window gets one edition.
+ */
+export function isDigestDue(now: Date, lastCreatedAt: Date | null): boolean {
+  const ubHour = (now.getUTCHours() + 8) % 24;
+  const inWindow = DIGEST_WINDOWS.some(([from, to]) => ubHour >= from && ubHour < to);
+  return inWindow && (!lastCreatedAt || now.getTime() - lastCreatedAt.getTime() >= 8 * 3_600_000);
+}
+
 export function planDigest(kind: DigestKind, now: Date, lastEnd: Date | null): DigestPlan {
   if (kind === "30d") return { kind, periodStart: new Date(now.getTime() - 30 * 86_400_000), periodEnd: now, pick: 20, candidates: 70 };
   const hours = 12;
@@ -159,11 +178,13 @@ function toItem(c: CandidateRow, headline: string, why: string): DigestItem {
   };
 }
 
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
 /** Without any AI provider the digest still appears: top stories by rank, their own summaries. */
 export function ruleBasedDigest(candidates: CandidateRow[], plan: DigestPlan) {
   const items = candidates.slice(0, plan.pick).map((c) => toItem(c, c.title, c.tldr.split("\n")[0] ?? ""));
   return {
-    title: plan.kind === "30d" ? "Сүүлийн 30 хоногийн онцлох мэдээ" : "Онцлох мэдээ",
+    title: plan.kind === "30d" ? "Сүүлийн 30 хоногийн онцлох мэдээ" : `Онцлох мэдээ: ${clip(items[0]?.title ?? "", 90)}`,
     intro: `Энэ хугацаанд ${candidates.length} мэдээнээс ач холбогдол, эрсдэл, олон эх сурвалжид гарсан байдлаар нь эрэмбэлсэн ${items.length} мэдээ.`,
     items,
   };
@@ -201,8 +222,19 @@ export async function createDigest(db: DB, opts: DigestOptions): Promise<DigestR
   const plan = planDigest(opts.kind, now, last?.periodEnd ?? null);
   // Do not repeat stories featured in the last few editions of the same kind.
   const exclude = new Set(previous.flatMap((d) => d.items.map((i) => i.articleId)));
-  const candidates = await loadCandidates(db, plan, exclude);
+  let candidates = await loadCandidates(db, plan, exclude);
+  // A quiet night: look back 24 h before giving up, and never publish (or push) a 1-story edition.
+  if (plan.kind === "12h" && candidates.length < MIN_DIGEST_STORIES) {
+    const dayAgo = new Date(now.getTime() - 24 * 3_600_000);
+    if (plan.periodStart > dayAgo) {
+      plan.periodStart = dayAgo;
+      candidates = await loadCandidates(db, plan, exclude);
+    }
+  }
   if (candidates.length === 0) return { status: "empty", reason: "no analyzed articles in this period" };
+  if (plan.kind === "12h" && candidates.length < MIN_DIGEST_STORIES) {
+    return { status: "empty", reason: `only ${candidates.length} new stories in the last 24 h (need ${MIN_DIGEST_STORIES})` };
+  }
 
   let title: string;
   let intro: string;

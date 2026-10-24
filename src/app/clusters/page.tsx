@@ -32,7 +32,7 @@ export default function ClustersPage() {
     <>
       <PageHeader
         eyebrow="🔗 Олон эх сурвалж"
-        title="Кластер Сэдвүүд"
+        title="Олон эх сурвалжид гарсан сэдвүүд"
         description="Нэг сэдвийг өөр өөр байгууллага хэрхэн мэдээлсэн бэ? Давхцаж буй баримт, зөрүүтэй мэдээллийг нэг дор харьцуул."
       />
       <Suspense fallback={<FeedSkeleton />}>

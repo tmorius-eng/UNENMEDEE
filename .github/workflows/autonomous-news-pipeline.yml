@@ -4,7 +4,9 @@ name: Autonomous news pipeline
 
 on:
   schedule:
-    - cron: "0 */2 * * *"
+    # Not on minute 0: GitHub delays or drops scheduled jobs at the top of the hour (runs came
+    # 3-6 h apart instead of 2).
+    - cron: "17 */2 * * *"
   workflow_dispatch:
     inputs:
       sources:
@@ -133,3 +135,13 @@ jobs:
         # Push problems must never fail the pipeline.
         continue-on-error: true
         run: npm run push:send -- --mode news
+
+      - name: Write the 12h digest when it is due (morning / evening window)
+        # news-digest.yml starts hours late on GitHub's scheduler, so every pipeline run checks
+        # whether an edition is due (src/lib/ai/digest.ts isDigestDue) and writes it here.
+        continue-on-error: true
+        run: npm run digest -- --due
+
+      - name: Notify subscribers about a new digest
+        continue-on-error: true
+        run: npm run push:send -- --mode digest

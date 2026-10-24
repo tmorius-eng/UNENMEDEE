@@ -181,7 +181,7 @@ export default function TransparencyPage() {
     <>
       <PageHeader
         eyebrow="📊 100% ил тод"
-        title="Ил Тод Байдлын Тайлан"
+        title="Ил тод байдлын тайлан"
         description="Бид хэр их мөнгө зарцуулж, хаанаас орлого олж байгаагаа токен бүрийн нарийвчлалтай нийтэлдэг. Бүх тоо мэдээллийн сангаас шууд гарна."
       />
       <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>

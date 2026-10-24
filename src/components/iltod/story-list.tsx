@@ -59,8 +59,8 @@ export function StoryList({ stories, leadId }: { stories: ArticleListItem[]; lea
     const lead = s.id === leadId;
     const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
     return (
-      <li key={s.id} className={cx(lead ? "relative overflow-hidden rounded-2xl bg-primary p-5 shadow-xs ring-1 ring-secondary ring-inset md:p-6" : "py-5")}>
-        {lead && <span aria-hidden className={cx("absolute inset-x-0 top-0 h-1", dot)} />}
+      <li key={s.id} className={cx(lead ? "relative rounded-2xl bg-primary p-5 shadow-xs ring-1 ring-secondary ring-inset md:p-6" : "py-5")}>
+        {lead && <span aria-hidden className={cx("absolute inset-x-0 top-0 h-1 rounded-t-2xl", dot)} />}
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">

@@ -45,10 +45,16 @@ function pickLead(stories: ArticleListItem[]): number | undefined {
   return best?.id;
 }
 
-/** "ӨГЛӨӨНИЙ ТОЙМ" / "ОРОЙН ТОЙМ" by the Ulaanbaatar hour the 12h edition closed; "САРЫН ТОЙМ" for 30d. Written in capitals like the topic tags. */
+/**
+ * "ОРОЙН ТОЙМ · 21:40": the part of the day and the Ulaanbaatar time the edition was written, so a
+ * late or missed run never shows a wrong "morning". Capitals like the topic tags.
+ */
 function editionLabel(d: DigestView): string {
   if (d.kind === "30d") return "САРЫН ТОЙМ";
-  return (new Date(d.periodEnd).getUTCHours() + 8) % 24 < 15 ? "ӨГЛӨӨНИЙ ТОЙМ" : "ОРОЙН ТОЙМ";
+  const ub = new Date(new Date(d.periodEnd).getTime() + 8 * 3_600_000);
+  const h = ub.getUTCHours();
+  const part = h < 5 ? "ШӨНИЙН" : h < 11 ? "ӨГЛӨӨНИЙ" : h < 17 ? "ӨДРИЙН" : "ОРОЙН";
+  return `${part} ТОЙМ · ${String(h).padStart(2, "0")}:${String(ub.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; digest: DigestView | undefined; topicLabel?: string }) {
