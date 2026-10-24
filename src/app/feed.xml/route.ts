@@ -7,9 +7,11 @@ export async function GET() {
   const items = articles
     .map((a) => {
       const url = absoluteUrl(`/article/${a.slug}`);
+      // An undated page is dated by when we found it: readers sort by it, but it is not a claim.
       const date = (a.publishedAt ?? a.lastModified).toUTCString();
+      const title = a.dateUnknown ? `${a.title} (огноо тодорхойгүй)` : a.title;
       return `    <item>
-      <title>${xmlEscape(a.title)}</title>
+      <title>${xmlEscape(title)}</title>
       <link>${xmlEscape(url)}</link>
       <guid isPermaLink="true">${xmlEscape(url)}</guid>
       <pubDate>${date}</pubDate>

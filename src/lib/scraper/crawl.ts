@@ -3,7 +3,7 @@ import { CheerioCrawler, Configuration, log, PlaywrightCrawler } from "crawlee";
 
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
 import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS, parseDateValue } from "./extractor";
-import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl } from "./links";
+import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "./links";
 import { BOT_NAME, MIN_DOMAIN_DELAY_MS, USER_AGENT } from "./robots";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
@@ -350,9 +350,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
       await add(picked.map((u) => articleRequest(state, u)));
       return;
     }
-    // Some installs omit `link` from the REST response (bnd.ub.gov.mn); "?p=<id>" always resolves.
     const origin = new URL(state.source.urlPattern).origin;
-    const linkOf = (p: (typeof posts)[number]) => p.link || (p.id ? `${origin}/?p=${p.id}` : undefined);
+    const linkOf = (p: (typeof posts)[number]) => wordPressPostUrl(p, origin);
     const urls = posts.map(linkOf).filter((u): u is string => Boolean(u));
     const fresh = await sink.filterNewUrls(urls);
     state.skippedDuplicates += urls.length - fresh.size;

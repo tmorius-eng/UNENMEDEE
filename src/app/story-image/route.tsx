@@ -22,7 +22,7 @@ async function contentFor(path: string) {
   const article = path.match(/^\/article\/([\w-]{1,200})$/);
   if (article) {
     const a = await getArticleBySlug(article[1]);
-    return a && { eyebrow: a.sourceName, title: a.title, footer: formatDateMn(a.publishedAt) };
+    return a && { eyebrow: a.sourceName, title: a.title, footer: a.scrapeMeta?.date_unknown ? "Огноо тодорхойгүй" : formatDateMn(a.publishedAt) };
   }
   const official = path.match(/^\/officials\/(\d{1,6})$/);
   if (official) {

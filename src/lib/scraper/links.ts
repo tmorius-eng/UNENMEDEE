@@ -197,3 +197,19 @@ export function wordPressPostsUrl(apiBase: string, query: string): string {
   if (/[?&]rest_route=/.test(apiBase)) return `${apiBase.replace(/\/?$/, "/")}wp/v2/posts&${query}`;
   return `${apiBase.replace(/\/?$/, "/")}wp/v2/posts?${query}`;
 }
+
+/**
+ * The URL of a WordPress REST post. Some installs omit `link` (bnd.ub.gov.mn) and some advertise a
+ * relative one ("index.php/?p=11597", conscourt.gov.mn, a site URL set without its host): both are
+ * resolved against the site's origin, where "?p=<id>" always works.
+ */
+export function wordPressPostUrl(post: { id?: number; link?: string }, origin: string): string | undefined {
+  if (post.link) {
+    try {
+      return new URL(post.link, `${origin}/`).toString();
+    } catch {
+      /* fall through to the id form */
+    }
+  }
+  return post.id ? `${origin}/?p=${post.id}` : undefined;
+}
