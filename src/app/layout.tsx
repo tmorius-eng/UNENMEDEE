@@ -1,5 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
@@ -82,8 +80,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <InstallBanner />
         </Providers>
         <ServiceWorkerRegister />
-        <Analytics />
-        <SpeedInsights />
+        {/*
+          Vercel Web Analytics without the npm client: the queue stub plus Vercel's own script, which
+          follows client-side navigations itself. Keeps ~15 KB of JS out of every page; only on Vercel
+          (the script lives at /_vercel/insights there, 404 elsewhere).
+        */}
+        {process.env.VERCEL && (
+          <>
+            <script dangerouslySetInnerHTML={{ __html: "window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};" }} />
+            <script defer src="/_vercel/insights/script.js" />
+          </>
+        )}
       </body>
     </html>
   );
