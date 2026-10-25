@@ -74,7 +74,8 @@ export function formatPeriodMn(start: Date | string, end: Date | string): string
 /** Large MNT amounts in words young readers know: 43.96 их наяд ₮, 2.1 тэрбум ₮. */
 export function formatMntShort(value: number): string {
   const abs = Math.abs(value);
-  const fmt = (n: number, unit: string) => `${(value < 0 ? -n : n).toLocaleString("en-US", { maximumFractionDigits: n < 100 ? 2 : 1 })} ${unit} ₮`;
+  // A real minus sign (U+2212): the hyphen in tabular figures is digit-wide and read as "- 1.03".
+  const fmt = (n: number, unit: string) => `${value < 0 ? "−" : ""}${n.toLocaleString("en-US", { maximumFractionDigits: n < 100 ? 2 : 1 })} ${unit} ₮`;
   if (abs >= 1e12) return fmt(abs / 1e12, "их наяд");
   if (abs >= 1e9) return fmt(abs / 1e9, "тэрбум");
   if (abs >= 1e6) return fmt(abs / 1e6, "сая");

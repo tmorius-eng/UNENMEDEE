@@ -35,7 +35,8 @@ async function WeekNumbers() {
       </h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {tiles.map((t) => (
-          <li key={t.label}>
+          // Five tiles in two columns: the last one spans the row on phones instead of standing alone.
+          <li key={t.label} className="last:odd:col-span-2 sm:last:odd:col-span-1">
             <Link href={t.href} prefetch={false} className="flex h-full flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset hover:bg-primary_hover">
               <span className="text-display-xs font-semibold text-primary tabular-nums">{formatNumber(t.n)}</span>
               <span className="text-xs text-tertiary">{t.label}</span>

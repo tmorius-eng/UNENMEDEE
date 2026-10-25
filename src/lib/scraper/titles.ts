@@ -56,6 +56,21 @@ export function isGenericTitle(title: string, siteNames: (string | null | undefi
     });
 }
 
+const CYRILLIC = /[А-яЁёӨөҮү]/g;
+
+/**
+ * A headline with no Cyrillic letter over a Mongolian text that never mentions it is a
+ * transliterated URL slug ("Heregzhizh Bajgaa T Sl Dijn Talaarh Medeelel | MECC", mecc.gov.mn's
+ * og:title), not the title. A real Latin name the text repeats stays ("Youth for Water Festival").
+ */
+export function isTransliteratedTitle(title: string, text: string): boolean {
+  if (/[А-яЁёӨөҮү]/.test(title) || (text.match(CYRILLIC)?.length ?? 0) < 100) return false;
+  // Letters and digits only: "YOUTH FOR WATER FESTIVAL 2026" is in "Youth for Water Festival – 2026".
+  const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const head = squash(title.split(SEPARATOR)[0]);
+  return head.length > 0 && !squash(text).includes(head);
+}
+
 /** A line that is only a date ("2026 оны 10 -р сарын 21, Лхагва", "2026-10-21 10:30"). */
 export function isDateLine(line: string): boolean {
   const rest = line
@@ -118,7 +133,7 @@ export function firstSentenceTitle(text: string, max = 110): string {
 export function chooseTitle(candidates: (string | null | undefined)[], text: string, siteNames: (string | null | undefined)[] = []): string {
   for (const c of candidates) {
     const t = c ? normalizeText(c).replace(/\s+/g, " ").trim() : "";
-    if (t && !isGenericTitle(t, siteNames)) return t;
+    if (t && !isGenericTitle(t, siteNames) && !isTransliteratedTitle(t, text)) return t;
   }
   return firstSentenceTitle(text);
 }
