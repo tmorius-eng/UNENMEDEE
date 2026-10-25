@@ -13,7 +13,11 @@
  *    its hash and its AI summary stay; it is archive material, not news).
  * 3. Titles starting with U+3164 / U+2800 and friends → trimmed.
  * 4. Sources that cannot be scraped are deactivated with the reason in last_error.
- * No network requests.
+ * No network requests, except:
+ * 5. `--refetch [--refetch-days 14]`: undated articles found in the last N days are fetched again
+ *    (robots.txt and the 8 s per-host delay apply) and re-dated with the current extractor; one
+ *    that turns out older than MAX_AGE_DAYS is unpublished. Adapter sources (feeds, APIs) are
+ *    skipped: their dates come from the API, not the page.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -21,10 +25,18 @@ import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
-import { MAX_AGE_DAYS } from "@/lib/scraper/dates";
+import { isFutureDate, MAX_AGE_DAYS } from "@/lib/scraper/dates";
+import { extractArticleSafe } from "@/lib/scraper/extract-safe";
+import { politeFetch } from "@/lib/scraper/http";
 import { normalizeText } from "@/lib/text";
 
-const { values } = parseArgs({ options: { "dry-run": { type: "boolean", default: false } } });
+const { values } = parseArgs({
+  options: {
+    "dry-run": { type: "boolean", default: false },
+    refetch: { type: "boolean", default: false },
+    "refetch-days": { type: "string", default: "14" },
+  },
+});
 const dry = values["dry-run"];
 
 /** Sources the crawler cannot turn into news; `constcourt.mn` moved to conscourt.gov.mn (seeded). */
@@ -102,7 +114,52 @@ async function main() {
     console.log(`⛔ ${d.domain}: ${DEACTIVATE[d.domain]}`);
     if (!dry) await db.execute(sql`update sources set is_active = false, last_error = ${DEACTIVATE[d.domain]} where domain = ${d.domain}`);
   }
+  if (values.refetch) await refetchUndated(db, Math.max(1, Number(values["refetch-days"]) || 14));
   console.log(dry ? "Dry run: nothing written." : "✓ Done.");
+}
+
+/** Feeds and APIs: their dates come from the API, a page fetch would not add one. */
+const API_SOURCES = ["opendata.gov.mn", "parliament.mn", "mongolia.gov.mn", "zasag.mn", "legalinfo.mn", "police.gov.mn"];
+
+async function refetchUndated(db: ReturnType<typeof getDb>, days: number) {
+  const rows = (
+    await db.execute(sql`
+      select a.id, a.original_url as url, a.created_at
+      from articles a join sources s on s.id = a.source_id
+      where a.is_published and (a.scrape_meta->>'date_unknown') = 'true'
+        and a.created_at > now() - make_interval(days => ${days})
+        and a.edited_at is null and a.content_pruned_at is null
+        and s.domain not in (${sql.join(API_SOURCES.map((d) => sql`${d}`), sql`, `)})
+      order by a.id`)
+  ).rows as { id: number; url: string; created_at: Date }[];
+  console.log(`🔁 ${rows.length} undated article(s) from the last ${days} days to fetch again`);
+  let dated = 0;
+  for (const r of rows) {
+    try {
+      const res = await politeFetch(r.url);
+      if (!res.ok) {
+        console.log(`   #${r.id} HTTP ${res.status}`);
+        continue;
+      }
+      const date = (await extractArticleSafe(await res.text(), r.url))?.publishedAt ?? null;
+      if (!date || isFutureDate(date)) {
+        console.log(`   #${r.id} still no date`);
+        continue;
+      }
+      const tooOld = date.getTime() < new Date(r.created_at).getTime() - MAX_AGE_DAYS * 86_400_000;
+      dated++;
+      console.log(`   #${r.id} → ${date.toISOString()}${tooOld ? " (archive: unpublished)" : ""}`);
+      if (!dry) {
+        await db.execute(sql`
+          update articles set published_at = ${date}, scrape_meta = scrape_meta - 'date_unknown',
+            is_published = ${!tooOld}
+          where id = ${r.id}`);
+      }
+    } catch (err) {
+      console.log(`   #${r.id} ${err instanceof Error ? err.message.slice(0, 120) : err}`);
+    }
+  }
+  console.log(`📅 ${dated}/${rows.length} re-dated`);
 }
 
 main()

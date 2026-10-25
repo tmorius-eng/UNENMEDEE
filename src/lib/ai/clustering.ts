@@ -56,6 +56,16 @@ function entityKeys(e: ExtractedEntities | null): Set<string> {
 
 /** Below this word overlap, shared entities alone (e.g. "УИХ") cannot join two stories. */
 const MIN_STEM_OVERLAP = 0.25;
+/**
+ * Two sites posting the same headline (a ministry and its agency, Mongolbank and the government
+ * portal) are one story when their summaries also overlap: the AI words each summary differently,
+ * so the whole-text score alone stayed under the threshold. The body condition keeps identical
+ * generic headlines apart ("Томуугийн эсрэг дархлаажуулалт эхэллээ": the national campaign vs one
+ * sum's clinic; job notices from different agencies).
+ */
+const SAME_HEADLINE = 0.8;
+const SAME_HEADLINE_BODY = 0.3;
+const MIN_HEADLINE_STEMS = 3;
 
 /**
  * Lightweight similarity: max of
@@ -72,7 +82,12 @@ export function similarity(a: ClusterDoc, b: ClusterDoc): number {
   const ea = entityKeys(a.entities);
   const eb = entityKeys(b.entities);
   const entityScore = ea.size && eb.size ? jaccard(ea, eb) : stemScore;
-  return Math.max(shingleScore, 0.7 * stemScore + 0.3 * entityScore);
+  const score = Math.max(shingleScore, 0.7 * stemScore + 0.3 * entityScore);
+  const ha = new Set(stems(a.title));
+  const hb = new Set(stems(b.title));
+  if (Math.min(ha.size, hb.size) < MIN_HEADLINE_STEMS || stemScore < SAME_HEADLINE_BODY) return score;
+  const headline = jaccard(ha, hb);
+  return headline >= SAME_HEADLINE ? Math.max(score, 0.6 * headline) : score;
 }
 
 /** Best match at or above the threshold, or null. */

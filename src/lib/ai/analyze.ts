@@ -146,8 +146,11 @@ export async function loadArticleForAI(db: DB, id: number) {
   return { row: row.article, input };
 }
 
-/** Runs the full pipeline for one stored article and writes the results. */
-export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptions, "articleId"> = {}) {
+/**
+ * Runs the full pipeline for one stored article and writes the results. `cluster: false` leaves
+ * clustering to the caller (ai:process clusters a whole run at once with assignClusters).
+ */
+export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptions, "articleId"> & { cluster?: boolean } = {}) {
   const loaded = await loadArticleForAI(db, id);
   if (!loaded) throw new Error(`Article ${id} not found`);
   const outcome = await analyzeArticle(loaded.input, { ...opts, articleId: id });
@@ -169,15 +172,20 @@ export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptio
       summaryFallback: false,
     })
     .where(eq(articles.id, id));
-  const clusterId = await assignCluster(db, id, opts.log, opts.budget);
+  const clusterId = opts.cluster === false ? null : await assignCluster(db, id, opts.log, opts.budget);
   return { ...outcome, clusterId };
 }
 
 /**
- * Jaccard clustering against processed articles from the last 7 days.
- * Joins the best match's cluster (or creates one) and re-synthesizes the cluster summary.
+ * Jaccard clustering against the published, analysed articles of the last 7 days (other sources
+ * only). The pool is loaded once for a whole batch: the old per-article pool was capped at the
+ * 500 newest rows, about two days, so the same story posted days apart never met (3 clusters in
+ * 7 days). Joins the best match's cluster (or creates one) and re-synthesizes each touched cluster
+ * once.
  */
-export async function assignCluster(db: DB, id: number, log?: UsageLogger, budget?: BudgetGuard): Promise<number | null> {
+export async function assignClusters(db: DB, ids: number[], log?: UsageLogger, budget?: BudgetGuard): Promise<Map<number, number | null>> {
+  const result = new Map<number, number | null>();
+  if (ids.length === 0) return result;
   const since = new Date(Date.now() - CLUSTER_WINDOW_DAYS * 86_400_000);
   const pool = await db
     .select({
@@ -191,8 +199,7 @@ export async function assignCluster(db: DB, id: number, log?: UsageLogger, budge
     })
     .from(articles)
     .where(and(isNotNull(articles.tldrSummary), eq(articles.isPublished, true), gte(articles.createdAt, since)))
-    .orderBy(desc(articles.createdAt))
-    .limit(500);
+    .orderBy(desc(articles.createdAt));
 
   const toDoc = (r: (typeof pool)[number]): ClusterDoc => ({
     id: r.id,
@@ -201,21 +208,41 @@ export async function assignCluster(db: DB, id: number, log?: UsageLogger, budge
     entities: r.entities,
     clusterId: r.clusterId,
   });
-  const me = pool.find((r) => r.id === id);
-  if (!me) return null;
-  // The same source re-posting is not corroboration; cluster across sources only.
-  const match = findBestMatch(toDoc(me), pool.filter((r) => r.sourceId !== me.sourceId).map(toDoc));
-  if (!match) return me.clusterId;
-
-  let clusterId = match.doc.clusterId ?? me.clusterId;
-  if (!clusterId) {
-    const [created] = await db.insert(clusters).values({ title: me.title, articleCount: 0 }).returning({ id: clusters.id });
-    clusterId = created.id;
+  const byId = new Map(pool.map((r) => [r.id, r]));
+  const touched = new Set<number>();
+  for (const id of ids) {
+    const me = byId.get(id);
+    if (!me) {
+      result.set(id, null);
+      continue;
+    }
+    // The same source re-posting is not corroboration; cluster across sources only.
+    const match = findBestMatch(toDoc(me), pool.filter((r) => r.sourceId !== me.sourceId).map(toDoc));
+    if (!match) {
+      result.set(id, me.clusterId);
+      continue;
+    }
+    let clusterId = match.doc.clusterId ?? me.clusterId;
+    if (!clusterId) {
+      const [created] = await db.insert(clusters).values({ title: me.title, articleCount: 0 }).returning({ id: clusters.id });
+      clusterId = created.id;
+    }
+    await db.update(articles).set({ clusterId }).where(inArray(articles.id, [id, match.doc.id]));
+    if (me.clusterId && me.clusterId !== clusterId) touched.add(me.clusterId);
+    touched.add(clusterId);
+    // Later articles in this batch see the new membership.
+    me.clusterId = clusterId;
+    const other = byId.get(match.doc.id);
+    if (other) other.clusterId = clusterId;
+    result.set(id, clusterId);
   }
-  await db.update(articles).set({ clusterId }).where(inArray(articles.id, [id, match.doc.id]));
-  await refreshCluster(db, clusterId, log, budget);
-  if (me.clusterId && me.clusterId !== clusterId) await refreshCluster(db, me.clusterId, log, budget);
-  return clusterId;
+  for (const clusterId of touched) await refreshCluster(db, clusterId, log, budget);
+  return result;
+}
+
+/** One article (admin re-analysis): the same as a batch of one. */
+export async function assignCluster(db: DB, id: number, log?: UsageLogger, budget?: BudgetGuard): Promise<number | null> {
+  return (await assignClusters(db, [id], log, budget)).get(id) ?? null;
 }
 
 /**

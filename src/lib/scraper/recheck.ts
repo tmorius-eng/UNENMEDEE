@@ -93,8 +93,11 @@ export interface Comparison extends SourceDiff {
   compared: number;
 }
 
+/** Lines we add ourselves when storing (legalinfo.ts's issuer line): never on the source page. */
+const OUR_PREFIX = /^Батлагдсан байгууллага:[^\n]*\n+/;
+
 export function compareTexts(stored: string, fresh: string): Comparison {
-  const ours = splitSentences(stored);
+  const ours = splitSentences(stored.replace(OUR_PREFIX, ""));
   const freshKey = key(normalizeText(fresh).replace(/\s+/g, " "));
   const theirs = splitSentences(fresh);
   const theirWords = theirs.map((s) => ({ s, w: words(s) }));

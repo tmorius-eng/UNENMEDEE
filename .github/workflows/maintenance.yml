@@ -1,0 +1,64 @@
+# Manual one-off repairs after a scraper or clustering change (nothing scheduled):
+#   refetch-dates: fetch undated articles of the last 14 days again and re-date them
+#                  (npm run db:repair-dates -- --refetch; robots.txt and 8 s per host apply)
+#   recluster:     cluster the last 7 days' unclustered articles again (npm run ai:process -- --recluster)
+name: Maintenance (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "refetch-dates or recluster"
+        type: choice
+        options: [refetch-dates, recluster]
+        default: recluster
+      dry_run:
+        description: "true = print what would change, write nothing (refetch-dates only)"
+        type: boolean
+        default: true
+
+# Same rows as the pipeline: never at the same time (a queued run waits).
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run the task
+        # Secrets only here: dependency install scripts never see them.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
+          REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
+          AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+          IN_TASK: ${{ inputs.task }}
+          IN_DRY: ${{ inputs.dry_run }}
+        run: |
+          case "$IN_TASK" in
+            refetch-dates)
+              if [ "$IN_DRY" = "true" ]; then npm run db:repair-dates -- --refetch --dry-run; else npm run db:repair-dates -- --refetch; fi ;;
+            recluster) npm run ai:process -- --recluster ;;
+            *) echo "::error::unknown task"; exit 1 ;;
+          esac

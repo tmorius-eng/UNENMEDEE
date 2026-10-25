@@ -24,7 +24,7 @@ function hasFullDate(text: string): boolean {
  */
 export function looksOld(text: string, now = new Date()): boolean {
   const year = newestYearMentioned(text);
-  return year !== null && year < now.getUTCFullYear() - 1 && hasFullDate(text);
+  return year !== null && year < ubYear(now) - 1 && hasFullDate(text);
 }
 
 /** Dated items older than this are stored but never published or analysed on a regular run. */
@@ -48,10 +48,28 @@ export function publishDecision(publishedAt: Date | null, text: string, now = ne
  */
 export function isTimelessPage(text: string, now = new Date()): boolean {
   const year = newestYearMentioned(text);
-  return year === null || year < now.getUTCFullYear() - 1;
+  return year === null || year < ubYear(now) - 1;
 }
 
 /** A day-level date (no time part): what a stray or copied date stamp looks like. */
 export function isDayLevel(d: Date): boolean {
   return d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+}
+
+/** The calendar year in Ulaanbaatar (UTC+8): on 1 January 00:00–08:00 the UTC year is still last year's. */
+export function ubYear(now: Date): number {
+  return new Date(now.getTime() + 8 * 3_600_000).getUTCFullYear();
+}
+
+/**
+ * A publication date that cannot be right yet: a timed one more than an hour ahead, or a day-level
+ * one (stored as UTC midnight of the Ulaanbaatar day) after today in Ulaanbaatar. The old 24-hour
+ * tolerance let "tomorrow" (an event date) through, and that story sat on top of the feed.
+ */
+export function isFutureDate(d: Date, now = new Date()): boolean {
+  if (isDayLevel(d)) {
+    const ubToday = new Date(now.getTime() + 8 * 3_600_000);
+    return d.getTime() > Date.UTC(ubToday.getUTCFullYear(), ubToday.getUTCMonth(), ubToday.getUTCDate());
+  }
+  return d.getTime() > now.getTime() + 3_600_000;
 }

@@ -26,6 +26,8 @@ export interface RobotsPolicy {
   /** Crawl-delay in ms declared for our agent, if any. */
   crawlDelayMs?: number;
   sitemaps: string[];
+  /** Why everything is disallowed when robots.txt could not be read (5xx, timeout, network). */
+  unavailable?: string;
 }
 
 const ALLOW_ALL: RobotsPolicy = { isAllowed: () => true, sitemaps: [] };
@@ -128,14 +130,16 @@ export function getRobots(origin: string, fetchImpl: typeof fetch = fetch): Prom
         redirect: "follow",
         signal: AbortSignal.timeout(15_000),
       });
-      if (res.status >= 500) return DISALLOW_ALL;
+      // RFC 9309: an unreachable robots.txt (5xx, network error) means "crawl nothing" for now.
+      if (res.status >= 500) return { ...DISALLOW_ALL, unavailable: `robots.txt answered HTTP ${res.status}` };
       if (!res.ok) return ALLOW_ALL;
       const type = res.headers.get("content-type") ?? "";
       const text = await res.text();
       if (type.includes("html")) return ALLOW_ALL;
       return parseRobots(text);
-    } catch {
-      return DISALLOW_ALL;
+    } catch (err) {
+      const e = err as { name?: string; code?: string; cause?: { code?: string } };
+      return { ...DISALLOW_ALL, unavailable: `robots.txt unreachable (${e.cause?.code ?? e.code ?? e.name ?? "error"})` };
     }
   })();
   cache.set(origin, promise);

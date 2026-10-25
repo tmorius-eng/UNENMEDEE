@@ -22,7 +22,8 @@ import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm"
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
-import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
+import { analyzeArticle, assignClusters, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
+import { CLUSTER_WINDOW_DAYS } from "@/lib/ai/clustering";
 import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE, RETRY_FALLBACK_DAYS, RETRY_FALLBACK_PER_RUN, shouldPark } from "@/lib/ai/fallback";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { budgetConfig } from "@/lib/ai/limits";
@@ -39,6 +40,8 @@ const { values } = parseArgs({
     id: { type: "string" },
     deep: { type: "boolean", default: false },
     sample: { type: "boolean", default: false },
+    // Cluster every unclustered article of the last 7 days again (after a clustering change).
+    recluster: { type: "boolean", default: false },
   },
 });
 
@@ -105,6 +108,17 @@ async function main() {
     return;
   }
 
+  if (values.recluster) {
+    const rows = await db
+      .select({ id: articles.id })
+      .from(articles)
+      .where(and(isNotNull(articles.tldrSummary), eq(articles.isPublished, true), isNull(articles.clusterId), gte(articles.createdAt, new Date(Date.now() - CLUSTER_WINDOW_DAYS * 86_400_000))))
+      .orderBy(articles.createdAt);
+    const assigned = await assignClusters(db, rows.map((r) => r.id), log, budget);
+    console.log(`🔗 Reclustered ${rows.length} article(s): ${[...assigned.values()].filter((c) => c !== null).length} now in a cluster.`);
+    return;
+  }
+
   await applyFallbacks(db);
   const limit = Math.max(1, Number(values.limit));
   const batchSize = Math.max(1, Number(values.batch));
@@ -136,6 +150,7 @@ async function main() {
   let cost = 0;
   let consecutiveProviderFailures = 0;
   let budgetStop = false;
+  const analyzed: number[] = [];
 
   const budgetMin = Math.max(0, Number(values.budget) || 0);
   const deadline = budgetMin ? Date.now() + budgetMin * 60_000 : Infinity;
@@ -145,17 +160,18 @@ async function main() {
       break;
     }
     const batch = pending.slice(i, i + batchSize);
-    const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log, budget })));
+    const results = await Promise.allSettled(batch.map((a) => processArticle(db, a.id, { log, budget, cluster: false })));
     for (const [j, r] of results.entries()) {
       const a = batch[j];
       if (r.status === "fulfilled") {
         done++;
+        analyzed.push(a.id);
         consecutiveProviderFailures = 0;
         cost += r.value.costUsd;
         if (r.value.tier1.risk_flag) flagged++;
         const via = r.value.tier1Provider === "rule-based" ? " (0 токен)" : "";
         const deep = r.value.tier2 ? ` ⚡${r.value.tier2Provider?.split("/")[0]}` : r.value.tier2Error ? " (гүнзгий шинжилгээ алгассан)" : "";
-        console.log(`  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${via}${deep}${r.value.clusterId ? ` 🔗${r.value.clusterId}` : ""}  ${a.title.slice(0, 70)}`);
+        console.log(`  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${via}${deep}  ${a.title.slice(0, 70)}`);
         continue;
       }
       const err = r.reason;
@@ -167,8 +183,8 @@ async function main() {
       if (err instanceof AIUnavailableError && err.attempts.length === 0) {
         console.error(`✗ ${err.message}`);
         process.exitCode = 1;
-        await syncLedgerAiCost(db);
-        return;
+        budgetStop = true; // no provider configured: stop, but still cluster what was analysed
+        break;
       }
       const message = err instanceof Error ? err.message : String(err);
       const details = err instanceof AIUnavailableError ? err.attempts.join(" | ") : message;
@@ -186,6 +202,13 @@ async function main() {
       process.exitCode = 1;
       break;
     }
+  }
+
+  // One pool load for the whole run (assignClusters), not one per article.
+  if (analyzed.length) {
+    const assigned = await assignClusters(db, analyzed, log, budget);
+    const joined = [...assigned.entries()].filter(([, c]) => c !== null);
+    if (joined.length) console.log(`🔗 ${joined.length} article(s) joined a cross-source story: ${joined.map(([id, c]) => `#${id}→${c}`).join(", ")}`);
   }
 
   const monthTotal = await syncLedgerAiCost(db);

@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { isTimelessPage, looksOld, newestYearMentioned, publishDecision } from "@/lib/scraper/dates";
+import { isFutureDate, isTimelessPage, looksOld, newestYearMentioned, publishDecision, ubYear } from "@/lib/scraper/dates";
+import { sourceError } from "@/lib/scraper/crawl";
 import { JSDOM } from "jsdom";
 
-import { dateFromText, extractArticle, extractPublishedDate, jsonBlobDate, parseDateValue } from "@/lib/scraper/extractor";
+import { cleanTitle, dateFromText, extractArticle, extractPublishedDate, jsonBlobDate, parseDateValue } from "@/lib/scraper/extractor";
 import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
@@ -182,5 +183,33 @@ describe("dates in page data blobs", () => {
     assert.equal(jsonBlobDate(html)?.toISOString(), `${y}-10-23T03:38:26.907Z`);
     assert.equal(jsonBlobDate("<html><script>var x = 1;</script></html>"), null);
     assert.equal(jsonBlobDate(`<script type="application/json">{"viewCount":184,"key":"abc"}</script>`), null);
+  });
+});
+
+describe("future dates, Ulaanbaatar year, title order, failing sources", () => {
+  const now = new Date("2026-10-25T17:30:00Z"); // 01:30 on 26 Oct in Ulaanbaatar
+  it("accepts today in Ulaanbaatar but not tomorrow or a time hours ahead", () => {
+    assert.equal(isFutureDate(new Date("2026-10-26T00:00:00Z"), now), false); // UB today, day-level
+    assert.equal(isFutureDate(new Date("2026-10-27T00:00:00Z"), now), true); // UB tomorrow
+    assert.equal(isFutureDate(new Date("2026-10-25T18:00:00Z"), now), false); // 30 min ahead
+    assert.equal(isFutureDate(new Date("2026-10-25T20:00:00Z"), now), true); // 2.5 h ahead
+  });
+
+  it("uses the Ulaanbaatar year on New Year's night", () => {
+    assert.equal(ubYear(new Date("2026-12-31T18:00:00Z")), 2027);
+    assert.equal(ubYear(new Date("2026-12-31T15:00:00Z")), 2026);
+  });
+
+  it("keeps the headline of a 'Site | Headline' title", () => {
+    assert.equal(cleanTitle("Сангийн яам | Төсвийн тодотгол УИХ-д өргөн баригдлаа"), "Төсвийн тодотгол УИХ-д өргөн баригдлаа");
+    assert.equal(cleanTitle("Төсвийн тодотгол УИХ-д өргөн баригдлаа | Сангийн яам"), "Төсвийн тодотгол УИХ-д өргөн баригдлаа");
+  });
+
+  it("calls a source failing when every article request failed", () => {
+    const base = { inserted: 0, skippedDuplicates: 0, error: null, completed: true, found: 3, articleFailures: 3, lastArticleError: "HTTP 403" };
+    assert.equal(sourceError(base), "every article request failed: HTTP 403");
+    assert.equal(sourceError({ ...base, articleFailures: 2 }), null);
+    assert.equal(sourceError({ ...base, inserted: 1 }), null);
+    assert.equal(sourceError({ ...base, found: 0, articleFailures: 0 }), "listing reached but no articles were stored");
   });
 });

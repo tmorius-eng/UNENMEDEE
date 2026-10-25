@@ -38,6 +38,13 @@ describe("harvestArticleLinks", () => {
     assert.equal(scoreLink(new URL("https://x.gov.mn/wp-content/uploads/a.jpg"), "x"), 0);
   });
 
+  it("counts /posts/<id> as an article but keeps the bare /posts listing and /p/<id> pages out", () => {
+    assert.ok(scoreLink(new URL("https://mecc.gov.mn/posts/1234"), "Байгаль орчны шинэ журам батлагдлаа") > 0);
+    assert.equal(scoreLink(new URL("https://mecc.gov.mn/posts"), "Мэдээ мэдээлэл бүгд"), 0);
+    assert.equal(scoreLink(new URL("https://mecc.gov.mn/posts/?page=2"), "Дараах"), 0);
+    assert.equal(scoreLink(new URL("https://x.gov.mn/p/23"), "Бүтэц зохион байгуулалт"), 0);
+  });
+
   it("treats www and subdomains as the same site, never the parent domain", () => {
     assert.ok(sameSite("www.mimr.gov.mn", "mimr.gov.mn"));
     assert.ok(sameSite("www.gov.mn", "gov.mn"));
