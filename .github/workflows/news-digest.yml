@@ -63,6 +63,8 @@ jobs:
       FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
       THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
       INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -88,6 +90,7 @@ jobs:
           FB_PAGE_TOKEN: ""
           THREADS_TOKEN: ""
           INSTAGRAM_TOKEN: ""
+          TELEGRAM_BOT_TOKEN: ""
         run: npm ci
 
       - name: Check required secrets
@@ -135,7 +138,7 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode digest
 
-      - name: Post the new digest to Facebook, Threads and Instagram
-        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
+      - name: Post the new digest to Facebook, Threads, Instagram and Telegram
+        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode digest
