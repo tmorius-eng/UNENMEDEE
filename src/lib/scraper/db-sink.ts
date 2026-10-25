@@ -6,7 +6,7 @@ import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
 import { isDayLevel, isFutureDate, MAX_AGE_DAYS, publishDecision } from "./dates";
-import { firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "./titles";
+import { firstSentenceTitle, isGenericTitle, looksLikeNavigation, looksLikeUnitPage, unshoutTitle } from "./titles";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Hard cap per article to protect the 500 MB Supabase free tier (~15 KB of text). */
@@ -55,8 +55,10 @@ export function createDbSink(db: DB, options: SinkOptions = {}): ArticleSink {
       }
       // A site title over menu text is a homepage or a menu page: keep it (so it is not fetched
       // again) but never publish it.
-      const notNews = siteTitle && looksLikeNavigation(item.text);
-      if (siteTitle && !notNews) title = firstSentenceTitle(item.text);
+      const menuPage = siteTitle && looksLikeNavigation(item.text);
+      if (siteTitle && !menuPage) title = firstSentenceTitle(item.text);
+      // A department's "about" page (district CMSs link them like news): stored, never published.
+      const notNews = menuPage || looksLikeUnitPage(title, item.text);
       title = unshoutTitle(title);
       // Feeds and APIs (zasag RSS, parliament, WordPress date_gmt) are not checked by the extractor:
       // a date in the future is an event date or a typo, never the publication time.
