@@ -39,7 +39,7 @@ describe("messenger bot", () => {
     assert.ok(!validSignature(body, "sha256=zz", "secret"));
   });
 
-  it("reads texts and postbacks, skips echoes and other objects", () => {
+  it("reads Messenger and Instagram texts and postbacks, skips echoes and other objects", () => {
     const body = {
       object: "page",
       entry: [
@@ -58,7 +58,8 @@ describe("messenger bot", () => {
       { senderId: "3", text: "GET_STARTED" },
       { senderId: "4", text: "" },
     ]);
-    assert.deepEqual(incoming({ object: "instagram", entry: body.entry }), []);
+    assert.equal(incoming({ object: "instagram", entry: body.entry }).length, 3);
+    assert.deepEqual(incoming({ object: "user", entry: body.entry }), []);
   });
 
   it("parses settings and sends with the token in a header, not the URL", async () => {

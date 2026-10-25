@@ -1,5 +1,5 @@
 /**
- * Messenger bot for the ИЛ ТОД МЭДЭЭ page: answers with our own stories and links, never with
+ * Messenger and Instagram DM bot for the ИЛ ТОД МЭДЭЭ page: answers with our own stories and links, never with
  * generated text (no AI here, so nothing can be invented). "тойм" → the latest digest; any other
  * text → the top search results; greetings and the Get Started button → what the bot can do.
  * Pure helpers (classification, reply text, signature check); the route lives in
@@ -83,11 +83,13 @@ function fit(text: string): string {
   return text.length <= MAX_TEXT ? text : `${text.slice(0, MAX_TEXT - 1)}…`;
 }
 
-/** Text messages and postbacks people sent to the page (echoes of our own replies skipped). */
+/** Text messages and postbacks people sent to the page or its Instagram (echoes of our own replies skipped). */
 export function incoming(body: unknown): { senderId: string; text: string }[] {
   const out: { senderId: string; text: string }[] = [];
   const entries = (body as { object?: string; entry?: unknown[] })?.entry;
-  if ((body as { object?: string })?.object !== "page" || !Array.isArray(entries)) return out;
+  // "page" = Messenger, "instagram" = Instagram DMs (the same Send API answers both with the page token).
+  const object = (body as { object?: string })?.object;
+  if ((object !== "page" && object !== "instagram") || !Array.isArray(entries)) return out;
   for (const entry of entries) {
     for (const ev of ((entry as { messaging?: unknown[] }).messaging ?? []) as {
       sender?: { id?: string };

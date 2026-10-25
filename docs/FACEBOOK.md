@@ -66,10 +66,14 @@ Pipeline токеныг 7 хоног тутам өөрөө шинэчилж `app
 
 ## Instagram
 
-Тойм, чухал мэдээ Instagram-д 1080×1350 JPEG карт + тайлбартай нийтлэгдэнэ (`/ig-image`).
+Тойм, чухал мэдээ Instagram-д 1080×1350 JPEG карт + тайлбартай нийтлэгдэнэ (`/ig-image`). Instagram DM-д
+Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбоосоор) хариулна.
 
-1. Instagram акаунтыг **Professional → Business** болгох.
-2. Апп → **App roles → Roles → Instagram Tester** болгож нэмээд Instagram-ын **Website permissions → Tester invites**-ээс зөвшөөрөх.
-3. **Use cases → Manage messaging & content on Instagram → API setup with Instagram login**:
-   `instagram_business_basic`, `instagram_business_content_publish` → Add; **Generate token**.
-4. Токеныг GitHub **Secrets**-д `INSTAGRAM_TOKEN` нэрээр хадгална. Pipeline 7 хоног тутам өөрөө шинэчилнэ.
+1. Instagram-ыг **Professional → Business** болгож Facebook хуудастай холбох (Business Suite дээр хоёулаа харагдана).
+2. Instagram апп → **Settings → Messages and story replies → Message controls → Connected tools →
+   Allow access to messages** асаах (DM бот).
+3. **Use cases → Manage messaging & content on Instagram → API setup with Facebook login** →
+   **Add required content permissions** ба **Add required messaging permissions**.
+4. Хуудасны токеныг дахин гаргахдаа `instagram_basic`, `instagram_content_publish`,
+   `instagram_manage_messages` эрхийг нэмэх → `FB_PAGE_TOKEN` болон Vercel-ийн `MESSENGER_SETTINGS`-ийг шинэчлэх.
+5. GitHub **Variables**-д `IG_USER_ID` (хуудасны `instagram_business_account` id).
