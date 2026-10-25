@@ -55,6 +55,9 @@ describe("dates", () => {
   it("reads dates with an Ulaanbaatar time", () => {
     assert.equal(dateFromText("2026-08-27 15:48:12")?.toISOString(), "2026-08-27T07:48:00.000Z");
     assert.equal(dateFromText("2026 оны 05 дугаар сарын 05")?.toISOString().slice(0, 10), "2026-05-05");
+    // iaac.mn prints the month and day first and the year after a comma.
+    assert.equal(dateFromText("10 сарын 20, 2026 41 АНУ: Крипто хөрөнгө")?.toISOString().slice(0, 10), "2026-10-20");
+    assert.equal(dateFromText("2026 оны 10 сарын 20, 2026")?.toISOString(), dateFromText("2026 оны 10 сарын 20")?.toISOString(), "year-first still wins");
   });
 
   it("flags undated pages that only mention old years", () => {
