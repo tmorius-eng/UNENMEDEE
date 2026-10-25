@@ -78,7 +78,10 @@ Library code in [`src/lib/scraper`](../src/lib/scraper), entry point `scripts/ru
 
 **Politeness.** Our own robots.txt parser ([`robots.ts`](../src/lib/scraper/robots.ts)) and an 8-second
 minimum delay per host ([`http.ts`](../src/lib/scraper/http.ts)). The User-Agent names the site.
-Sites behind a Cloudflare browser challenge are marked inactive; we never try to get around it.
+The Crawlee crawler uses the same policy for every request it queues (not Crawlee's own check, which
+treated an unreachable robots.txt as "allowed"): per RFC 9309 a 5xx or unreachable robots.txt means
+nothing is crawled from that site in this run, and the largest Crawl-delay (up to 20 s) becomes the
+per-domain delay. Sites behind a Cloudflare browser challenge are marked inactive; we never try to get around it.
 
 **Order of attempts per source:**
 
@@ -192,8 +195,14 @@ sources, with no embeddings or extra API calls:
   removing stopwords.
 - similarity = max(bigram-shingle Jaccard, 0.7 × stem Jaccard + 0.3 × entity Jaccard), the second
   term only when stems already overlap ≥ 0.25.
-- Join threshold 0.45, cross-source only, 7-day window. A cluster synthesis is written only at growth
-  milestones, not on every new member.
+- A same-headline channel: two titles with ≥ 0.8 stem Jaccard (≥ 3 stems) whose bodies also overlap
+  (≥ 0.3) score at least 0.6 × the headline score. Two sites often post one story under the same
+  headline while the AI words each summary differently; the body condition keeps identical generic
+  headlines about different events apart (tested on real pairs in `tests/fixtures/cluster-pairs.json`).
+- Join threshold 0.45, cross-source only, published rows only, 7-day window. `ai:process` clusters a
+  whole run at once from one pool of every row of the window (`assignClusters`): a per-article pool
+  capped at the 500 newest rows covered only ~2 days and found 3 clusters a week. A cluster synthesis is
+  written only at growth milestones, not on every new member.
 
 **Digest** ([`digest.ts`](../src/lib/ai/digest.ts)), twice a day:
 
@@ -253,11 +262,14 @@ validation, a push-service host allowlist and per-IP / global rate limits.
 
 After the push steps, `social:post` ([`scripts/post-social.ts`](../scripts/post-social.ts)) posts each new
 digest edition and at most one important story per run (four per day, one per cluster) to the site's
-Facebook page through the Graph API (`POST /{page-id}/feed`, message + link; Facebook builds the card
-from our Open Graph image). A `social_posts` row is reserved before each call and removed if it fails.
+Facebook page through the Graph API (`POST /{page-id}/photos` with our hook card, the link in the text).
+A `social_posts` row is reserved before each call and removed only when the platform clearly refused the
+post; after a timeout or a DB error following a publish it stays (marked for a manual check), because a
+second attempt could be a duplicate.
 The never-expiring Page token is the `FB_PAGE_TOKEN` Actions secret ([setup](FACEBOOK.md)).
-The same posts go to Threads (text + link, 500 characters); its 60-day token is refreshed weekly by the
-pipeline and kept in `app_settings`.
+The same posts go to Threads (IMAGE post with the card, link in the text, 500 characters); its 60-day
+token is refreshed weekly by the pipeline and kept in `app_settings` (removing the secret turns the
+platform off).
 Instagram gets the same stories as a 1080×1350 JPEG card rendered by `/ig-image` (Instagram accepts only
 JPEG from a public URL), with the summary as the caption; its 60-day token is kept and refreshed like Threads'. Instagram DMs
 get the same no-AI replies as Messenger.
@@ -268,12 +280,21 @@ no generated images.
 People who message the page get an automatic Messenger reply from `/api/messenger`
 ([`route.ts`](../src/app/api/messenger/route.ts)): the request must carry Meta's HMAC signature, and the
 answer is built from our own data only (the latest digest or the top search results, with links), never
-from a language model. Messages are not stored.
+from a language model. The route answers Meta with 200 at once and sends the reply afterwards (`after()`),
+and answers a redelivered message id once. Messages are not stored in the database.
 
 ## Security model
 
 - **No secrets in the repository.** AI keys and `DATABASE_URL` live in GitHub Actions secrets and Vercel
-  environment variables. Push protection blocks commits that contain known key formats.
+  environment variables. Push protection blocks commits that contain known key formats. Secrets never
+  reach `npm ci` / `playwright install` (a compromised dependency's install script): they are blanked
+  on those steps or set only on the steps that use them.
+- **Database:** every table has row-level security with no policies, so Supabase's public API reaches
+  nothing; the app and Actions connect as the owner.
+- **Generated images** (`/ig-image`, `/story-image`) redirect to their canonical query, so junk
+  parameters cannot bypass the CDN and force a render per request.
+- **Prompt injection:** scraped text, its title and the Tier-1 output reach models only inside data
+  tags that the text cannot close, and every system prompt says to ignore instructions inside them.
 - **Admin** (`/admin`): `proxy.ts` redirects, and `requireAdmin()` is checked again inside every admin
   page and server action (server actions are callable directly). The session cookie is
   `issuedAt.HMAC`, expires after 7 days, and rotating the password logs everyone out.
@@ -294,7 +315,8 @@ The site is designed to keep publishing for months with nobody touching it:
   26 h, no AI summary for 36 h or no digest for 26 h, when more than 60 % of sources fail, or when the
   database passes 400 MB. It closes the issue when things recover.
 - Retention pruning, the AI fallback and source back-off keep the free tiers within limits without
-  manual work.
+  manual work. A scrape or AI failure never skips the digest (with its rule-based fallback) or the
+  pushes: every later pipeline step runs unless the run was cancelled or the migration failed.
 
 ## Testing
 
