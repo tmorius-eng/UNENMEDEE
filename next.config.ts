@@ -8,7 +8,14 @@ const TOPIC_KEYS = ["risk", "budget", "ministry", ...TOPICS.map((t) => t.key)];
 const nextConfig: NextConfig = {
   // The demo database (`npm run demo`) is loaded from node_modules at run time, never bundled.
   serverExternalPackages: ["@electric-sql/pglite"],
-  /* config options here */
+  // sharp + libvips (glibc, musl and wasm builds, ~35 MB) were traced into every server
+  // function. Vercel optimizes next/image on its own infrastructure and next/og uses Satori, so
+  // no function needs them; with ~40 functions per deployment they filled the 10 GB Hobby
+  // "Functions Storage".
+  outputFileTracingExcludes: {
+    "/**": ["node_modules/sharp/**", "node_modules/@img/**"],
+    "/*": ["node_modules/sharp/**", "node_modules/@img/**"],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   async redirects() {
