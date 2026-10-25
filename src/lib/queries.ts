@@ -444,9 +444,13 @@ export interface SiteStats {
   flagged: number;
   clusters: number;
   aiCostThisMonthUsd: number;
-  /** Newest published article's created_at (ISO): "Шинэчилсэн: … өмнө". */
+  /**
+   * Newest feed story's created_at (ISO): "Шинэчилсэн: … өмнө". Only rows the feed shows (published,
+   * importance >= FEED_MIN_IMPORTANCE): a minor item hidden from the feed (a district department
+   * page, importance 10) made the masthead say "53 minutes ago" over a newest story 6 hours old.
+   */
   lastArticleAt: string | null;
-  /** Published articles found since midnight Ulaanbaatar time. */
+  /** Feed stories found since midnight Ulaanbaatar time (same rule as lastArticleAt). */
   todayArticles: number;
 }
 
@@ -478,7 +482,7 @@ export async function getSiteStats(): Promise<SiteStats> {
           today: sql<number>`count(*) filter (where ${articles.createdAt} >= ${todayStart})::int`,
         })
         .from(articles)
-        .where(eq(articles.isPublished, true)),
+        .where(and(eq(articles.isPublished, true), sql`coalesce(${articles.importanceScore}, 100) >= ${FEED_MIN_IMPORTANCE}`)),
     ]);
     return {
       activeSources: src.n,
