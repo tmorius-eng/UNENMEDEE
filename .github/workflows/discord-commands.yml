@@ -1,0 +1,41 @@
+# Manual: registers the Discord slash commands (/toim, /khaih, /aimag) with the bot token. Run it once
+# after the Discord setup (docs/FACEBOOK.md) and whenever COMMANDS in
+# src/lib/social/discord-interactions.ts changes. The commands themselves are answered by
+# https://iltodmedee.mn/api/discord on Vercel (needs the DISCORD_PUBLIC_KEY env var there).
+name: Discord commands (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = print the command list, register nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Register the slash commands
+        # The secret only reaches this step, never the dependency install above.
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          IN_DRY: ${{ inputs.dry_run }}
+        run: |
+          if [ "$IN_DRY" = "true" ]; then npm run discord:commands -- --dry-run; else npm run discord:commands; fi
