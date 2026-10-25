@@ -257,6 +257,11 @@ Facebook page through the Graph API (`POST /{page-id}/feed`, message + link; Fac
 from our Open Graph image). A `social_posts` row is reserved before each call and removed if it fails.
 The never-expiring Page token is the `FB_PAGE_TOKEN` Actions secret ([setup](FACEBOOK.md)).
 
+People who message the page get an automatic Messenger reply from `/api/messenger`
+([`route.ts`](../src/app/api/messenger/route.ts)): the request must carry Meta's HMAC signature, and the
+answer is built from our own data only (the latest digest or the top search results, with links), never
+from a language model. Messages are not stored.
+
 ## Security model
 
 - **No secrets in the repository.** AI keys and `DATABASE_URL` live in GitHub Actions secrets and Vercel
