@@ -11,6 +11,9 @@ import { z } from "zod";
 const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^web\.push\.apple\.com$/, /\.notify\.windows\.com$/, /^android\.googleapis\.com$/];
 
 export function isAllowedPushEndpoint(endpoint: string): boolean {
+  // Real endpoints are < 500 characters; every public action checks this, so a megabyte-long
+  // "endpoint" never reaches a map or a query.
+  if (endpoint.length > 1_000) return false;
   try {
     const u = new URL(endpoint);
     return u.protocol === "https:" && PUSH_HOSTS.some((h) => h.test(u.hostname));

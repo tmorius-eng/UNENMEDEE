@@ -23,6 +23,9 @@ function refreshPublic(slug?: string) {
   updateTag("articles");
   updateTag("clusters");
   updateTag("ai");
+  // An unpublished or edited article also appears in MP profiles (mentions) and digest editions.
+  updateTag("officials");
+  updateTag("digests");
   if (slug) updateTag(`article-${slug}`);
 }
 

@@ -69,6 +69,8 @@ export async function sendTestPush(endpoint: unknown): Promise<{ ok: boolean; er
   const now = Date.now();
   if (now - (lastTest.get(endpoint) ?? 0) < 60_000) return { ok: false, error: "1 минутын дараа дахин оролдоно уу." };
   lastTest.set(endpoint, now);
+  // Per instance and only for rate limiting: keep it small.
+  if (lastTest.size > 1_000) for (const [k, t] of lastTest) if (now - t > 60_000) lastTest.delete(k);
   const res = await sendToEndpoint(getDb(), endpoint, TEST_PAYLOAD);
   if (res.ok) return { ok: true };
   return { ok: false, error: res.status === 404 || res.status === 410 ? "Бүртгэл хүчингүй болсон. Мэдэгдлээ дахин асаана уу." : `Илгээж чадсангүй (${res.status ?? "алдаа"}).` };

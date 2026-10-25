@@ -78,7 +78,19 @@ export function jsonLd(data: unknown): string {
 
 /** XML text/attribute escaping for sitemaps and RSS. */
 export function xmlEscape(s: string): string {
-  return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!);
+  return (
+    s
+      // Characters XML 1.0 forbids: one in a scraped title made feed.xml and news-sitemap.xml unreadable.
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
+      .replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!)
+  );
+}
+
+/** A numeric route id (`/clusters/12`, `/officials/46`) or null: "abc" or 3000000000 must 404, not 500. */
+export function parseRouteId(raw: string): number | null {
+  if (!/^\d{1,9}$/.test(raw)) return null;
+  const id = Number(raw);
+  return id > 0 ? id : null;
 }
 
 /** A link we render from scraped data: only http(s) URLs, never `javascript:` or `data:`. */
@@ -90,4 +102,20 @@ export function safeHttpUrl(url: string | null | undefined): string | undefined 
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The canonical form of a generated-image URL: only `keys`, each once, in that order. Any other
+ * parameter (`?a=x&junk=123`) would make every request a CDN miss and a fresh 1080×1350 render, a
+ * cheap way to burn the Hobby plan's CPU. Returns the canonical path + query when the URL differs,
+ * or null when it is already canonical.
+ */
+export function canonicalImageQuery(url: URL, keys: string[]): string | null {
+  const clean = new URLSearchParams();
+  for (const k of keys) {
+    const v = url.searchParams.get(k);
+    if (v !== null) clean.set(k, v);
+  }
+  const query = clean.toString();
+  return url.search.replace(/^\?/, "") === query ? null : `${url.pathname}${query ? `?${query}` : ""}`;
 }

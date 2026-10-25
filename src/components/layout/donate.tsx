@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { CopyText } from "@/components/iltod/copy-text";
-import { groupAccount } from "@/lib/donation";
+import { DEFAULT_DONATION, groupAccount } from "@/lib/donation";
 import { getDonation } from "@/lib/queries";
 import { cx } from "@/utils/cx";
 
@@ -10,7 +10,8 @@ import { cx } from "@/utils/cx";
  * lg = + bank and the full label. Below sm it is in the menu and the footer instead.
  */
 export async function DonateChip({ className }: { className?: string }) {
-  const d = await getDonation();
+  // In the header of every page: a database blip falls back to the default account, never an error page.
+  const d = await getDonation().catch(() => DEFAULT_DONATION);
   return (
     <div className={cx("min-w-0 items-center gap-2 text-xs", className)}>
       <Link href="/support" className="shrink-0 font-semibold whitespace-nowrap text-brand-secondary hover:underline">

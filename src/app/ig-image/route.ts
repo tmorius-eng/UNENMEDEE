@@ -6,6 +6,7 @@ import { formatDateMn, largestAmount, tldrSentences } from "@/lib/format";
 import { hookCard } from "@/lib/og";
 import { getArticleBySlug, getDigestById } from "@/lib/queries";
 import { hookWords } from "@/lib/social/hook";
+import { canonicalImageQuery } from "@/lib/site";
 
 /**
  * Instagram feed card as JPEG (GET /ig-image?d=<digest id> or ?a=<article slug>): Instagram's
@@ -46,7 +47,10 @@ async function cardFor(params: URLSearchParams) {
 }
 
 export async function GET(request: Request) {
-  const card = await cardFor(new URL(request.url).searchParams);
+  const url = new URL(request.url);
+  const canonical = canonicalImageQuery(url, ["d", "a"]);
+  if (canonical) return Response.redirect(new URL(canonical, url), 308);
+  const card = await cardFor(url.searchParams);
   if (!card) return new Response("Not found", { status: 404 });
   const png = decode(new Uint8Array(await (await hookCard(card)).arrayBuffer()));
   // fast-png returns RGB or RGBA; jpeg-js wants RGBA.

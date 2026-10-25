@@ -389,6 +389,28 @@ export interface SitemapArticle {
 }
 
 /** Newest public articles for sitemap.xml, the Google News sitemap and RSS (no body text). */
+/**
+ * sitemap.xml only needs the slug and a date: the full SitemapArticle row (title, summary,
+ * source) for 45k articles made a cache entry of tens of MB and neared the query timeout.
+ */
+export async function getSitemapSlugs(limit = 45_000): Promise<{ slug: string; lastModified: Date }[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("articles");
+  return safe("getSitemapSlugs", [], () =>
+    getDb()
+      .select({
+        slug: articles.slug,
+        lastModified: sql<Date>`greatest(${articles.createdAt}, coalesce(${articles.editedAt}, ${articles.createdAt}))`.mapWith(articles.createdAt),
+      })
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(visible)
+      .orderBy(desc(sql`coalesce(${articles.publishedAt}, ${articles.createdAt})`))
+      .limit(limit),
+  );
+}
+
 export async function getSitemapArticles(limit = 1000): Promise<SitemapArticle[]> {
   "use cache";
   cacheLife("minutes");

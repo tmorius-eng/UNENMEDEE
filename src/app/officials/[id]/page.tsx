@@ -12,6 +12,7 @@ import type { AssetDeclaration } from "@/db/schema";
 import { formatMntShort, formatNumber } from "@/lib/format";
 import { declarationFlags } from "@/lib/officials/flags";
 import { getAttendance, getPolitician, getPoliticianIds } from "@/lib/queries";
+import { parseRouteId } from "@/lib/site";
 
 export async function generateStaticParams() {
   const ids = await getPoliticianIds();
@@ -20,7 +21,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/officials/[id]">): Promise<Metadata> {
   const { id } = await params;
-  const data = await getPolitician(Number(id));
+  const parsed = parseRouteId(id);
+  const data = parsed ? await getPolitician(parsed) : null;
   if (!data) return { title: "Олдсонгүй", robots: { index: false } };
   const p = data.politician;
   return {
@@ -100,8 +102,8 @@ async function Attendance({ shortName, nameShared }: { shortName: string; nameSh
 }
 
 async function Profile({ params }: { params: PageProps<"/officials/[id]">["params"] }) {
-  const id = Number((await params).id);
-  if (!Number.isInteger(id) || id <= 0) notFound();
+  const id = parseRouteId((await params).id);
+  if (!id) notFound();
   const data = await getPolitician(id);
   if (!data) notFound();
   const { politician: p, declarations: rows, hiddenYears, mentions, nameShared } = data;
