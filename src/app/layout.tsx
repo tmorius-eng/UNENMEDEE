@@ -91,13 +91,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/*
           Vercel Web Analytics without the npm client: the queue stub plus Vercel's own script, which
           follows client-side navigations itself. Keeps ~15 KB of JS out of every page; only on Vercel
-          (the script lives at /_vercel/insights there, 404 elsewhere).
+          (the script lives at /_vercel/insights there, 404 elsewhere). It is injected after `load`,
+          when the browser is idle: as a deferred script it was a 140 ms task inside the window
+          Lighthouse counts as Total Blocking Time on phones. The stub queues the page view meanwhile.
         */}
         {process.env.VERCEL && (
-          <>
-            <script dangerouslySetInnerHTML={{ __html: "window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};" }} />
-            <script defer src="/_vercel/insights/script.js" />
-          </>
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};addEventListener('load',function(){(window.requestIdleCallback||setTimeout)(function(){var s=document.createElement('script');s.src='/_vercel/insights/script.js';s.defer=true;document.body.appendChild(s)})});",
+            }}
+          />
         )}
       </body>
     </html>
