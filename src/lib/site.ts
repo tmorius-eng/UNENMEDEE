@@ -23,7 +23,8 @@ export const SOCIAL = {
 } as const;
 /** A file or folder in the repository on the main branch. */
 export const repoFile = (path: string) => `${REPO_URL}/blob/main/${path}`;
-export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
+// The Latin spelling is in the title: Google did not know "iltodmedee" yet (Oct 2026, it suggested "altamed").
+export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ (iltodmedee) — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
 export const SITE_DESCRIPTION =
   "ИЛ ТОД МЭДЭЭ (iltodmedee.mn) — өнөөдрийн мэдээ: УИХ, Засгийн газар, яамд, тендер, төсөв, авлигын хэргийн шинэ мэдээг 90 гаруй төрийн эх сурвалжаас 2 цаг тутам цуглуулж, AI-аар баримтыг пи-араас салгасан Монголын нээлттэй мэдээний сайт.";
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { editionLabel } from "@/lib/edition";
 import { formatUsd } from "@/lib/format";
 import { type ArticleListItem, type DigestView, type FeedFilter, getDigests, getFeed, getSiteStats, type SiteStats } from "@/lib/queries";
+import { type TopicSeo, topicSeo } from "@/lib/topic-seo";
 import { findTopic } from "@/lib/topics";
 
 import { Empty } from "./empty";
@@ -51,15 +52,23 @@ function pickLead(stories: ArticleListItem[]): number | undefined {
 }
 
 
-async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; digest: DigestView | undefined; topicLabel?: string }) {
+async function Masthead({ stats, digest, seo }: { stats: SiteStats; digest: DigestView | undefined; seo?: TopicSeo }) {
   return (
     <header className="flex flex-col gap-4 pb-2">
       <div>
-        <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">
-          {/* Read by search engines and screen readers; the visible heading stays the date. */}
-          <span className="sr-only">{topicLabel ? `${topicLabel} — шинэ мэдээ` : "Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ"}, </span>
-          {await todayMn()}
-        </h1>
+        {seo ? (
+          // A topic page is about one subject: its visible heading is the phrase people search for.
+          <>
+            <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{seo.heading}</h1>
+            <p className="mt-1 text-md text-tertiary">{await todayMn()}</p>
+          </>
+        ) : (
+          <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">
+            {/* Read by search engines and screen readers; the visible heading stays the date. */}
+            <span className="sr-only">Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ, </span>
+            {await todayMn()}
+          </h1>
+        )}
         <span aria-hidden className="mt-2 block h-1 w-12 rounded-full bg-brand-solid" />
         <StatusTicker
           stats={`${stats.activeSources} төрийн эх сурвалж · ${stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал ${formatUsd(stats.aiCostThisMonthUsd)}`}
@@ -94,10 +103,19 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
   const [feed, stats, [edition], [review]] = await Promise.all([getFeed(filter, FIRST_PAGE), getSiteStats(), getDigests("12h", 1), getDigests("30d", 1)]);
   const stories = onePerStory(feed);
   const topic = findTopic(filter);
+  const seo = filter === "all" ? undefined : topicSeo(filter);
   return (
     // Narrow reading column like Kagi News; extra bottom space for the phone topic bar.
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-20 md:pb-0">
-      <Masthead stats={stats} digest={edition ?? review} topicLabel={topic?.label} />
+      <Masthead stats={stats} digest={edition ?? review} seo={seo} />
+      {seo && (
+        <div className="flex flex-col gap-1 text-sm text-secondary">
+          <p>{seo.intro}</p>
+          <p className="text-tertiary">
+            ИЛ ТОД МЭДЭЭ (iltodmedee.mn) · {seo.latin.join(", ")}
+          </p>
+        </div>
+      )}
       {filter === "all" && <IntroStrip sources={stats.activeSources} />}
       {filter === "all" && <MacroStrip compact />}
       <TopicBar active={filter} placement="inline" />

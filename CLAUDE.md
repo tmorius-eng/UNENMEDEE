@@ -120,6 +120,8 @@ We are building a 100% transparent, open-source investigative news and public da
 - Every public page sets its own `alternates.canonical`. Never put a canonical or `openGraph.url` in the root layout: children inherit it and every page would point at `/`.
 - JSON-LD: `NewsMediaOrganization` + `WebSite` in the layout, `NewsArticle` + `BreadcrumbList` on articles (`jsonLd()` escapes `<`).
 - OG images: `src/lib/og.tsx` (next/og) with one Inter 700 WOFF subset (`src/assets/fonts/inter-700.woff`: Latin + Cyrillic + Ө Ү + ₮ U+20AE, built with pyftsubset from the Inter release, see §6c).
+- Topic pages are one-subject pages ("content silos"): `src/lib/topic-seo.ts` gives every feed filter the phrase people search for (visible `<h1>` "Улс төрийн мэдээ", `<title>` "… — өнөөдрийн шинэ мэдээ"), a true 1–2 sentence intro (also the meta description) and its common Latin spellings ("uls turiin medee"), shown once in visible text; `CollectionPage` + `BreadcrumbList` JSON-LD. Never hidden keyword lists (penalised). The home `<title>` carries the Latin brand "iltodmedee" (Google suggested "altamed" for it in Oct 2026).
+- Never target another outlet's name: "unenmedee" is the Ünen newspaper's brand (unenmedee.mn); UNENMEDEE is only this repository's name.
 - Search Console: set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (and optionally `NEXT_PUBLIC_BING_SITE_VERIFICATION`) on Vercel, then submit `/sitemap.xml` and `/news-sitemap.xml`.
 
 ## 6d. Officials & civic data (facts only)
