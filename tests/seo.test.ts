@@ -60,3 +60,25 @@ describe("extractWithCheerio (fallback when jsdom cannot load)", () => {
     assert.equal(short?.title, "Засгийн газрын хуралдаанаар төсвийн тодотголыг хэлэлцлээ");
   });
 });
+
+describe("topic pages are one-subject pages for search", () => {
+  it("every feed page has its own heading, intro and Latin spellings", async () => {
+    const { FEED_FILTERS } = await import("@/lib/queries");
+    const { topicSeo, topicTitle } = await import("@/lib/topic-seo");
+    const headings = new Set<string>();
+    for (const key of FEED_FILTERS.filter((f) => f !== "all")) {
+      const seo = topicSeo(key);
+      assert.ok(seo, `no search wording for /topic/${key}`);
+      assert.ok(seo.intro.length > 40 && seo.latin.length > 0, key);
+      assert.ok(/^[a-z ]+$/.test(seo.latin.join(" ")), `Latin spellings only: ${key}`);
+      headings.add(seo.heading);
+    }
+    assert.equal(headings.size, new Set(FEED_FILTERS.filter((f) => f !== "all")).size, "headings are unique");
+    assert.equal(topicTitle("politics", "Улс төр"), "Улс төрийн мэдээ — өнөөдрийн шинэ мэдээ");
+  });
+
+  it("the home title carries the Latin brand spelling", async () => {
+    const { SITE_TITLE } = await import("@/lib/site");
+    assert.match(SITE_TITLE, /iltodmedee/);
+  });
+});
