@@ -10,11 +10,11 @@ import type { AIProvider } from "@/lib/types";
 const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   deepseek: { input: 0.15, output: 0.6 },
   grok: { input: 2, output: 6 },
-  // Gemini on a billed project (ai.google.dev/gemini-api/docs/pricing, Oct 2026): Flash-Lite
-  // $0.30 / $2.50; Flash (deep model, see GEMINI_DEEP_PRICES) $0.75 / $3.75 until 2026-12-31.
-  // A key from a project WITHOUT billing is free: set GEMINI_FREE_TIER=true. A key in a billed
-  // project is charged for every call, free quota or not, so it is never assumed free.
-  gemini: { input: 0.3, output: 2.5 },
+  // Gemini on a billed project (ai.google.dev/gemini-api/docs/pricing, Oct 2026). The billed
+  // default model is the cheapest text model, gemini-2.5-flash-lite: $0.10 in / $0.40 out.
+  // Other models are priced by geminiModelPrice. A key from a project WITHOUT billing is free:
+  // set GEMINI_FREE_TIER=true. A billed key is charged for every call, so never assumed free.
+  gemini: { input: 0.1, output: 0.4 },
   // NVIDIA NIM free API (build.nvidia.com). Free models are rate limited, not billed.
   nvidia: { input: 0, output: 0 },
   // Groq free tier (rate limited per minute/day, no card). Not to be confused with xAI Grok.
@@ -25,8 +25,26 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   ollama: { input: 0, output: 0 },
 };
 
-/** Gemini Flash (not Lite), the deep / digest model. */
-const GEMINI_DEEP_PRICES = { input: 0.75, output: 3.75 };
+/** The cheapest Gemini text model: the only one used on a billed key unless GEMINI_MODEL says otherwise. */
+export const GEMINI_BILLED_MODEL = "gemini-2.5-flash-lite";
+
+/** List price of a Gemini text model (USD per 1M tokens), by its id or "-latest" alias. */
+export function geminiModelPrice(model: string): { input: number; output: number } {
+  const m = model.toLowerCase();
+  if (m.includes("2.5-flash-lite")) return { input: 0.1, output: 0.4 };
+  if (m.includes("3.1-flash-lite")) return { input: 0.25, output: 1.5 };
+  if (m.includes("lite")) return { input: 0.3, output: 2.5 }; // 3.5 Flash-Lite, "flash-lite-latest"
+  if (m.includes("2.5-flash")) return { input: 0.3, output: 2.5 };
+  return { input: 0.75, output: 3.75 }; // 3.x Flash, "flash-latest" (until 2026-12-31)
+}
+
+/**
+ * Image, video and speech models are never used: they are billed per image or second and the
+ * site only needs text. A configured one is refused instead of quietly spending money.
+ */
+export function isTextModel(model: string): boolean {
+  return !/image|imagen|veo|tts|audio|live|banana/i.test(model);
+}
 
 /** True only when the Gemini key comes from a Google project without billing (free tier). */
 export function geminiIsFree(env: Record<string, string | undefined> = process.env): boolean {
@@ -42,7 +60,7 @@ function envNumber(name: string): number | undefined {
 
 export function getPrice(provider: AIProvider, model?: string): { input: number; output: number } {
   if (provider === "gemini" && geminiIsFree()) return { input: 0, output: 0 };
-  const base = provider === "gemini" && model && !/lite/i.test(model) ? GEMINI_DEEP_PRICES : DEFAULT_PRICES[provider];
+  const base = provider === "gemini" && model ? geminiModelPrice(model) : DEFAULT_PRICES[provider];
   if (provider === "ollama") return base;
   const prefix = provider.toUpperCase();
   return {

@@ -4,7 +4,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { analyzeArticle, ruleBasedAnalysis } from "@/lib/ai/analyze";
 import { budgetConfig, checkAllowance, createBudgetGuard, type BudgetGuard, type UsageSnapshot } from "@/lib/ai/limits";
-import { AIUnavailableError, callAIWithFallback, chainFor, type UsageRecord } from "@/lib/ai/router";
+import { AIUnavailableError, callAIWithFallback, chainFor, spreadFree, type UsageRecord } from "@/lib/ai/router";
 import { Tier1Schema, Tier2Schema } from "@/lib/ai/schemas";
 import { opendataItemToScraped, parseOpendataResponse } from "@/lib/scraper/adapters/opendata";
 
@@ -59,11 +59,20 @@ describe("budget limits", () => {
   });
 
   it("parses chain overrides and ignores unknown providers", () => {
-    // A billed Gemini key is never in the default chain; a free one (no billing) is.
-    assert.deepEqual(chainFor("tier1", {}), ["groq", "requesty", "nvidia", "deepseek", "ollama"]);
-    assert.deepEqual(chainFor("tier2", {}), ["grok", "groq", "requesty", "nvidia", "deepseek", "ollama"]);
-    assert.deepEqual(chainFor("tier1", { GEMINI_FREE_TIER: "true" }), ["groq", "gemini", "requesty", "nvidia", "deepseek", "ollama"]);
+    // A billed Gemini key goes behind the free providers; a free one (no billing) stays near the front.
+    assert.deepEqual(chainFor("tier1", {}), ["groq", "nvidia", "requesty", "gemini", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier2", {}), ["grok", "groq", "nvidia", "requesty", "gemini", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier1", { GEMINI_FREE_TIER: "true" }), ["groq", "gemini", "nvidia", "requesty", "deepseek", "ollama"]);
     assert.deepEqual(chainFor("tier2", { AI_TIER2_CHAIN: "gemini, openai ,deepseek,gemini" }), ["gemini", "deepseek"]);
+  });
+
+  it("spreads bulk calls over the free providers in turn, paid ones stay last", () => {
+    const chain = chainFor("tier1", {});
+    assert.deepEqual(spreadFree(chain, 0).slice(0, 3), ["groq", "nvidia", "requesty"]);
+    assert.deepEqual(spreadFree(chain, 1).slice(0, 3), ["nvidia", "requesty", "groq"]);
+    assert.deepEqual(spreadFree(chain, 2).slice(0, 3), ["requesty", "groq", "nvidia"]);
+    assert.deepEqual(spreadFree(chain, 1).slice(3), ["gemini", "deepseek", "ollama"]);
+    assert.deepEqual(spreadFree(["grok", "groq"], 1), ["grok", "groq"], "a paid head is not rotated");
   });
 });
 

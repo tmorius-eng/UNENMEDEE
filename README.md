@@ -49,7 +49,7 @@
 ## AI түлхүүр яаж хадгалагддаг вэ
 
 - Кодонд **ямар ч түлхүүр, нууц үг байхгүй**. AI-ийн түлхүүр, `DATABASE_URL` зөвхөн GitHub Actions secrets болон Vercel-ийн орчны хувьсагчид байна. `.env*` файлууд git-д ордоггүй (`.env.example` л байна).
-- Үнэгүй AI-ууд эхэлж ажиллана: Groq → Requesty → NVIDIA. Gemini зөвхөн төлбөр холбоогүй Google project-ийн түлхүүртэй үед (`GEMINI_FREE_TIER=true`): төлбөртэй project-ийн түлхүүр дуудлага бүрт мөнгө авдаг. Төлбөртэй (DeepSeek, Grok) нь сард `AI_MONTHLY_BUDGET_USD` ($3), өдөрт `AI_DAILY_BUDGET_USD` ($0.30)-оос хэтэрвэл автоматаар зогсоно ([`src/lib/ai/limits.ts`](src/lib/ai/limits.ts)).
+- Үнэгүй AI-ууд (Groq, NVIDIA NIM, Requesty) ээлжлэн ажиллана. Gemini: төлбөр холбоогүй Google project-ийн түлхүүр бол үнэгүй (`GEMINI_FREE_TIER=true`); төлбөртэй түлхүүр бол үнэгүйнүүдийн дараа, зөвхөн хамгийн хямд `gemini-2.5-flash-lite` загвараар, мөнгөний хязгаар дотор. Зураг үүсгэх загвар хэзээ ч ашиглахгүй. Төлбөртэй (DeepSeek, Grok) нь сард `AI_MONTHLY_BUDGET_USD` ($3), өдөрт `AI_DAILY_BUDGET_USD` ($0.30)-оос хэтэрвэл автоматаар зогсоно ([`src/lib/ai/limits.ts`](src/lib/ai/limits.ts)).
 - Дуудлага бүр `ai_usage_logs`-д бичигдэж [/transparency](https://iltodmedee.mn/transparency)-д харагдана.
 
 ## Өөрийн компьютер дээр ажиллуулах
@@ -111,8 +111,8 @@ GitHub Actions (every 2 h, free on public repos)
  │      → SHA-256 dedup → clean text only → articles
  └─ npm run ai:process
      ├─ Budget guard                            paid providers stop at $3/month, $0.30/day; Grok ≤ 5 calls/day
-     ├─ Tier 1  Groq → Requesty → NVIDIA → DeepSeek → (Ollama)   free first; facts, spin, risk 0-100
-     ├─ Tier 2  Grok → Groq → …                 only when risk ≥ 65: investigative analysis
+     ├─ Tier 1  Groq / NVIDIA / Requesty in turn → Gemini → DeepSeek   free first; facts, spin, risk 0-100
+     ├─ Tier 2  Grok → Gemini → Groq → …        only when risk ≥ 65: investigative analysis
      ├─ Fallback                                first sentences if every provider fails for 24 h
      └─ ai_usage_logs                           exact tokens and USD for every call
 GitHub Actions (08:07 and 20:07 Ulaanbaatar)

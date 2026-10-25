@@ -5,7 +5,7 @@ import type { AIProvider } from "@/lib/types";
 
 import { geminiGenerate, GeminiError, type ChatMessage } from "./gemini";
 import { throttleProvider, unlimitedGuard, type BudgetGuard } from "./limits";
-import { estimateCostUsd, geminiIsFree, getPrice } from "./pricing";
+import { estimateCostUsd, GEMINI_BILLED_MODEL, geminiIsFree, getPrice, isTextModel } from "./pricing";
 import { parseJsonLoose } from "./schemas";
 
 export type Tier = "tier1" | "tier2";
@@ -122,7 +122,16 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
       // Deep tier: Flash, which reasons before answering; its thinking tokens share the
       // output limit, so it gets generous headroom (free tier: tokens cost nothing).
       const deep = tier === "tier2";
-      const model = deep ? env.GEMINI_DEEP_MODEL || "gemini-flash-latest" : env.GEMINI_MODEL || "gemini-flash-lite-latest";
+      // A billed key uses the cheapest text model for everything (Flash-Lite 2.5, $0.10/$0.40);
+      // a free (no-billing) key keeps the better "-latest" models, which cost nothing there.
+      const free = geminiIsFree(env);
+      const model = deep
+        ? env.GEMINI_DEEP_MODEL || (free ? "gemini-flash-latest" : GEMINI_BILLED_MODEL)
+        : env.GEMINI_MODEL || (free ? "gemini-flash-lite-latest" : GEMINI_BILLED_MODEL);
+      if (!isTextModel(model)) {
+        console.warn(`[ai] GEMINI model "${model}" is not a text model (image/video/speech are never used): Gemini skipped`);
+        return null;
+      }
       return {
         provider,
         model,
@@ -132,7 +141,8 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
             model,
             messages,
             temperature,
-            maxTokens: deep ? Math.max(maxTokens * 4, 8_192) : maxTokens,
+            // Flash "thinks" before answering and its thinking shares the output limit; Lite does not.
+            maxTokens: deep && !/lite/i.test(model) ? Math.max(maxTokens * 4, 8_192) : maxTokens,
           }),
       };
     }
@@ -168,26 +178,55 @@ const PROVIDERS: AIProvider[] = ["deepseek", "grok", "gemini", "nvidia", "groq",
  * Fallback order per tier. Free providers go first for bulk work (Groq: fastest, then Gemini
  * when its key is free, then free Gemma on Requesty, then NVIDIA NIM); each has its own daily
  * quota, so together they cover far more articles than any one. Deep analysis: Grok (paid,
- * capped), then Gemini Flash. Gemini is left out of the default chains unless
- * GEMINI_FREE_TIER=true: a key from a billed Google project is charged for every call (it cost
- * real money while the logs said $0). Naming it in AI_TIER1_CHAIN / AI_TIER2_CHAIN still works,
- * then at its paid price and inside the USD budget.
+ * capped), then Gemini. A key from a billed Google project (GEMINI_FREE_TIER unset) is charged
+ * for every call, so it moves behind the free providers, uses only the cheapest text model and
+ * counts against the USD budget; a free (no-billing) key keeps its place and the better models.
  * Override with AI_TIER1_CHAIN / AI_TIER2_CHAIN, e.g. "deepseek,gemini" (comma separated).
  * Providers without an API key are skipped.
  */
 export const DEFAULT_CHAINS: Record<Tier, AIProvider[]> = {
-  tier1: ["groq", "gemini", "requesty", "nvidia", "deepseek", "ollama"],
-  tier2: ["grok", "gemini", "groq", "requesty", "nvidia", "deepseek", "ollama"],
+  tier1: ["groq", "gemini", "nvidia", "requesty", "deepseek", "ollama"],
+  tier2: ["grok", "gemini", "groq", "nvidia", "requesty", "deepseek", "ollama"],
 };
+
+/** Free providers that share the bulk work in turn (see spreadFree). */
+const SPREAD: AIProvider[] = ["groq", "nvidia", "requesty"];
+
+/**
+ * A billed Gemini key goes after the free providers (it is the paid overflow, inside the USD
+ * budget); a free one keeps its place near the front.
+ */
+function placeGemini(chain: AIProvider[], env: Record<string, string | undefined>): AIProvider[] {
+  if (geminiIsFree(env) || !chain.includes("gemini")) return chain;
+  const rest = chain.filter((p) => p !== "gemini");
+  const at = rest.findIndex((p) => p === "deepseek" || p === "ollama");
+  return at === -1 ? [...rest, "gemini"] : [...rest.slice(0, at), "gemini", ...rest.slice(at)];
+}
+
+let spreadTurn = 0;
+
+/**
+ * Rotates the free providers at the head of a chain, one step per call. With a fixed order
+ * every call went to Groq first and NVIDIA NIM only answered when both Groq and Requesty failed,
+ * so its 1,000 free calls a day sat unused while articles waited behind Groq's rate limit.
+ */
+export function spreadFree(chain: AIProvider[], turn = spreadTurn++): AIProvider[] {
+  const head: AIProvider[] = [];
+  let i = 0;
+  while (i < chain.length && SPREAD.includes(chain[i])) head.push(chain[i++]);
+  if (head.length < 2) return chain;
+  const k = turn % head.length;
+  return [...head.slice(k), ...head.slice(0, k), ...chain.slice(i)];
+}
 
 export function chainFor(tier: Tier, env: Record<string, string | undefined> = process.env): AIProvider[] {
   const raw = env[tier === "tier1" ? "AI_TIER1_CHAIN" : "AI_TIER2_CHAIN"];
-  if (!raw?.trim()) return DEFAULT_CHAINS[tier].filter((p) => p !== "gemini" || geminiIsFree(env));
+  if (!raw?.trim()) return placeGemini(DEFAULT_CHAINS[tier], env);
   const parsed = raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter((s): s is AIProvider => (PROVIDERS as string[]).includes(s));
-  return parsed.length ? [...new Set(parsed)] : DEFAULT_CHAINS[tier].filter((p) => p !== "gemini" || geminiIsFree(env));
+  return parsed.length ? [...new Set(parsed)] : placeGemini(DEFAULT_CHAINS[tier], env);
 }
 
 export interface CallOptions<S extends z.ZodTypeAny> {
@@ -227,7 +266,7 @@ function isRetryableRateLimit(err: unknown): boolean {
 export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptions<S>): Promise<CallResult<z.output<S>>> {
   const log = opts.log ?? noopLogger;
   const budget = opts.budget ?? unlimitedGuard;
-  const chain = (opts.chain ?? chainFor(opts.tier))
+  const chain = (opts.chain ?? (opts.tier === "tier1" ? spreadFree(chainFor(opts.tier)) : chainFor(opts.tier)))
     .map((p) => configuredProvider(p, opts.tier))
     .filter((p): p is ProviderConfig => p !== null);
   if (chain.length === 0) {

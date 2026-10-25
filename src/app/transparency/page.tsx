@@ -45,7 +45,7 @@ function Panel({ title, description, children }: { title: string; description?: 
 const PROVIDER_LABEL: Record<string, string> = {
   deepseek: "DeepSeek (Tier 1)",
   grok: "xAI Grok (Tier 2)",
-  gemini: "Google Gemini (төлбөртэй)",
+  gemini: "Google Gemini · хамгийн хямд загвар (төлбөртэй)",
   nvidia: "NVIDIA NIM · Gemma (үнэгүй)",
   groq: "Groq · Qwen (үнэгүй)",
   requesty: "Requesty · Gemma (үнэгүй загвар)",
