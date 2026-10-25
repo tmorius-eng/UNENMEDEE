@@ -49,3 +49,17 @@ secret-ээ шинэчилнэ. `code 200` = `pages_manage_posts` эрх дут�
 npm run social:post -- --mode news --dry-run     # юу нийтлэхийг хэвлэнэ, юу ч илгээхгүй
 npm run social:post -- --mode digest
 ```
+
+## Threads
+
+Тойм болон чухал мэдээ Threads-д мөн нийтлэгдэнэ (500 тэмдэгт, холбоостой).
+
+1. Апп → **App roles → Roles** → Threads Tester болгож Iltodmedee-ийн Threads акаунтыг нэмэх, Threads дээр
+   **Settings → Account → Website permissions → Invites**-ээс зөвшөөрөх.
+2. **Use cases → Access the Threads API → Customize**: `threads_basic`, `threads_content_publish` → Add;
+   **User Token Generator**-оос токен үүсгэх.
+3. Токеныг урт хугацааных (60 хоног) болгоод (`graph.threads.com/access_token?grant_type=th_exchange_token`,
+   Threads app secret хэрэгтэй) GitHub **Secrets**-д `THREADS_TOKEN` нэрээр хадгална.
+
+Pipeline токеныг 7 хоног тутам өөрөө шинэчилж `app_settings`-д хадгална, тиймээс дахин юу ч хийх шаардлагагүй.
+Токен хүчингүй болбол (нууц үг солих г.м.) шинэ токеныг `THREADS_TOKEN`-д хадгалахад хангалттай.

@@ -72,9 +72,10 @@ jobs:
       GEMINI_DEEP_MODEL: ${{ vars.GEMINI_DEEP_MODEL }}
       REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
       NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
-      # Facebook page posting (docs/FACEBOOK.md); both unset = the steps are skipped.
+      # Facebook page + Threads posting (docs/FACEBOOK.md); all unset = the steps are skipped.
       FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
       FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+      THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -141,8 +142,8 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode news
 
-      - name: Post the most important new story to the Facebook page
-        if: env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != ''
+      - name: Post the most important new story to Facebook and Threads
+        if: (env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != '') || env.THREADS_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode news
 
@@ -156,7 +157,7 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode digest
 
-      - name: Post the new digest to the Facebook page
-        if: env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != ''
+      - name: Post the new digest to Facebook and Threads
+        if: (env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != '') || env.THREADS_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode digest
