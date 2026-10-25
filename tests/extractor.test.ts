@@ -83,3 +83,11 @@ describe("tender extraction", () => {
     assert.deepEqual(extractMntAmounts("5 төгрөг"), [], "tiny bare amounts are noise");
   });
 });
+
+describe("stripHeavyTags", () => {
+  it("drops script, style, svg and frame blocks in any closing-tag spelling, nested too", async () => {
+    const { stripHeavyTags } = await import("@/lib/scraper/extractor");
+    const html = `<p>a</p><script>x</script ><p>b</p><SCRIPT type="m">y</SCRIPT foo><style>.c{}</style><svg><path/></svg><iframe src="u"></iframe><scr<script>z</script>ipt>w</script><p>c</p>`;
+    assert.equal(stripHeavyTags(html), "<p>a</p><p>b</p><p>c</p>");
+  });
+});
