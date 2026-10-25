@@ -41,6 +41,9 @@ export function SiteFooter() {
           <Link className="text-tertiary hover:text-secondary" href="/method">
             Арга зүй: AI яаж ажилладаг вэ
           </Link>
+          <Link className="text-tertiary hover:text-secondary" href="/privacy">
+            Нууцлалын бодлого
+          </Link>
           <a className="text-tertiary hover:text-secondary" href={REPO_URL} target="_blank" rel="noreferrer">
             Эх код (GitHub, нээлттэй) ↗
           </a>
