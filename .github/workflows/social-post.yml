@@ -28,14 +28,6 @@ jobs:
     if: github.repository == 'tmorius-eng/UNENMEDEE'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
-      FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
-      THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
-      INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
-      IN_MODE: ${{ inputs.mode }}
-      IN_DRY: ${{ inputs.dry_run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +41,15 @@ jobs:
       - run: npm ci
 
       - name: Post to Facebook, Threads and Instagram
+        # Secrets only here: dependency install scripts never see them.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+          IN_MODE: ${{ inputs.mode }}
+          IN_DRY: ${{ inputs.dry_run }}
         run: |
           case "$IN_MODE" in news|digest) ;; *) echo "::error::mode must be news or digest"; exit 1;; esac
           if [ "$IN_DRY" = "true" ]; then npm run social:post -- --mode "$IN_MODE" --dry-run; else npm run social:post -- --mode "$IN_MODE"; fi

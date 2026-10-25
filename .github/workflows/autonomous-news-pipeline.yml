@@ -87,7 +87,20 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        # Dependency install scripts never see a secret (a compromised package could send them out).
+        env:
+          DATABASE_URL: ""
+          GROQ_API_KEY: ""
+          GEMINI_API_KEY: ""
+          REQUESTY_API_KEY: ""
+          NVIDIA_API_KEY: ""
+          DEEPSEEK_API_KEY: ""
+          GROK_API_KEY: ""
+          FB_PAGE_TOKEN: ""
+          THREADS_TOKEN: ""
+          INSTAGRAM_TOKEN: ""
+        run: npm ci
 
       - name: Check required secrets
         run: |
@@ -95,6 +108,7 @@ jobs:
           if [ -z "$GROQ_API_KEY$GEMINI_API_KEY$REQUESTY_API_KEY$NVIDIA_API_KEY$DEEPSEEK_API_KEY" ]; then echo "::warning::No AI key is set (GROQ_API_KEY, GEMINI_API_KEY, REQUESTY_API_KEY, NVIDIA_API_KEY or DEEPSEEK_API_KEY): articles will be scraped but not analyzed."; fi
 
       - name: Apply database migrations
+        id: migrate
         env:
           # DDL is safer over a session connection (port 5432); falls back to DATABASE_URL.
           DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
@@ -107,6 +121,18 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium (for JavaScript-rendered sites)
+        # Dependency install scripts never see a secret (a compromised package could send them out).
+        env:
+          DATABASE_URL: ""
+          GROQ_API_KEY: ""
+          GEMINI_API_KEY: ""
+          REQUESTY_API_KEY: ""
+          NVIDIA_API_KEY: ""
+          DEEPSEEK_API_KEY: ""
+          GROK_API_KEY: ""
+          FB_PAGE_TOKEN: ""
+          THREADS_TOKEN: ""
+          INSTAGRAM_TOKEN: ""
         run: npx playwright install --with-deps chromium
 
       - name: Scrape government sources
@@ -124,7 +150,9 @@ jobs:
           npm run scrape -- "${args[@]}"
 
       - name: Analyze with AI (free providers first, paid ones within budget)
-        if: env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != ''
+        # From here on every step runs even when an earlier one failed (a scrape or AI outage must
+        # never stop the digest, its rule-based fallback or the pushes), but never on an old schema.
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
         env:
           IN_AI_LIMIT: ${{ inputs.ai_limit || '60' }}
         run: |
@@ -133,32 +161,35 @@ jobs:
           npm run ai:process -- --limit "$IN_AI_LIMIT" --budget 75
 
       - name: Tag older articles with an AI topic (batched, free tier)
-        if: env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
         # A no-op once every article has a topic (Tier 1 returns one for new articles).
         continue-on-error: true
         run: npm run ai:topics -- --limit 200
 
       - name: Notify subscribers about important news
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         # Push problems must never fail the pipeline.
         continue-on-error: true
         run: npm run push:send -- --mode news
 
       - name: Post the most important new story to Facebook, Threads and Instagram
-        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode news
 
       - name: Write the 12h digest when it is due (morning / evening window)
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         # news-digest.yml starts hours late on GitHub's scheduler, so every pipeline run checks
         # whether an edition is due (src/lib/ai/digest.ts isDigestDue) and writes it here.
         continue-on-error: true
         run: npm run digest -- --due
 
       - name: Notify subscribers about a new digest
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         continue-on-error: true
         run: npm run push:send -- --mode digest
 
       - name: Post the new digest to Facebook, Threads and Instagram
-        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode digest

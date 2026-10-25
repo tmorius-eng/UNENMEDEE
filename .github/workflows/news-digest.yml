@@ -50,6 +50,8 @@ jobs:
       REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
       NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
       DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
+      DEEPSEEK_PRICE_IN: ${{ vars.DEEPSEEK_PRICE_IN }}
+      DEEPSEEK_PRICE_OUT: ${{ vars.DEEPSEEK_PRICE_OUT }}
       # Facebook page, Threads and Instagram posting (docs/FACEBOOK.md); all unset = the steps are skipped.
       FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
       FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
@@ -65,7 +67,19 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        # Dependency install scripts never see a secret (a compromised package could send them out).
+        env:
+          DATABASE_URL: ""
+          GROQ_API_KEY: ""
+          GEMINI_API_KEY: ""
+          REQUESTY_API_KEY: ""
+          NVIDIA_API_KEY: ""
+          DEEPSEEK_API_KEY: ""
+          FB_PAGE_TOKEN: ""
+          THREADS_TOKEN: ""
+          INSTAGRAM_TOKEN: ""
+        run: npm ci
 
       - name: Check required secrets
         run: |

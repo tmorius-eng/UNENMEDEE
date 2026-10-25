@@ -105,6 +105,19 @@ function openaiProvider(provider: AIProvider, model: string, baseURL: string, ap
   };
 }
 
+/**
+ * The Gemini model for a tier. A billed key (no GEMINI_FREE_TIER=true) only ever uses a Flash-Lite
+ * model: a GEMINI_MODEL / GEMINI_DEEP_MODEL override naming anything else (Flash, Pro) is ignored,
+ * so a repository variable cannot quietly multiply the bill.
+ */
+export function geminiModel(env: Record<string, string | undefined>, deep: boolean): string {
+  const override = (deep ? env.GEMINI_DEEP_MODEL : env.GEMINI_MODEL)?.trim();
+  if (geminiIsFree(env)) return override || (deep ? "gemini-flash-latest" : "gemini-flash-lite-latest");
+  if (override && /flash-lite/i.test(override)) return override;
+  if (override) console.warn(`[ai] billed Gemini key: "${override}" ignored, only Flash-Lite is used (${GEMINI_BILLED_MODEL})`);
+  return GEMINI_BILLED_MODEL;
+}
+
 /** Providers that are configured in this environment (keys present). */
 export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): ProviderConfig | null {
   const env = process.env;
@@ -124,10 +137,7 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
       const deep = tier === "tier2";
       // A billed key uses the cheapest text model for everything (Flash-Lite 2.5, $0.10/$0.40);
       // a free (no-billing) key keeps the better "-latest" models, which cost nothing there.
-      const free = geminiIsFree(env);
-      const model = deep
-        ? env.GEMINI_DEEP_MODEL || (free ? "gemini-flash-latest" : GEMINI_BILLED_MODEL)
-        : env.GEMINI_MODEL || (free ? "gemini-flash-lite-latest" : GEMINI_BILLED_MODEL);
+      const model = geminiModel(env, deep);
       if (!isTextModel(model)) {
         console.warn(`[ai] GEMINI model "${model}" is not a text model (image/video/speech are never used): Gemini skipped`);
         return null;
@@ -285,6 +295,14 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
     }
     let messages = opts.messages;
     for (let attempt = 0; attempt < 2; attempt++) {
+      // The repair / rate-limit retry is a second paid call: it passes the guard again.
+      if (attempt > 0) {
+        const again = await budget.check(p.provider);
+        if (!again.ok) {
+          attempts.push(`${p.provider}/${p.model}: retry skipped (limit: ${again.reason})`);
+          break;
+        }
+      }
       let promptTokens = 0;
       let completionTokens = 0;
       let reportedCost: number | undefined;

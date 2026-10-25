@@ -24,8 +24,6 @@ jobs:
     if: github.repository == 'tmorius-eng/UNENMEDEE'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,8 +33,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Secrets only on the steps that use them: dependency install scripts never see them.
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
       - name: Discover
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           IN_DEEP: ${{ inputs.deep }}
         run: |
           if [ "$IN_DEEP" = "true" ]; then npm run sources:discover -- --deep; else npm run sources:discover; fi

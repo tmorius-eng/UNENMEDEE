@@ -111,7 +111,8 @@ async function main() {
   const fresh = await db
     .select({ id: articles.id, title: articles.title })
     .from(articles)
-    .where(and(isNull(articles.tldrSummary), isNull(articles.aiError)))
+    // Unpublished rows (archive pages, menus, timeless pages) are kept for dedupe only: no AI.
+    .where(and(isNull(articles.tldrSummary), isNull(articles.aiError), eq(articles.isPublished, true)))
     // Newest news first: after a backfill, today's stories are analyzed before last month's.
     .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.id))
     .limit(limit);

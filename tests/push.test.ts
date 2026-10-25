@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { articlePayload, classifyPushFailure, clip, digestPayload, isAllowedPushEndpoint, MAX_PUSH_FAILURES, newsPayload, SubscriptionSchema } from "@/lib/push/core";
+import { articlePayload, classifyPushFailure, clip, digestPayload, isAllowedPushEndpoint, isSystemicFailure, MAX_PUSH_FAILURES, newsPayload, SubscriptionSchema } from "@/lib/push/core";
 
 describe("push subscriptions", () => {
   it("accepts only browser push services over https", () => {
@@ -65,5 +65,15 @@ describe("push failure accounting", () => {
     assert.equal(classifyPushFailure(503), "transient");
     assert.equal(classifyPushFailure(undefined), "transient"); // network error
     assert.ok(MAX_PUSH_FAILURES >= 3);
+  });
+});
+
+describe("push circuit breaker", () => {
+  it("treats most subscriptions failing with a 4xx as our problem, not theirs", () => {
+    assert.equal(isSystemicFailure(6, 6), true); // VAPID mismatch: every subscriber rejected
+    assert.equal(isSystemicFailure(4, 7), true);
+    assert.equal(isSystemicFailure(1, 6), false); // one dead browser
+    assert.equal(isSystemicFailure(2, 2), false); // too few to tell
+    assert.equal(isSystemicFailure(3, 6), false);
   });
 });
