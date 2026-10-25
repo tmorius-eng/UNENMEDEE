@@ -10,12 +10,12 @@ import { largestAmount, tldrSentences } from "@/lib/format";
 import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
+import { hashtags } from "./hashtags";
 
 export const INSTAGRAM_API = "https://graph.instagram.com";
 export const INSTAGRAM_VERSION = process.env.IG_GRAPH_VERSION || "v26.0";
 export const INSTAGRAM_SETTINGS_KEY = "instagram";
 export const CAPTION_MAX = 2200;
-const TAGS = "#ИлТодМэдээ #Монгол #мэдээ #төр";
 
 export interface InstagramPost {
   imageUrl: string;
@@ -31,7 +31,7 @@ export function instagramDigestPost(d: DigestForPost, site = PRODUCTION_URL): In
   const lines = [`🗞 ${editionLabel(d)}`, ""];
   if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
   if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 9).map((it) => `• ${it.headline}`), "");
-  lines.push("Бүгдийг эх сурвалжийн холбоостой нь: iltodmedee.mn (холбоос bio-д)", "", TAGS);
+  lines.push("Бүгдийг эх сурвалжийн холбоостой нь: iltodmedee.mn (холбоос bio-д)", "", hashtags("instagram"));
   return { imageUrl: `${site}/ig-image?d=${d.id}`, caption: fit(lines.join("\n")) };
 }
 
@@ -47,7 +47,7 @@ export function instagramArticlePost(a: ArticleForPost, site = PRODUCTION_URL): 
     "",
     "Дэлгэрэнгүй, эх баримтын холбоос: iltodmedee.mn (холбоос bio-д)",
     "",
-    TAGS,
+    hashtags("instagram", a.topic),
   ].join("\n");
   return { imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}`, caption: fit(caption) };
 }

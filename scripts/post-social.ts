@@ -138,6 +138,8 @@ async function postNews(db: Db, p: Platform) {
       sourceName: sources.name,
       entities: articles.extractedEntities,
       riskFlag: articles.riskFlag,
+      topic: articles.topic,
+      category: sources.category,
     })
     .from(articles)
     .innerJoin(sources, eq(articles.sourceId, sources.id))
@@ -157,7 +159,11 @@ async function postNews(db: Db, p: Platform) {
     .orderBy(sql`${articles.importanceScore} desc nulls last`, desc(articles.riskScore))
     .limit(room);
   if (rows.length === 0) return console.log(`📘 ${p.name}: no new important story to post.`);
-  for (const r of rows) await post(db, p, "article", r.id, p.article({ ...r, tldr: r.tldr ?? "", amounts: r.entities?.amounts_mnt ?? [] }));
+  for (const r of rows) {
+    // Aimag and district sites read as local news, like the site's own topic labels (topics.ts).
+    const topic = r.category === "local" ? "local" : r.topic;
+    await post(db, p, "article", r.id, p.article({ ...r, topic, tldr: r.tldr ?? "", amounts: r.entities?.amounts_mnt ?? [] }));
+  }
 }
 
 async function main() {

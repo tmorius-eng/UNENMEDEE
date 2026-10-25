@@ -9,7 +9,7 @@ describe("instagram posts", () => {
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=10");
     assert.ok(p.caption.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\n\n⚡ Нэг\n👉 Учир.\n\nМөн өнөөдөр:\n• Хоёр"));
     assert.ok(p.caption.includes("холбоос bio-д"));
-    assert.ok(p.caption.endsWith("#ИлТодМэдээ #Монгол #мэдээ #төр"));
+    assert.ok(p.caption.endsWith("#ИлТодМэдээ #мэдээ #Монгол #Mongolia #mongolianews #Улаанбаатар #шинэмэдээ"));
   });
 
   it("article: card by slug, summary, amount, source; caption capped", () => {
