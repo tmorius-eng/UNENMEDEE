@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, use } from "react";
 
 import type { ArticleListItem } from "@/lib/queries";
 import { useLocalStorage } from "@/lib/local-store";
-import { parseTopicFollows, TOPIC_FOLLOW_KEY } from "@/lib/topic-follow";
+import { PLACES } from "@/lib/places";
+import { parsePlaceFollows, parseTopicFollows, PLACE_FOLLOW_KEY, TOPIC_FOLLOW_KEY } from "@/lib/topic-follow";
 import { TOPICS } from "@/lib/topics";
 
-import { FollowTopicButton } from "./follow-topic";
+import { FollowPlaceButton, FollowTopicButton } from "./follow-topic";
 import { StoryList } from "./story-list";
 
 const MAX_STORIES = 40;
@@ -16,13 +18,16 @@ const FRESH_MS = 5 * 60_000;
 const FAILED_MS = 30_000;
 const requests = new Map<string, { at: number; ttl: number; p: Promise<ArticleListItem[]> }>();
 
-/** One request per topic per few minutes; JSON dates come back as strings. */
+/** "place:<slug>" is a followed aimag or district, anything else a topic key. */
+const feedUrl = (key: string) => (key.startsWith("place:") ? `/api/place-feed/${key.slice(6)}` : `/api/topic-feed/${key}`);
+
+/** One request per feed per few minutes; JSON dates come back as strings. */
 function topicFeed(key: string): Promise<ArticleListItem[]> {
   const now = Date.now();
   const cached = requests.get(key);
   if (cached && now - cached.at < cached.ttl) return cached.p;
   const entry = { at: now, ttl: FRESH_MS, p: Promise.resolve<ArticleListItem[]>([]) };
-  entry.p = fetch(`/api/topic-feed/${key}`)
+  entry.p = fetch(feedUrl(key))
     .then((r) => {
       if (!r.ok) throw new Error(String(r.status));
       return r.json() as Promise<ArticleListItem[]>;
@@ -67,7 +72,7 @@ function feeds(keys: string[]): Promise<ArticleListItem[][]> {
 
 function Stories({ keys }: { keys: string[] }) {
   const stories = merge(use(feeds(keys)));
-  if (stories.length === 0) return <p className="py-10 text-center text-sm text-tertiary">Дагасан сэдвүүдэд шинэ мэдээ алга байна.</p>;
+  if (stories.length === 0) return <p className="py-10 text-center text-sm text-tertiary">Дагасан сэдэв, газруудад шинэ мэдээ алга байна.</p>;
   return <StoryList stories={stories} />;
 }
 
@@ -81,31 +86,51 @@ function TopicPicker({ follows }: { follows: string[] }) {
   );
 }
 
-/** "Миний мэдээ": the newest stories of the topics this browser follows. */
+/** Followed places as ⭐ toggles, plus a link to pick more. */
+function PlacePicks({ places }: { places: string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {places.map((slug) => (
+        <FollowPlaceButton key={slug} place={slug} label={PLACES.find((p) => p.slug === slug)?.name} />
+      ))}
+      <Link href="/topic/local#places" prefetch={false} className="text-sm font-semibold text-brand-secondary hover:underline">
+        Аймаг, дүүрэг сонгох →
+      </Link>
+    </div>
+  );
+}
+
+/** "Миний мэдээ": the newest stories of the topics and places this browser follows. */
 export function MyFeed() {
   const [raw] = useLocalStorage(TOPIC_FOLLOW_KEY, "[]");
+  const [rawPlaces] = useLocalStorage(PLACE_FOLLOW_KEY, "[]");
   const follows = parseTopicFollows(raw);
-  if (follows.length === 0) {
+  const places = parsePlaceFollows(rawPlaces);
+  const keys = [...follows, ...places.map((slug) => `place:${slug}`)];
+  if (keys.length === 0) {
     return (
       <div className="flex flex-col gap-4 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
-        <p className="text-md font-semibold text-primary">Сонирхсон сэдвээ ⭐ дагаарай</p>
-        <p className="text-sm text-tertiary">Сонгосон сэдвүүдийн шинэ мэдээ энд нэг урсгалд цуглана. Сонголт зөвхөн энэ төхөөрөмжид хадгалагдана.</p>
+        <p className="text-md font-semibold text-primary">Сонирхсон сэдэв, аймаг дүүргээ ⭐ дагаарай</p>
+        <p className="text-sm text-tertiary">Сонгосон сэдэв, газруудын шинэ мэдээ энд нэг урсгалд цуглана. Сонголт зөвхөн энэ төхөөрөмжид хадгалагдана.</p>
         <TopicPicker follows={follows} />
+        <PlacePicks places={places} />
       </div>
     );
   }
+  const names = [...follows.map((k) => TOPICS.find((t) => t.key === k)?.label), ...places.map((slug) => PLACES.find((p) => p.slug === slug)?.name)];
   return (
     <div className="flex flex-col gap-6">
       <details className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
         <summary className="cursor-pointer text-sm font-semibold text-secondary">
-          Дагаж буй сэдэв: {follows.map((k) => TOPICS.find((t) => t.key === k)?.label).join(", ")} · засах
+          Дагаж буй: {names.join(", ")} · засах
         </summary>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-col gap-3">
           <TopicPicker follows={follows} />
+          <PlacePicks places={places} />
         </div>
       </details>
       <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-secondary" />}>
-        <Stories keys={follows} />
+        <Stories keys={keys} />
       </Suspense>
     </div>
   );

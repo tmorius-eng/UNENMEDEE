@@ -10,7 +10,7 @@ export function PlacePicker({ current, title = "Миний аймаг, дүүр�
     { label: "Аймаг", items: PLACES.filter((p) => p.kind === "aimag") },
   ];
   return (
-    <nav aria-label={title} className="flex flex-col gap-3 rounded-2xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
+    <nav id="places" aria-label={title} className="flex scroll-mt-24 flex-col gap-3 rounded-2xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
       <h2 className="text-sm font-semibold text-primary">{title}</h2>
       {groups.map((g) => (
         <div key={g.label} className="flex flex-col gap-2">
