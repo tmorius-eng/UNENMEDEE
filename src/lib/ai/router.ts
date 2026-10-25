@@ -325,7 +325,7 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
     .filter((p): p is ProviderConfig => p !== null);
   if (chain.length === 0) {
     throw new AIUnavailableError(
-      `No AI provider configured for ${opts.tier}. Set GROQ_API_KEY, GEMINI_API_KEY, REQUESTY_API_KEY or NVIDIA_API_KEY (free), or DEEPSEEK_API_KEY${opts.tier === "tier2" ? " / GROK_API_KEY" : ""} (or OLLAMA_BASE_URL for local runs).`,
+      `No AI provider configured for ${opts.tier}. Set GROQ_API_KEY, MISTRAL_API_KEY, NVIDIA_API_KEY, REQUESTY_API_KEY, OPENROUTER_API_KEY, ZAI_API_KEY or GEMINI_API_KEY (free), or DEEPSEEK_API_KEY${opts.tier === "tier2" ? " / GROK_API_KEY" : ""} (or OLLAMA_BASE_URL for local runs).`,
       [],
     );
   }

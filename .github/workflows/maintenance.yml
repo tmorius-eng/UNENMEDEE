@@ -3,7 +3,9 @@
 #                  (npm run db:repair-dates -- --refetch; robots.txt and 8 s per host apply)
 #   recluster:     cluster the last 7 days' unclustered articles again (npm run ai:process -- --recluster)
 #   ai-sample:     each free AI provider alone analyzes the built-in Mongolian sample (no database
-#                  writes), so a new key or model can be judged on real output
+#                  writes), so a new key or model can be judged on real output. "models" picks what
+#                  to try, e.g. "mistral=mistral-small-latest openrouter=nvidia/nemotron-3-super-120b-a12b:free zai"
+#                  (provider alone = its default model)
 name: Maintenance (manual)
 
 on:
@@ -18,6 +20,10 @@ on:
         description: "true = print what would change, write nothing (refetch-dates only)"
         type: boolean
         default: true
+      models:
+        description: "ai-sample only: provider or provider=model, space separated (empty = every free provider)"
+        type: string
+        default: ""
 
 # Same rows as the pipeline: never at the same time (a queued run waits).
 concurrency:
@@ -60,6 +66,7 @@ jobs:
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
           IN_TASK: ${{ inputs.task }}
           IN_DRY: ${{ inputs.dry_run }}
+          IN_MODELS: ${{ inputs.models }}
         run: |
           case "$IN_TASK" in
             refetch-dates)
@@ -67,9 +74,13 @@ jobs:
             recluster) npm run ai:process -- --recluster ;;
             ai-sample)
               # One provider at a time; a provider without a key says so and the next one runs.
-              for p in groq mistral nvidia requesty openrouter zai; do
-                echo "::group::$p"
-                AI_TIER1_CHAIN="$p" npm run ai:process -- --sample || echo "::warning::$p failed"
+              for spec in ${IN_MODELS:-groq mistral nvidia requesty openrouter zai}; do
+                if ! printf '%s' "$spec" | grep -Eq '^[a-z]+(=[A-Za-z0-9._:/-]+)?$'; then echo "::error::bad spec: $spec"; exit 1; fi
+                p="${spec%%=*}"
+                model_var="UNUSED_MODEL="
+                if [ "$spec" != "$p" ]; then model_var="$(printf '%s' "$p" | tr a-z A-Z)_MODEL=${spec#*=}"; fi
+                echo "::group::$spec"
+                env AI_TIER1_CHAIN="$p" "$model_var" npm run ai:process -- --sample || echo "::warning::$spec failed"
                 echo "::endgroup::"
               done ;;
             *) echo "::error::unknown task"; exit 1 ;;
