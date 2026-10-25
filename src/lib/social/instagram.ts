@@ -27,20 +27,22 @@ function fit(text: string): string {
 }
 
 export function instagramDigestPost(d: DigestForPost, site = PRODUCTION_URL): InstagramPost {
-  const lines = d.items.slice(0, 10).map((it, i) => `${i + 1}. ${it.headline}`);
-  const caption = [`🗞 ${editionLabel(d)}`, d.title, "", d.intro, "", ...lines, "", "Бүтнээр нь, эх сурвалжийн холбоостой: iltodmedee.mn (холбоос bio-д)", "", TAGS].join("\n");
-  return { imageUrl: `${site}/ig-image?d=${d.id}`, caption: fit(caption) };
+  const [top, ...rest] = d.items;
+  const lines = [`🗞 ${editionLabel(d)}`, ""];
+  if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
+  if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 9).map((it) => `• ${it.headline}`), "");
+  lines.push("Бүгдийг эх сурвалжийн холбоостой нь: iltodmedee.mn (холбоос bio-д)", "", TAGS);
+  return { imageUrl: `${site}/ig-image?d=${d.id}`, caption: fit(lines.join("\n")) };
 }
 
-export function instagramArticlePost(a: ArticleForPost & { slug: string }, site = PRODUCTION_URL): InstagramPost {
+export function instagramArticlePost(a: ArticleForPost, site = PRODUCTION_URL): InstagramPost {
   const amount = largestAmount(a.amounts);
   const caption = [
-    `📰 ${a.title}`,
+    `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
     "",
-    ...tldrSentences(a.tldr, 3),
-    "",
-    ...(amount ? [`💰 ${amount}`] : []),
-    ...(a.riskFlag ? ["🚨 AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
+    `👉 ${tldrSentences(a.tldr, 3).join(" ")}`,
+    ...(amount ? [`💰 Дүн: ${amount}`] : []),
+    ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
     `🏛 Эх сурвалж: ${a.sourceName}`,
     "",
     "Дэлгэрэнгүй, эх баримтын холбоос: iltodmedee.mn (холбоос bio-д)",

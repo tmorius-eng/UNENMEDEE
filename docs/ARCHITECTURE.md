@@ -261,6 +261,9 @@ pipeline and kept in `app_settings`.
 Instagram gets the same stories as a 1080×1350 JPEG card rendered by `/ig-image` (Instagram accepts only
 JPEG from a public URL), with the summary as the caption; its 60-day token is kept and refreshed like Threads'. Instagram DMs
 get the same no-AI replies as Messenger.
+All three platforms use the same bold typographic card (`/ig-image`, the headline's first figure in yellow,
+rule-based) and lead the text with the editor's fact-based headline and "why it matters"; no photos of people,
+no generated images.
 
 People who message the page get an automatic Messenger reply from `/api/messenger`
 ([`route.ts`](../src/app/api/messenger/route.ts)): the request must carry Meta's HMAC signature, and the

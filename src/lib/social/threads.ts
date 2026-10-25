@@ -1,5 +1,6 @@
 /**
- * Threads posting (graph.threads.com): a TEXT container with `link_attachment`, then publish.
+ * Threads posting (graph.threads.com): an IMAGE container with our hook card and the link in the
+ * text (or a TEXT container with `link_attachment` when there is no card), then publish.
  * Long-lived tokens last 60 days and are refreshed by the pipeline (scripts/post-social.ts keeps
  * the current one in app_settings key THREADS_SETTINGS_KEY; THREADS_TOKEN only seeds it, see
  * token-state.ts). Texts are capped at 500 characters, emoji counting as their UTF-8 bytes. The
@@ -18,6 +19,8 @@ export const THREADS_MAX = 500;
 export interface ThreadsPost {
   text: string;
   link: string;
+  /** Our JPEG hook card: an IMAGE post with the link in the text; without it a TEXT post with a link card. */
+  imageUrl?: string;
 }
 
 /** Threads counts emoji (and other astral symbols) as their UTF-8 byte length. */
@@ -37,21 +40,24 @@ function cut(text: string, max: number): string {
   return `${out.trimEnd()}…`;
 }
 
-/** Edition label, title and as many of the first five headlines as fit. */
+/** Hook first: the top story and why it matters, the link, with the card as the image. */
 export function threadsDigestPost(d: DigestForPost, site = PRODUCTION_URL): ThreadsPost {
-  const head = `🗞 ${editionLabel(d)}\n${cut(d.title, 160)}`;
-  const tail = "\n\n#ИлТодМэдээ";
-  let lines = d.items.slice(0, 5).map((it, i) => `${i + 1}. ${cut(it.headline, 140)}`);
-  const compose = () => `${head}\n\n${lines.join("\n")}${tail}`;
-  while (lines.length > 1 && threadsLength(compose()) > THREADS_MAX) lines = lines.slice(0, -1);
-  return { text: cut(compose(), THREADS_MAX), link: `${site}/digest` };
+  const link = `${site}/digest`;
+  const top = d.items[0];
+  const head = `🗞 ${editionLabel(d)}\n\n⚡ ${cut(top?.headline ?? d.title, 180)}`;
+  const tail = `\n\nБүх ${d.items.length} мэдээ 👉 ${link}\n#ИлТодМэдээ`;
+  const room = THREADS_MAX - threadsLength(head + tail + "\n👉 ");
+  const why = top?.whyItMatters && room > 40 ? `\n👉 ${cut(top.whyItMatters, room)}` : "";
+  return { text: cut(head + why + tail, THREADS_MAX), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
-/** One important story: headline, the first summary sentence, the largest ₮ amount, the source. */
+/** One important story: the headline as the hook, the first summary sentence, amount, source, link. */
 export function threadsArticlePost(a: ArticleForPost, site = PRODUCTION_URL): ThreadsPost {
+  const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
-  const parts = [`📰 ${cut(a.title, 200)}`, "", cut(tldrSentences(a.tldr, 1)[0] ?? "", 200), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
-  return { text: cut(parts.join("\n"), THREADS_MAX), link: `${site}/article/${a.slug}` };
+  const tail = `\n\n👉 ${link}`;
+  const parts = [`${a.riskFlag ? "🚨" : "⚡"} ${cut(a.title, 200)}`, "", cut(tldrSentences(a.tldr, 1)[0] ?? "", 180), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
+  return { text: cut(parts.join("\n"), THREADS_MAX - threadsLength(tail)) + tail, link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }
 
 type Fetch = typeof fetch;
@@ -70,12 +76,14 @@ export async function refreshToken(token: string, fetchImpl: Fetch = fetch): Pro
   return json.access_token;
 }
 
-/** Creates the TEXT container, waits until it is FINISHED, publishes it and returns the post id. */
+/** Creates the IMAGE (or TEXT) container, waits until it is FINISHED, publishes it and returns the post id. */
 export async function publishThreads(opts: { token: string; post: ThreadsPost; fetchImpl?: Fetch; sleep?: (ms: number) => Promise<void> }): Promise<string> {
   const f = opts.fetchImpl ?? fetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const token = opts.token;
-  const body = new URLSearchParams({ media_type: "TEXT", text: opts.post.text, link_attachment: opts.post.link, access_token: token });
+  const body = opts.post.imageUrl
+    ? new URLSearchParams({ media_type: "IMAGE", image_url: opts.post.imageUrl, text: opts.post.text, access_token: token })
+    : new URLSearchParams({ media_type: "TEXT", text: opts.post.text, link_attachment: opts.post.link, access_token: token });
   const created = await call(f, `${THREADS_API}/v1.0/me/threads`, { method: "POST", body });
   const id = String(created.id ?? "");
   if (!id) throw new Error("Threads returned no container id");

@@ -3,8 +3,9 @@ import jpeg from "jpeg-js";
 
 import { editionLabel } from "@/lib/edition";
 import { formatDateMn, largestAmount, tldrSentences } from "@/lib/format";
-import { feedCard } from "@/lib/og";
+import { hookCard } from "@/lib/og";
 import { getArticleBySlug, getDigestById } from "@/lib/queries";
+import { hookWords } from "@/lib/social/hook";
 
 /**
  * Instagram feed card as JPEG (GET /ig-image?d=<digest id> or ?a=<article slug>): Instagram's
@@ -16,19 +17,29 @@ async function cardFor(params: URLSearchParams) {
   const d = params.get("d");
   if (d && /^\d{1,9}$/.test(d)) {
     const digest = await getDigestById(Number(d));
-    return digest && { eyebrow: editionLabel(digest), title: digest.title, lines: digest.items.map((it) => it.headline), footer: "Онцлох тойм" };
+    const [top, ...rest] = digest?.items ?? [];
+    return (
+      digest &&
+      top && {
+        label: editionLabel(digest),
+        words: hookWords(top.headline),
+        sub: top.whyItMatters,
+        more: rest.slice(0, 3).map((it) => it.headline),
+        footer: `Онцлох тойм · ${digest.items.length} мэдээ`,
+      }
+    );
   }
   const slug = params.get("a");
   if (slug && /^[\w-]{1,200}$/.test(slug)) {
     const a = await getArticleBySlug(slug);
     if (!a) return null;
     const amount = largestAmount(a.amounts);
-    const summary = tldrSentences(a.tldr, 1)[0];
     return {
-      eyebrow: a.sourceName,
-      title: a.title,
-      lines: [summary, amount && `Дүн: ${amount}`].filter((s): s is string => Boolean(s)),
-      footer: a.scrapeMeta?.date_unknown ? "Огноо тодорхойгүй" : formatDateMn(a.publishedAt),
+      label: a.riskFlag ? "Анхаарах мэдээ" : "Шинэ мэдээ",
+      words: hookWords(a.title),
+      sub: tldrSentences(a.tldr, 1)[0],
+      more: amount ? [`Дүн: ${amount}`] : [],
+      footer: `${a.sourceName}${a.scrapeMeta?.date_unknown ? "" : ` · ${formatDateMn(a.publishedAt)}`}`,
     };
   }
   return null;
@@ -37,7 +48,7 @@ async function cardFor(params: URLSearchParams) {
 export async function GET(request: Request) {
   const card = await cardFor(new URL(request.url).searchParams);
   if (!card) return new Response("Not found", { status: 404 });
-  const png = decode(new Uint8Array(await (await feedCard(card)).arrayBuffer()));
+  const png = decode(new Uint8Array(await (await hookCard(card)).arrayBuffer()));
   // fast-png returns RGB or RGBA; jpeg-js wants RGBA.
   const rgba = png.channels === 4 ? Buffer.from(png.data.buffer, png.data.byteOffset, png.data.byteLength) : toRgba(png.data, png.width * png.height);
   const out = jpeg.encode({ data: rgba, width: png.width, height: png.height }, 88);
