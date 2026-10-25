@@ -24,19 +24,23 @@ export interface ThreadsPost {
   imageUrl?: string;
 }
 
-/** Threads counts emoji (and other astral symbols) as their UTF-8 byte length. */
+/**
+ * Threads counts emoji (and other astral symbols, and the U+FE0F that turns "⚖" into "⚖️") as
+ * their UTF-8 byte length.
+ */
 export function threadsLength(text: string): number {
   let n = 0;
-  for (const ch of text) n += /\p{Extended_Pictographic}/u.test(ch) || ch.codePointAt(0)! > 0xffff ? Buffer.byteLength(ch) : 1;
+  for (const ch of text) n += /\p{Extended_Pictographic}/u.test(ch) || ch.codePointAt(0)! > 0xffff || ch === "\uFE0F" ? Buffer.byteLength(ch) : 1;
   return n;
 }
 
-function cut(text: string, max: number): string {
+/** Cuts at a whole grapheme (never half an emoji or a letter without its accent) and adds "…". */
+export function cut(text: string, max: number): string {
   if (threadsLength(text) <= max) return text;
   let out = "";
-  for (const ch of text) {
-    if (threadsLength(out + ch) > max - 1) break;
-    out += ch;
+  for (const { segment } of new Intl.Segmenter("mn", { granularity: "grapheme" }).segment(text)) {
+    if (threadsLength(out + segment) > max - 1) break;
+    out += segment;
   }
   return `${out.trimEnd()}…`;
 }
@@ -88,10 +92,12 @@ export async function publishThreads(opts: { token: string; post: ThreadsPost; f
   const created = await call(f, `${THREADS_API}/v1.0/me/threads`, { method: "POST", body });
   const id = String(created.id ?? "");
   if (!id) throw new Error("Threads returned no container id");
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; ; i++) {
     const s = await call(f, `${THREADS_API}/v1.0/${encodeURIComponent(id)}?${new URLSearchParams({ fields: "status,error_message", access_token: token })}`);
     if (s.status === "FINISHED") break;
     if (s.status === "ERROR" || s.status === "EXPIRED") throw new Error(`Threads container ${s.status}: ${String(s.error_message ?? "")}`);
+    // Never publish a container that is not ready: the post would fail or go out without its card.
+    if (i >= 9) throw new Error(`Threads container not finished after ${i + 1} checks (${String(s.status ?? "?")})`);
     await sleep(3_000);
   }
   const published = await call(f, `${THREADS_API}/v1.0/me/threads_publish`, { method: "POST", body: new URLSearchParams({ creation_id: id, access_token: token }) });

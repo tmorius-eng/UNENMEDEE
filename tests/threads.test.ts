@@ -37,7 +37,7 @@ describe("threads posts", () => {
     const now = new Date("2026-10-25T00:00:00Z");
     const stored = { token: "old", refreshedAt: "2026-10-20T00:00:00Z", seed: seedOf("seed1") };
     assert.equal(currentState(stored, "seed1", now), stored);
-    assert.equal(currentState(stored, undefined, now), stored);
+    assert.equal(currentState(stored, undefined, now), null); // secret removed: the platform is off
     assert.equal(currentState(stored, "seed2", now)?.token, "seed2");
     assert.equal(currentState(null, undefined, now), null);
     assert.ok(!needsRefresh(stored, now));

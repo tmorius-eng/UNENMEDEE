@@ -18,10 +18,14 @@ export function seedOf(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-/** Which token to use: a new secret wins over the stored state, else the state. */
+/**
+ * Which token to use: a new secret wins over the stored state, else the state. No secret = the
+ * platform is off: deleting the secret must stop posting, not leave a stored token refreshed forever.
+ */
 export function currentState(stored: TokenState | null, envToken: string | undefined, now = new Date()): TokenState | null {
   const env = envToken?.trim();
-  if (env && (!stored || stored.seed !== seedOf(env))) return { token: env, refreshedAt: now.toISOString(), seed: seedOf(env) };
+  if (!env) return null;
+  if (!stored || stored.seed !== seedOf(env)) return { token: env, refreshedAt: now.toISOString(), seed: seedOf(env) };
   return stored;
 }
 
