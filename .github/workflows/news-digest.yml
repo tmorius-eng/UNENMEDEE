@@ -145,3 +145,8 @@ jobs:
         if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode digest
+
+      - name: Daily Discord quiz poll (once a day)
+        if: env.DISCORD_BOT_TOKEN != ''
+        continue-on-error: true
+        run: npm run social:post -- --mode quiz

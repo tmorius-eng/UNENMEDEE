@@ -5,6 +5,7 @@
  *   npm run social:post -- --mode digest            # the newest digest edition (morning / evening)
  *   npm run social:post -- --mode news              # the most important new story, if any
  *   npm run social:post -- --mode news --dry-run    # print, post nothing
+ *   npm run social:post -- --mode quiz              # the daily Discord quiz poll (once a day)
  *
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
@@ -28,7 +29,8 @@ import { type ArticleForPost, articlePost, type DigestForPost, digestPost, Faceb
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
-import { discordArticlePost, discordDigestPost, type DiscordPost, publishDiscord } from "@/lib/social/discord";
+import { discordArticlePost, discordDigestPost, type DiscordPost, discordQuizPost, publishDiscord } from "@/lib/social/discord";
+import { makeQuiz, type Quiz } from "@/lib/social/quiz";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
@@ -51,6 +53,8 @@ interface Platform {
   name: "facebook" | "threads" | "instagram" | "telegram" | "discord";
   digest(d: DigestForPost): { preview: string; publish(): Promise<string> };
   article(a: ArticleForPost): { preview: string; publish(): Promise<string> };
+  /** Only platforms with native polls (Discord). */
+  quiz?(q: Quiz): { preview: string; publish(): Promise<string> };
 }
 
 function facebook(pageId: string, token: string): Platform {
@@ -76,7 +80,7 @@ function discord(token: string, channelId: string): Platform {
     preview: `${post.link}\n${post.text}`,
     publish: () => publishDiscord({ token, channelId, post, onWarning: (m) => console.log(`::warning::${m}`) }),
   });
-  return { name: "discord", digest: (d) => make(discordDigestPost(d)), article: (a) => make(discordArticlePost(a)) };
+  return { name: "discord", digest: (d) => make(discordDigestPost(d)), article: (a) => make(discordArticlePost(a)), quiz: (q) => make(discordQuizPost(q)) };
 }
 
 function instagram(token: string): Platform {
@@ -121,7 +125,7 @@ const notPosted = (platform: string, kind: string, ref: unknown) =>
  * next run. Once it may have gone out (published but the DB update failed, or the answer was lost
  * to a timeout) the reservation stays, marked for a manual check: a repost would be a duplicate.
  */
-async function post(db: Db, p: Platform, kind: "digest" | "article", refId: number, item: { preview: string; publish(): Promise<string> }) {
+async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz", refId: number, item: { preview: string; publish(): Promise<string> }) {
   console.log(`  → ${p.name} ${kind} #${refId}: ${item.preview.replace(/\n/g, "\n    ")}`);
   if (dry) return;
   const [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
@@ -206,6 +210,42 @@ async function postNews(db: Db, p: Platform) {
   }
 }
 
+/** Hours between two quizzes: one a day, whichever of the two daily digest runs comes first. */
+const QUIZ_EVERY_H = 20;
+
+/** The daily quiz: the most important story of the last 3 days whose headline names a ₮ amount. */
+async function postQuiz(db: Db, p: Platform) {
+  if (!p.quiz) return;
+  const [{ recent }] = await db
+    .select({ recent: sql<number>`count(*)::int` })
+    .from(socialPosts)
+    .where(and(eq(socialPosts.platform, p.name), eq(socialPosts.kind, "quiz"), gte(socialPosts.createdAt, new Date(Date.now() - QUIZ_EVERY_H * 3_600_000))));
+  if (recent > 0) return console.log(`🧠 ${p.name}: today's quiz is already out.`);
+  const rows = await db
+    .select({ id: articles.id, slug: articles.slug, title: articles.title, entities: articles.extractedEntities })
+    .from(articles)
+    .where(
+      and(
+        eq(articles.isPublished, true),
+        isNotNull(articles.tldrSummary),
+        eq(articles.summaryFallback, false),
+        gte(articles.publishedAt, new Date(Date.now() - 72 * 3_600_000)),
+        sql`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false) = false`,
+        // makeQuiz needs a ₮ amount in the headline itself.
+        sql`${articles.title} ~ '[0-9]'`,
+        sql`jsonb_array_length(coalesce(${articles.extractedEntities}->'amounts_mnt', '[]'::jsonb)) > 0`,
+        notPosted(p.name, "quiz", articles.id),
+      ),
+    )
+    .orderBy(sql`${articles.importanceScore} desc nulls last`, desc(articles.publishedAt))
+    .limit(30);
+  for (const r of rows) {
+    const q = makeQuiz({ id: r.id, slug: r.slug, title: r.title, amounts: r.entities?.amounts_mnt ?? [] });
+    if (q) return post(db, p, "quiz", r.id, p.quiz(q));
+  }
+  console.log(`🧠 ${p.name}: no recent story with an amount for a quiz.`);
+}
+
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -242,11 +282,12 @@ async function main() {
   else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and the DISCORD_CHANNEL_ID variable (docs/FACEBOOK.md).");
   else console.log("🎮 Discord is off: set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID, see docs/FACEBOOK.md.");
 
-  const mode = values.mode === "digest" ? "digest" : "news";
+  const mode = values.mode === "digest" || values.mode === "quiz" ? values.mode : "news";
   for (const p of platforms) {
     // One platform failing (expired token, rate limit) never stops the others.
     try {
       if (mode === "digest") await postDigest(db, p);
+      else if (mode === "quiz") await postQuiz(db, p);
       else await postNews(db, p);
     } catch (err) {
       const hint = err instanceof FacebookError && err.hint ? ` ${err.hint}` : "";
