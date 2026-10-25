@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
 import { DonateCard } from "@/components/layout/donate";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Ил тод мэдээг дэмжих — хандив",
@@ -60,6 +61,19 @@ export default function SupportPage() {
             ил тод тайлан
           </Link>
           -д нийтлэгдэнэ.
+        </p>
+      </section>
+
+      <section aria-labelledby="contact" className="flex flex-col gap-2 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+        <h2 id="contact" className="text-lg font-semibold text-primary">
+          Холбоо барих
+        </h2>
+        <p className="text-sm text-secondary">
+          Сайттай холбоотой санал хүсэлт, алдаа засвар, шинэ эх сурвалж, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-brand-secondary hover:underline">
+            {CONTACT_EMAIL}
+          </a>{" "}
+          хаягаар бичээрэй.
         </p>
       </section>
     </div>
