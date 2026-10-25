@@ -37,7 +37,18 @@ export const MAX_AGE_DAYS = 60;
  */
 export function publishDecision(publishedAt: Date | null, text: string, now = new Date(), maxAgeDays = MAX_AGE_DAYS): boolean | null {
   if (publishedAt) return publishedAt.getTime() < now.getTime() - maxAgeDays * 86_400_000 ? false : null;
-  return looksOld(text, now) ? false : null;
+  return looksOld(text, now) || isTimelessPage(text, now) ? false : null;
+}
+
+/**
+ * An undated text that is not news: it names no year at all (a department page, instructions, a
+ * biography, "nine wonders of the aimag") or its newest year is before last year (a 2020–2024
+ * programme). Government news nearly always carries a current date or year; pages like these only
+ * reached the crawler through section links and were filling the home page as "today's" stories.
+ */
+export function isTimelessPage(text: string, now = new Date()): boolean {
+  const year = newestYearMentioned(text);
+  return year === null || year < now.getUTCFullYear() - 1;
 }
 
 /** A day-level date (no time part): what a stray or copied date stamp looks like. */

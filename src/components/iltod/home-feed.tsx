@@ -41,7 +41,8 @@ function onePerStory(items: ArticleListItem[]): ArticleListItem[] {
 /** The most important of the newest stories leads the home page as a card (ties: the newer one). */
 function pickLead(stories: ArticleListItem[]): number | undefined {
   let best: ArticleListItem | undefined;
-  for (const s of stories.slice(0, 8)) if (!best || (s.importanceScore ?? -1) > (best.importanceScore ?? -1)) best = s;
+  // Undated stories never lead: "today's top story" needs a date.
+  for (const s of stories.slice(0, 8)) if (!s.dateUnknown && (!best || (s.importanceScore ?? -1) > (best.importanceScore ?? -1))) best = s;
   return best?.id;
 }
 
