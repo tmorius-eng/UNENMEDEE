@@ -17,6 +17,14 @@ describe("pricing", () => {
     assert.equal(estimateCostUsd("ollama", 50_000, 50_000), 0);
   });
 
+  it("charges a billed Gemini key at its list price, Flash above Flash-Lite, and nothing when free", () => {
+    assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-lite-latest"), 2.8);
+    assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-latest"), 4.5);
+    process.env.GEMINI_FREE_TIER = "true";
+    assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-latest"), 0);
+    delete process.env.GEMINI_FREE_TIER;
+  });
+
   it("honours env price overrides", () => {
     process.env.GROK_PRICE_IN = "0.2";
     process.env.GROK_PRICE_OUT = "0.5";

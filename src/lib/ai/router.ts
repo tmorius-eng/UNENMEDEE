@@ -5,7 +5,7 @@ import type { AIProvider } from "@/lib/types";
 
 import { geminiGenerate, GeminiError, type ChatMessage } from "./gemini";
 import { throttleProvider, unlimitedGuard, type BudgetGuard } from "./limits";
-import { estimateCostUsd, getPrice } from "./pricing";
+import { estimateCostUsd, geminiIsFree, getPrice } from "./pricing";
 import { parseJsonLoose } from "./schemas";
 
 export type Tier = "tier1" | "tier2";
@@ -165,9 +165,13 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
 const PROVIDERS: AIProvider[] = ["deepseek", "grok", "gemini", "nvidia", "groq", "requesty", "ollama"];
 
 /**
- * Fallback order per tier. Free providers go first for bulk work (Groq: fastest, then Gemini,
- * then free Gemma on Requesty, then NVIDIA NIM); each has its own daily quota, so together
- * they cover far more articles than any one. Deep analysis: Grok (paid, capped), then Gemini Flash (free, reasons well).
+ * Fallback order per tier. Free providers go first for bulk work (Groq: fastest, then Gemini
+ * when its key is free, then free Gemma on Requesty, then NVIDIA NIM); each has its own daily
+ * quota, so together they cover far more articles than any one. Deep analysis: Grok (paid,
+ * capped), then Gemini Flash. Gemini is left out of the default chains unless
+ * GEMINI_FREE_TIER=true: a key from a billed Google project is charged for every call (it cost
+ * real money while the logs said $0). Naming it in AI_TIER1_CHAIN / AI_TIER2_CHAIN still works,
+ * then at its paid price and inside the USD budget.
  * Override with AI_TIER1_CHAIN / AI_TIER2_CHAIN, e.g. "deepseek,gemini" (comma separated).
  * Providers without an API key are skipped.
  */
@@ -178,12 +182,12 @@ export const DEFAULT_CHAINS: Record<Tier, AIProvider[]> = {
 
 export function chainFor(tier: Tier, env: Record<string, string | undefined> = process.env): AIProvider[] {
   const raw = env[tier === "tier1" ? "AI_TIER1_CHAIN" : "AI_TIER2_CHAIN"];
-  if (!raw?.trim()) return DEFAULT_CHAINS[tier];
+  if (!raw?.trim()) return DEFAULT_CHAINS[tier].filter((p) => p !== "gemini" || geminiIsFree(env));
   const parsed = raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter((s): s is AIProvider => (PROVIDERS as string[]).includes(s));
-  return parsed.length ? [...new Set(parsed)] : DEFAULT_CHAINS[tier];
+  return parsed.length ? [...new Set(parsed)] : DEFAULT_CHAINS[tier].filter((p) => p !== "gemini" || geminiIsFree(env));
 }
 
 export interface CallOptions<S extends z.ZodTypeAny> {
@@ -254,7 +258,7 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
         reportedCost = res.costUsd;
         const parsed = opts.schema.safeParse(parseJsonLoose(res.content));
         if (!parsed.success) throw new SchemaError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "), res.content);
-        const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens);
+        const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens, p.model);
         await log({ provider: p.provider, model: p.model, purpose: opts.purpose, articleId: opts.articleId, promptTokens, completionTokens, estimatedCostUsd: costUsd, success: true });
         budget.record(p.provider, costUsd);
         return { data: parsed.data, provider: p.provider, model: p.model, costUsd };
@@ -262,7 +266,7 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
         const message = err instanceof Error ? err.message : String(err);
         attempts.push(`${p.provider}/${p.model}: ${message.slice(0, 200)}`);
         if (promptTokens || completionTokens) {
-          const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens);
+          const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens, p.model);
           await log({ provider: p.provider, model: p.model, purpose: opts.purpose, articleId: opts.articleId, promptTokens, completionTokens, estimatedCostUsd: costUsd, success: false });
           budget.record(p.provider, costUsd);
         }

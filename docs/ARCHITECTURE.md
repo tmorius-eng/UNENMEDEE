@@ -152,8 +152,8 @@ flowchart TD
 **Provider chains** ([`router.ts`](../src/lib/ai/router.ts)), all through the `openai` SDK with a
 custom `baseURL` except Gemini (native `generateContent`):
 
-- Tier 1: Groq → Gemini → Requesty (free Gemma) → NVIDIA NIM → DeepSeek → Ollama
-- Tier 2: xAI Grok → Gemini Flash → Groq → Requesty → NVIDIA → DeepSeek → Ollama
+- Tier 1: Groq → Requesty (free Gemma) → NVIDIA NIM → DeepSeek → Ollama (Gemini after Groq only with a key from a Google project without billing, `GEMINI_FREE_TIER=true`; a billed key is charged per call and stays out)
+- Tier 2: xAI Grok → Groq → Requesty → NVIDIA → DeepSeek → Ollama (Gemini Flash after Grok on the same condition)
 
 A provider that errors, rate-limits (one retry after a 429) or returns invalid JSON hands over to the
 next. Chains can be overridden with `AI_TIER1_CHAIN` / `AI_TIER2_CHAIN`.

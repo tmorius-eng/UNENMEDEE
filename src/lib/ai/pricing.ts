@@ -10,8 +10,11 @@ import type { AIProvider } from "@/lib/types";
 const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   deepseek: { input: 0.15, output: 0.6 },
   grok: { input: 2, output: 6 },
-  // Google AI Studio free tier. If you enable billing, set GEMINI_PRICE_IN / GEMINI_PRICE_OUT.
-  gemini: { input: 0, output: 0 },
+  // Gemini on a billed project (ai.google.dev/gemini-api/docs/pricing, Oct 2026): Flash-Lite
+  // $0.30 / $2.50; Flash (deep model, see GEMINI_DEEP_PRICES) $0.75 / $3.75 until 2026-12-31.
+  // A key from a project WITHOUT billing is free: set GEMINI_FREE_TIER=true. A key in a billed
+  // project is charged for every call, free quota or not, so it is never assumed free.
+  gemini: { input: 0.3, output: 2.5 },
   // NVIDIA NIM free API (build.nvidia.com). Free models are rate limited, not billed.
   nvidia: { input: 0, output: 0 },
   // Groq free tier (rate limited per minute/day, no card). Not to be confused with xAI Grok.
@@ -22,6 +25,14 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   ollama: { input: 0, output: 0 },
 };
 
+/** Gemini Flash (not Lite), the deep / digest model. */
+const GEMINI_DEEP_PRICES = { input: 0.75, output: 3.75 };
+
+/** True only when the Gemini key comes from a Google project without billing (free tier). */
+export function geminiIsFree(env: Record<string, string | undefined> = process.env): boolean {
+  return env.GEMINI_FREE_TIER?.trim().toLowerCase() === "true";
+}
+
 function envNumber(name: string): number | undefined {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === "") return undefined;
@@ -29,8 +40,9 @@ function envNumber(name: string): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
-export function getPrice(provider: AIProvider): { input: number; output: number } {
-  const base = DEFAULT_PRICES[provider];
+export function getPrice(provider: AIProvider, model?: string): { input: number; output: number } {
+  if (provider === "gemini" && geminiIsFree()) return { input: 0, output: 0 };
+  const base = provider === "gemini" && model && !/lite/i.test(model) ? GEMINI_DEEP_PRICES : DEFAULT_PRICES[provider];
   if (provider === "ollama") return base;
   const prefix = provider.toUpperCase();
   return {
@@ -40,8 +52,8 @@ export function getPrice(provider: AIProvider): { input: number; output: number 
 }
 
 /** Cost in USD, rounded to 6 decimals to match the numeric(10,6) column. */
-export function estimateCostUsd(provider: AIProvider, promptTokens: number, completionTokens: number): number {
-  const p = getPrice(provider);
+export function estimateCostUsd(provider: AIProvider, promptTokens: number, completionTokens: number, model?: string): number {
+  const p = getPrice(provider, model);
   const cost = (promptTokens * p.input + completionTokens * p.output) / 1_000_000;
   return Math.round(cost * 1e6) / 1e6;
 }

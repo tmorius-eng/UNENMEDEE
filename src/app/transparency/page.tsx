@@ -45,7 +45,7 @@ function Panel({ title, description, children }: { title: string; description?: 
 const PROVIDER_LABEL: Record<string, string> = {
   deepseek: "DeepSeek (Tier 1)",
   grok: "xAI Grok (Tier 2)",
-  gemini: "Google Gemini (үнэгүй хувилбар)",
+  gemini: "Google Gemini (төлбөртэй)",
   nvidia: "NVIDIA NIM · Gemma (үнэгүй)",
   groq: "Groq · Qwen (үнэгүй)",
   requesty: "Requesty · Gemma (үнэгүй загвар)",
@@ -76,7 +76,7 @@ async function Dashboard() {
 
       <Panel
         title="Өдөр бүрийн төлбөртэй AI зардал"
-        description="Сүүлийн 30 хоног, токен бүрийн бодит үнээр. Үнэгүй AI (Groq, Gemini, NVIDIA, Ollama) $0 тул графикт биш, доорх хүснэгтэд харагдана."
+        description="Сүүлийн 30 хоног, токен бүрийн бодит үнээр. Үнэгүй AI (Groq, NVIDIA, Ollama) $0 тул графикт биш, доорх хүснэгтэд харагдана."
       >
         {data.dailySpend.length ? (
           <DailySpendChart data={data.dailySpend} />

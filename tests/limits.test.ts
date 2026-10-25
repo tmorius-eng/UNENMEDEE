@@ -28,10 +28,17 @@ describe("budget limits", () => {
     assert.equal(checkAllowance("grok", usage({ dayUsd: 0.31 }), cfg).ok, false);
   });
 
-  it("keeps free Gemini working after the money budget is gone, until its call quota", () => {
+  it("keeps a free Gemini key working after the money budget is gone, until its call quota", () => {
+    process.env.GEMINI_FREE_TIER = "true";
     assert.equal(checkAllowance("gemini", usage({ monthUsd: 99, dayUsd: 99 }), cfg).ok, true);
     const r = checkAllowance("gemini", usage({ dayCalls: { gemini: 800 } }), cfg);
     assert.equal(r.ok, false);
+    delete process.env.GEMINI_FREE_TIER;
+  });
+
+  it("treats a billed Gemini key as paid: the USD budget stops it", () => {
+    assert.equal(checkAllowance("gemini", usage({ monthUsd: 0.1, dayUsd: 0.01 }), cfg).ok, true);
+    assert.equal(checkAllowance("gemini", usage({ monthUsd: 99, dayUsd: 99 }), cfg).ok, false);
   });
 
   it("caps Grok calls per day even when money is left", () => {
@@ -52,7 +59,10 @@ describe("budget limits", () => {
   });
 
   it("parses chain overrides and ignores unknown providers", () => {
-    assert.deepEqual(chainFor("tier1", {}), ["groq", "gemini", "requesty", "nvidia", "deepseek", "ollama"]);
+    // A billed Gemini key is never in the default chain; a free one (no billing) is.
+    assert.deepEqual(chainFor("tier1", {}), ["groq", "requesty", "nvidia", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier2", {}), ["grok", "groq", "requesty", "nvidia", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier1", { GEMINI_FREE_TIER: "true" }), ["groq", "gemini", "requesty", "nvidia", "deepseek", "ollama"]);
     assert.deepEqual(chainFor("tier2", { AI_TIER2_CHAIN: "gemini, openai ,deepseek,gemini" }), ["gemini", "deepseek"]);
   });
 });
@@ -62,11 +72,12 @@ describe("router with Gemini + budget guard (mock server)", () => {
   let script: (model: string, i: number) => { status?: number; content?: string };
   const logs: UsageRecord[] = [];
   const log = async (r: UsageRecord) => void logs.push(r);
-  const KEYS = ["GROQ_API_KEY", "NVIDIA_API_KEY", "REQUESTY_API_KEY", "REQUESTY_BASE_URL", "REQUESTY_MODEL", "REQUESTY_RPM", "GEMINI_API_KEY", "GEMINI_BASE_URL", "GEMINI_MODEL", "GEMINI_DEEP_MODEL", "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL", "GROK_API_KEY", "GROK_BASE_URL", "GROK_MODEL", "GEMINI_RPM", "AI_RATE_LIMIT_WAIT_MS"];
+  const KEYS = ["GROQ_API_KEY", "NVIDIA_API_KEY", "REQUESTY_API_KEY", "REQUESTY_BASE_URL", "REQUESTY_MODEL", "REQUESTY_RPM", "GEMINI_API_KEY", "GEMINI_BASE_URL", "GEMINI_MODEL", "GEMINI_DEEP_MODEL", "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL", "GROK_API_KEY", "GROK_BASE_URL", "GROK_MODEL", "GEMINI_RPM", "AI_RATE_LIMIT_WAIT_MS", "GEMINI_FREE_TIER"];
 
   before(async () => {
     mock = await startMockLLM((model, i) => script(model, i));
     Object.assign(process.env, {
+      GEMINI_FREE_TIER: "true",
       GEMINI_API_KEY: "test",
       GEMINI_BASE_URL: mock.geminiBaseURL,
       GEMINI_MODEL: "mock-gemini-lite",
