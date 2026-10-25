@@ -3,7 +3,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { analyzeArticle, formatDeepAnalysis, shouldResynthesize } from "@/lib/ai/analyze";
 import { CLUSTER_THRESHOLD, findBestMatch, similarity, stems, type ClusterDoc } from "@/lib/ai/clustering";
-import { estimateCostUsd, getPrice } from "@/lib/ai/pricing";
+import { estimateCostUsd, getPrice, isTextModel } from "@/lib/ai/pricing";
 import { AIUnavailableError, callAIWithFallback, type UsageRecord } from "@/lib/ai/router";
 import { parseJsonLoose, Tier1Schema, Tier2Schema } from "@/lib/ai/schemas";
 
@@ -18,8 +18,12 @@ describe("pricing", () => {
   });
 
   it("charges a billed Gemini key at its list price, Flash above Flash-Lite, and nothing when free", () => {
+    assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-2.5-flash-lite"), 0.5);
     assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-lite-latest"), 2.8);
     assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-latest"), 4.5);
+    assert.equal(isTextModel("gemini-2.5-flash-lite"), true);
+    assert.equal(isTextModel("gemini-3.1-flash-image"), false);
+    assert.equal(isTextModel("gemini-2.5-flash-preview-tts"), false);
     process.env.GEMINI_FREE_TIER = "true";
     assert.equal(estimateCostUsd("gemini", 1_000_000, 1_000_000, "gemini-flash-latest"), 0);
     delete process.env.GEMINI_FREE_TIER;

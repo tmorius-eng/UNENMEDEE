@@ -34,7 +34,8 @@ const { values } = parseArgs({
     // Minutes; 0 = no time limit. Keeps GitHub Actions jobs inside their timeout.
     budget: { type: "string", default: "0" },
     // Parallel articles. Kept low so free tiers (Gemini ~10-15 requests/min) are not flooded.
-    batch: { type: "string", default: process.env.AI_CONCURRENCY || "2" },
+    // Three free providers take turns (spreadFree): three articles at a time keeps each busy.
+    batch: { type: "string", default: process.env.AI_CONCURRENCY || "3" },
     id: { type: "string" },
     deep: { type: "boolean", default: false },
     sample: { type: "boolean", default: false },
