@@ -1,5 +1,5 @@
 /**
- * Messenger bot for the ИЛ ТОД МЭДЭЭ page: answers with our own stories and links, never with
+ * Messenger and Instagram DM bot for the ИЛ ТОД МЭДЭЭ page: answers with our own stories and links, never with
  * generated text (no AI here, so nothing can be invented). "тойм" → the latest digest; any other
  * text → the top search results; greetings and the Get Started button → what the bot can do.
  * Pure helpers (classification, reply text, signature check); the route lives in
@@ -19,6 +19,8 @@ export interface MessengerSettings {
   pageToken: string;
   appSecret: string;
   verifyToken: string;
+  /** Instagram app secret: Instagram-Login webhooks (DMs) are signed with it, not with appSecret. */
+  igAppSecret?: string;
 }
 
 export function parseSettings(value: string | null | undefined): MessengerSettings | null {
@@ -83,11 +85,16 @@ function fit(text: string): string {
   return text.length <= MAX_TEXT ? text : `${text.slice(0, MAX_TEXT - 1)}…`;
 }
 
-/** Text messages and postbacks people sent to the page (echoes of our own replies skipped). */
-export function incoming(body: unknown): { senderId: string; text: string }[] {
-  const out: { senderId: string; text: string }[] = [];
+export type Channel = "messenger" | "instagram";
+
+/** Text messages and postbacks people sent to the page or its Instagram (echoes of our own replies skipped). */
+export function incoming(body: unknown): { channel: Channel; senderId: string; text: string }[] {
+  const out: { channel: Channel; senderId: string; text: string }[] = [];
   const entries = (body as { object?: string; entry?: unknown[] })?.entry;
-  if ((body as { object?: string })?.object !== "page" || !Array.isArray(entries)) return out;
+  // "page" = Messenger (answered with the page token), "instagram" = Instagram DMs (Instagram token).
+  const object = (body as { object?: string })?.object;
+  if ((object !== "page" && object !== "instagram") || !Array.isArray(entries)) return out;
+  const channel: Channel = object === "page" ? "messenger" : "instagram";
   for (const entry of entries) {
     for (const ev of ((entry as { messaging?: unknown[] }).messaging ?? []) as {
       sender?: { id?: string };
@@ -96,17 +103,21 @@ export function incoming(body: unknown): { senderId: string; text: string }[] {
     }[]) {
       const senderId = ev.sender?.id;
       if (!senderId || ev.message?.is_echo) continue;
-      if (typeof ev.message?.text === "string") out.push({ senderId, text: ev.message.text });
-      else if (ev.postback?.payload) out.push({ senderId, text: ev.postback.payload });
-      else if (ev.message) out.push({ senderId, text: "" }); // a sticker or photo: answer with help
+      if (typeof ev.message?.text === "string") out.push({ channel, senderId, text: ev.message.text });
+      else if (ev.postback?.payload) out.push({ channel, senderId, text: ev.postback.payload });
+      else if (ev.message) out.push({ channel, senderId, text: "" }); // a sticker or photo: answer with help
     }
   }
   return out.slice(0, 10);
 }
 
-/** Sends one text reply (Send API, standard messaging inside the 24 h window). */
-export async function sendText(opts: { pageToken: string; recipientId: string; text: string; fetchImpl?: typeof fetch; version?: string }): Promise<void> {
-  const res = await (opts.fetchImpl ?? fetch)(`https://graph.facebook.com/${opts.version ?? "v26.0"}/me/messages`, {
+/**
+ * Sends one text reply (Send API, standard messaging inside the 24 h window): Messenger through
+ * graph.facebook.com with the page token, Instagram through graph.instagram.com with its token.
+ */
+export async function sendText(opts: { pageToken: string; recipientId: string; text: string; channel?: Channel; fetchImpl?: typeof fetch; version?: string }): Promise<void> {
+  const host = opts.channel === "instagram" ? "https://graph.instagram.com" : "https://graph.facebook.com";
+  const res = await (opts.fetchImpl ?? fetch)(`${host}/${opts.version ?? "v26.0"}/me/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${opts.pageToken}` },
     body: JSON.stringify({ recipient: { id: opts.recipientId }, messaging_type: "RESPONSE", message: { text: fit(opts.text) } }),

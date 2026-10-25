@@ -63,3 +63,17 @@ npm run social:post -- --mode digest
 
 Pipeline токеныг 7 хоног тутам өөрөө шинэчилж `app_settings`-д хадгална, тиймээс дахин юу ч хийх шаардлагагүй.
 Токен хүчингүй болбол (нууц үг солих г.м.) шинэ токеныг `THREADS_TOKEN`-д хадгалахад хангалттай.
+
+## Instagram
+
+Тойм, чухал мэдээ Instagram-д 1080×1350 JPEG карт + тайлбартай нийтлэгдэнэ (`/ig-image`). Instagram DM-д
+Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбоосоор) хариулна.
+
+1. Instagram акаунтыг **Professional → Business** болгох.
+2. **Use cases → Manage messaging & content on Instagram → API setup with Instagram login**:
+   **Add account** → iltodmedee.mn → **Generate token**.
+3. Токеныг GitHub **Secrets**-д `INSTAGRAM_TOKEN` нэрээр хадгална. Pipeline 7 хоног тутам өөрөө шинэчилж
+   `app_settings`-д хадгална; DM бот тэндээс уншина.
+4. DM бот: Instagram апп → **Settings → Messages and story replies → Message controls → Connected tools →
+   Allow access to messages**; webhook (`/api/messenger`, object `instagram`, field `messages`); Instagram app
+   secret-ийг `MESSENGER_SETTINGS`-д `igAppSecret` болгож нэмнэ.
