@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
+import { discordArticlePost, discordDigestPost, discordMessage, meter, publishDiscord } from "@/lib/social/discord";
+import { formatShare, perPersonLine, perPersonShare } from "@/lib/per-person";
 
 const digest = {
   id: 9,
@@ -26,7 +28,7 @@ describe("facebook posts", () => {
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=9");
   });
 
-  it("article: headline hook, two summary sentences, amount, source, link, card", () => {
+  it("article: headline hook, two summary sentences, amount, per-person share, source, link, card", () => {
     const p = articlePost({
       id: 1,
       slug: "tusuv-123",
@@ -40,7 +42,8 @@ describe("facebook posts", () => {
     assert.equal(lines[0], "⚡ Төсвийн тодотгол");
     assert.equal(lines[2], "👉 Нэгдүгээр өгүүлбэр. Хоёрдугаар өгүүлбэр.");
     assert.equal(lines[3], "💰 Дүн: 1.2 их наяд ₮");
-    assert.equal(lines[4], "🏛 Эх сурвалж: Сангийн яам");
+    assert.equal(lines[4], "👤 3.43 сая хүнд хуваавал ≈ 350 300₮ / хүн");
+    assert.equal(lines[5], "🏛 Эх сурвалж: Сангийн яам");
     assert.ok(lines.includes("Дэлгэрэнгүй, эх баримтын холбоос 👉 https://iltodmedee.mn/article/tusuv-123"));
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=tusuv-123");
   });
@@ -121,5 +124,74 @@ describe("telegram channel", () => {
   it("never echoes the token in an error", async () => {
     const f = (async () => new Response(JSON.stringify({ ok: false, description: "Unauthorized: bot123:SECRET" }), { status: 401 })) as unknown as typeof fetch;
     await assert.rejects(publishTelegram({ token: "123:SECRET", chatId: "@x", post: { text: "t", link: "l" }, fetchImpl: f }), (e: Error) => !e.message.includes("SECRET") && e.message.includes("401"));
+  });
+});
+
+describe("discord announcement channel", () => {
+  const story = { id: 1, slug: "a-b", title: "Гарчиг @everyone", tldr: "Нэг. Хоёр.", sourceName: "Сангийн яам", amounts: ["48.5 тэрбум ₮"], riskFlag: false, topic: "economy" };
+
+  it("drops the hashtag line, wraps our link so Discord adds no second preview, never pings anyone", () => {
+    const post = discordArticlePost(story);
+    assert.ok(!/#ИлТодМэдээ/.test(post.text));
+    assert.ok(post.text.includes("<https://iltodmedee.mn/article/a-b>"));
+    const body = discordMessage({ ...post, text: "ж".repeat(3000) });
+    assert.ok(body.content.length <= 2000);
+    assert.deepEqual(body.allowed_mentions, { parse: [] });
+    assert.equal(body.embeds[0].image.url, "https://iltodmedee.mn/ig-image?a=a-b");
+    assert.ok(discordDigestPost(digest).text.includes("<https://iltodmedee.mn/digest>"));
+  });
+
+  it("short card: bold headline, quoted summary, amount with per-person share, AI meters", () => {
+    const lines = discordArticlePost({ ...story, riskScore: 70, neutrality: 40 }).text.split("\n");
+    assert.equal(lines[0], "⚡ **Гарчиг @everyone**");
+    assert.deepEqual(lines.slice(1, 3), ["> Нэг.", "> Хоёр."]);
+    assert.equal(lines[3], "💰 **48.5 тэрбум ₮** · 👤 3.43 сая хүнд хуваавал **≈ 14 200₮** / хүн");
+    assert.equal(lines[4], "📊 Баримт 🟩🟩⬜⬜⬜  ·  ⚠️ Эрсдэл 🟧🟧🟧🟧⬜  _(AI-ийн үнэлгээ, буруутгал биш)_");
+    assert.ok(!discordArticlePost({ ...story, title: "**оргосон** гарчиг" }).text.startsWith("⚡ ****"));
+    const digestLines = discordDigestPost({ ...digest, items: digest.items.map((it, i) => ({ ...it, whyItMatters: i === 0 ? "Учир нь." : undefined })) }).text.split("\n");
+    assert.equal(digestLines[0], "🗞 **ОРОЙН ТОЙМ · 22:48**");
+    assert.equal(digestLines[2], "> Учир нь.");
+    assert.ok(digestLines.includes("`7` Мэдээ 7"));
+  });
+
+  it("posts with the bot token in the header, then crossposts to following servers", async () => {
+    const calls: { url: string; auth: string | null }[] = [];
+    const f = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), auth: new Headers(init?.headers).get("authorization") });
+      return new Response(JSON.stringify({ id: "777" }));
+    }) as typeof fetch;
+    const id = await publishDiscord({ token: "SECRET", channelId: "123", post: discordArticlePost(story), fetchImpl: f });
+    assert.equal(id, "777");
+    assert.equal(calls[0].url, "https://discord.com/api/v10/channels/123/messages");
+    assert.equal(calls[1].url, "https://discord.com/api/v10/channels/123/messages/777/crosspost");
+    assert.equal(calls[0].auth, "Bot SECRET");
+    assert.ok(calls.every((c) => !c.url.includes("SECRET")));
+  });
+
+  it("a failed crosspost is a warning, a failed post an error without the token", async () => {
+    const warnings: string[] = [];
+    let n = 0;
+    const f = (async () => (n++ === 0 ? new Response(JSON.stringify({ id: "9" })) : new Response(JSON.stringify({ message: "Cannot crosspost SECRET" }), { status: 400 }))) as unknown as typeof fetch;
+    assert.equal(await publishDiscord({ token: "SECRET", channelId: "1", post: { text: "t", link: "l" }, fetchImpl: f, onWarning: (m) => warnings.push(m) }), "9");
+    assert.equal(warnings.length, 1);
+    assert.ok(!warnings[0].includes("SECRET"));
+    const bad = (async () => new Response(JSON.stringify({ message: "401: Unauthorized" }), { status: 401 })) as unknown as typeof fetch;
+    await assert.rejects(publishDiscord({ token: "SECRET", channelId: "1", post: { text: "t", link: "l" }, fetchImpl: bad }), (e: Error) => e.message.includes("401") && !e.message.includes("SECRET"));
+  });
+});
+
+describe("per-person share", () => {
+  it("divides the largest ₮ amount (≥ 1 тэрбум) by the population and rounds it plainly", () => {
+    assert.equal(perPersonShare(["5 сая ₮"]), null);
+    assert.equal(perPersonShare(["1,000 ам.доллар"]), null);
+    assert.equal(formatShare(perPersonShare(["48.5 тэрбум ₮", "5 сая ₮"]) ?? 0), "≈ 14 200₮");
+    assert.equal(formatShare(perPersonShare(["1 тэрбум ₮"]) ?? 0), "≈ 290₮");
+    assert.equal(formatShare(perPersonShare(["5 их наяд ₮"]) ?? 0), "≈ 1.5 сая ₮");
+    assert.equal(perPersonLine(["48.5 тэрбум ₮"]), "👤 3.43 сая хүнд хуваавал ≈ 14 200₮ / хүн");
+  });
+  it("meters clamp a score to 0–5 blocks", () => {
+    assert.equal(meter(0, "🟩"), "⬜⬜⬜⬜⬜");
+    assert.equal(meter(100, "🟩"), "🟩🟩🟩🟩🟩");
+    assert.equal(meter(140, "🟩"), "🟩🟩🟩🟩🟩");
   });
 });

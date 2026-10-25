@@ -7,6 +7,7 @@
  */
 import { editionLabel } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
+import { perPersonLine } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
@@ -37,11 +38,13 @@ export function instagramDigestPost(d: DigestForPost, site = PRODUCTION_URL): In
 
 export function instagramArticlePost(a: ArticleForPost, site = PRODUCTION_URL): InstagramPost {
   const amount = largestAmount(a.amounts);
+  const perPerson = perPersonLine(a.amounts);
   const caption = [
     `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
     "",
     `👉 ${tldrSentences(a.tldr, 3).join(" ")}`,
     ...(amount ? [`💰 Дүн: ${amount}`] : []),
+    ...(perPerson ? [perPerson] : []),
     ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
     `🏛 Эх сурвалж: ${a.sourceName}`,
     "",

@@ -1,0 +1,122 @@
+/**
+ * Discord announcement channel (free, no bot hosting): our bot posts the digests and stories (a
+ * shorter card than Facebook's, see below) to the ИЛ ТОД МЭДЭЭ server's announcement channel
+ * through the REST API, then publishes ("crossposts") the message, so every server that pressed "Follow" on the channel gets
+ * it too. Only REST calls from GitHub Actions: the bot never connects to the gateway, so nothing
+ * has to stay online. The token goes in the Authorization header only and errors never echo it.
+ */
+import { editionLabel } from "@/lib/edition";
+import { largestAmount, tldrSentences } from "@/lib/format";
+import { formatShare, perPersonShare, POPULATION_LABEL } from "@/lib/per-person";
+import { PRODUCTION_URL } from "@/lib/site";
+
+import type { ArticleForPost, DigestForPost } from "./facebook";
+import { cut } from "./threads";
+
+export const DISCORD_API = "https://discord.com/api/v10";
+/** Discord's limit for a message's text. */
+export const CONTENT_MAX = 2000;
+/** Our brand blue as the embed's side colour. */
+const EMBED_COLOR = 0x1570ef;
+
+export interface DiscordPost {
+  text: string;
+  link: string;
+  imageUrl?: string;
+}
+
+/** Five blocks for a 0–100 score: "🟩🟩🟩⬜⬜". */
+export function meter(score: number, full: string): string {
+  const n = Math.max(0, Math.min(5, Math.round(score / 20)));
+  return full.repeat(n) + "⬜".repeat(5 - n);
+}
+
+/** Discord bold without letting scraped text break out of it. */
+const bold = (s: string) => `**${s.replace(/\*/g, "")}**`;
+
+/**
+ * A short card for Discord's younger readers: bold headline, two summary lines as a quote, the
+ * amount and its per-person share in bold, the AI's fact and risk estimates as meters (labelled as
+ * AI estimates), the source and our link in <…> so only the card embed shows. No hashtags.
+ */
+export function discordArticlePost(a: ArticleForPost, site = PRODUCTION_URL): DiscordPost {
+  const link = `${site}/article/${a.slug}`;
+  const amount = largestAmount(a.amounts);
+  const share = perPersonShare(a.amounts);
+  const meters = [
+    ...(typeof a.neutrality === "number" ? [`📊 Баримт ${meter(a.neutrality, "🟩")}`] : []),
+    ...(typeof a.riskScore === "number" ? [`⚠️ Эрсдэл ${meter(a.riskScore, "🟧")}`] : []),
+  ];
+  const lines = [
+    `${a.riskFlag ? "🚨" : "⚡"} ${bold(a.title)}`,
+    ...tldrSentences(a.tldr, 2).map((t) => `> ${t}`),
+    ...(amount ? [`💰 ${bold(amount)}${share !== null ? ` · 👤 ${POPULATION_LABEL} хүнд хуваавал ${bold(formatShare(share))} / хүн` : ""}`] : []),
+    ...(meters.length ? [`${meters.join("  ·  ")}  _(AI-ийн үнэлгээ, буруутгал биш)_`] : []),
+    `🏛 ${a.sourceName} · 👉 <${link}>`,
+  ];
+  return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
+}
+
+/** The edition: the top story and why it matters, then numbered headlines and the link. */
+export function discordDigestPost(d: DigestForPost, site = PRODUCTION_URL): DiscordPost {
+  const link = `${site}/digest`;
+  const [top, ...rest] = d.items;
+  const lines = [`🗞 ${bold(editionLabel(d))}`];
+  if (top) lines.push(`⚡ ${bold(top.headline)}`, ...(top.whyItMatters ? [`> ${top.whyItMatters}`] : []));
+  if (rest.length) lines.push("", ...rest.slice(0, 6).map((it, i) => `\`${i + 2}\` ${it.headline}`));
+  lines.push("", `👉 Бүх ${d.items.length} мэдээ, эх сурвалжтай нь: <${link}>`);
+  return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
+}
+
+/** The message body: scraped text can contain "@everyone", so no mention is ever resolved. */
+export function discordMessage(post: DiscordPost) {
+  return {
+    content: cut(post.text, CONTENT_MAX),
+    embeds: post.imageUrl ? [{ url: post.link, image: { url: post.imageUrl }, color: EMBED_COLOR }] : [],
+    allowed_mentions: { parse: [] as string[] },
+  };
+}
+
+export class DiscordError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "DiscordError";
+  }
+}
+
+/**
+ * Posts one message to the channel and returns its id. When `crosspost` is on (an announcement
+ * channel), the message is then published to the following servers; a failed publish is reported
+ * through `onWarning` and does not fail the post, since the message is already in our channel.
+ */
+export async function publishDiscord(opts: {
+  token: string;
+  channelId: string;
+  post: DiscordPost;
+  crosspost?: boolean;
+  fetchImpl?: typeof fetch;
+  onWarning?: (message: string) => void;
+}): Promise<string> {
+  const f = opts.fetchImpl ?? fetch;
+  const headers = { authorization: `Bot ${opts.token}`, "content-type": "application/json" };
+  const call = async (path: string, body?: unknown) => {
+    const res = await f(`${DISCORD_API}${path}`, { method: "POST", headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
+    const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string; code?: number };
+    if (!res.ok) throw new DiscordError(`Discord ${res.status}: ${(json.message ?? "request failed").replaceAll(opts.token, "***")}`.slice(0, 300), res.status);
+    return json;
+  };
+  const channel = encodeURIComponent(opts.channelId);
+  const sent = await call(`/channels/${channel}/messages`, discordMessage(opts.post));
+  if (!sent.id) throw new DiscordError("Discord: no message id returned", 200);
+  if (opts.crosspost !== false) {
+    try {
+      await call(`/channels/${channel}/messages/${encodeURIComponent(sent.id)}/crosspost`);
+    } catch (err) {
+      opts.onWarning?.(`Discord message ${sent.id} was posted but not published to following servers: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return sent.id;
+}

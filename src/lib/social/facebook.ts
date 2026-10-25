@@ -7,6 +7,7 @@
  */
 import { editionLabel } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
+import { perPersonLine } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
 
 import { hashtags } from "./hashtags";
@@ -39,6 +40,10 @@ export interface ArticleForPost {
   riskFlag: boolean;
   /** The article's topic key (src/lib/topics.ts) for hashtags. */
   topic?: string | null;
+  /** AI risk estimate 0–100 (Discord's meter). */
+  riskScore?: number | null;
+  /** fact_vs_spin.neutrality_score: 0 = pure PR, 100 = facts only (Discord's meter). */
+  neutrality?: number | null;
 }
 
 /** Hook first: the top story and why it matters, then the next four headlines and the link. */
@@ -56,11 +61,13 @@ export function digestPost(d: DigestForPost, site = PRODUCTION_URL): FacebookPos
 export function articlePost(a: ArticleForPost, site = PRODUCTION_URL): FacebookPost {
   const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
+  const perPerson = perPersonLine(a.amounts);
   const lines = [
     `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
     "",
     `👉 ${tldrSentences(a.tldr, 2).join(" ")}`,
     ...(amount ? [`💰 Дүн: ${amount}`] : []),
+    ...(perPerson ? [perPerson] : []),
     ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
     `🏛 Эх сурвалж: ${a.sourceName}`,
     "",

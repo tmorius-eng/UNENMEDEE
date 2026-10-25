@@ -114,3 +114,28 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
 5. Шалгах: **Actions → Social post (manual)** (`dry_run=true`, дараа нь `false`).
 
 Токеныг чатад бүү бичээрэй. Bot API токеныг URL-д хийдэг тул скрипт URL-ыг хэзээ ч лог-д бичихгүй, алдааны мессежээс токеныг арилгана.
+
+## Discord (announcement суваг, бот host хийх шаардлагагүй)
+
+Тойм, чухал мэдээ манай Discord server-ийн **announcement** сувагт hook карттай нийтлэгдэж, автоматаар
+**Publish** (crosspost) хийгдэнэ. Бусад server-ийн эзэд сувгийн **Follow** товчийг дарахад мэдээ тэдний
+сонгосон сувагт өөрөө орж ирнэ: тэд бот нэмэх, бидэнд холбоос өгөх шаардлагагүй. Бот зөвхөн GitHub
+Actions-аас REST дуудлага хийдэг (gateway-д холбогддоггүй), тиймээс хаана ч ажиллуулж байх сервер хэрэггүй.
+
+1. Discord дээр шинэ server үүсгэнэ (жишээ нь "ИЛ ТОД МЭДЭЭ").
+2. **Server Settings → Enable Community** (announcement сувагт хэрэгтэй), дараа нь шинэ суваг үүсгэхдээ
+   төрлийг **Announcement** болгоно (жишээ нь `#мэдээ`).
+3. https://discord.com/developers/applications → **New Application** → **Bot** → **Reset Token** → токеныг хуулна.
+   "Privileged Gateway Intents"-ийг асаах шаардлагагүй.
+4. **OAuth2 → URL Generator**: scope `bot`, эрх **Send Messages**, **Embed Links**, **Manage Messages**
+   (өөрийн мессежийг publish хийхэд) → гарсан холбоосоор ботыг server-тээ нэмнэ.
+5. Discord-д **User Settings → Advanced → Developer Mode** асааж, announcement суваг дээр баруун товч →
+   **Copy Channel ID**.
+6. GitHub → **Settings → Secrets and variables → Actions**:
+   - **Secrets** → `DISCORD_BOT_TOKEN` = ботын токен;
+   - **Variables** → `DISCORD_CHANNEL_ID` = сувгийн ID (зөвхөн тоо).
+7. Шалгах: **Actions → Social post (manual)** (`dry_run=true`, дараа нь `false`).
+8. Сувгийн холбоосоо (Invite) нийтэлнэ: бусад server-ийн админ сувгийг нээгээд **Follow** дарна.
+
+Скрипт `allowed_mentions: { parse: [] }` илгээдэг тул мэдээн дэх "@everyone" хэнийг ч дуудахгүй.
+Токеныг чатад бүү бичээрэй; энэ нь зөвхөн `Authorization` толгойд явна, алдааны мессежээс арилгагдана.
