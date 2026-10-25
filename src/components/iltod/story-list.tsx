@@ -151,7 +151,33 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
  * summary in place (and marks the story read); the full analysis is one more tap away. Read
  * state lives in this browser only.
  */
-export function StoryList({ stories, leadId }: { stories: ArticleListItem[]; leadId?: number }) {
+/**
+ * The next stories of the same feed (`/api/feed/<key>`), without the ones already shown or another
+ * source's copy of a shown story. JSON dates come back as strings.
+ */
+async function loadMore(feed: string, shown: ArticleListItem[]): Promise<ArticleListItem[]> {
+  const res = await fetch(`/api/feed/${feed}`);
+  if (!res.ok) throw new Error(String(res.status));
+  const items = ((await res.json()) as ArticleListItem[]).map((s) => ({ ...s, publishedAt: s.publishedAt ? new Date(s.publishedAt) : null }));
+  const ids = new Set(shown.map((s) => s.id));
+  const clusters = new Set(shown.map((s) => s.clusterId).filter((c): c is number => c !== null));
+  return items.filter((s) => {
+    if (ids.has(s.id) || (s.clusterId !== null && clusters.has(s.clusterId))) return false;
+    ids.add(s.id);
+    if (s.clusterId !== null) clusters.add(s.clusterId);
+    return true;
+  });
+}
+
+/**
+ * `moreFeed` (a feed key) adds a "Цааш үзэх" button: the page renders only the first stories, so
+ * phones hydrate half as many rows (mobile Total Blocking Time), and the rest load on demand.
+ */
+export function StoryList({ stories: first, leadId, moreFeed }: { stories: ArticleListItem[]; leadId?: number; moreFeed?: string }) {
+  const [more, setMore] = useState<ArticleListItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  const stories = useMemo(() => (more ? [...first, ...more] : first), [first, more]);
   const [raw, setRaw] = useLocalStorage(READ_KEY, "[]");
   const read = useMemo(() => parseIds(raw), [raw]);
   const [open, setOpen] = useState<number | null>(null);
@@ -188,6 +214,24 @@ export function StoryList({ stories, leadId }: { stories: ArticleListItem[]; lea
     <div>
       {lead && <ul className="mb-3">{item(lead)}</ul>}
       <ul className="divide-y divide-secondary border-y border-secondary">{rest.map(item)}</ul>
+
+      {moreFeed && more === null && stories.length > 0 && (
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            setLoading(true);
+            setMoreError(false);
+            loadMore(moreFeed, first)
+              .then(setMore)
+              .catch(() => setMoreError(true))
+              .finally(() => setLoading(false));
+          }}
+          className="mt-4 h-12 w-full cursor-pointer rounded-xl bg-primary text-md font-semibold text-brand-secondary ring-1 ring-secondary transition ring-inset hover:bg-primary_hover disabled:cursor-wait disabled:opacity-70"
+        >
+          {loading ? "Ачаалж байна…" : moreError ? "Ачаалж чадсангүй. Дахин оролдох" : "Цааш үзэх"}
+        </button>
+      )}
 
       {stories.length > 0 && (
         <div className="mt-6 flex flex-col items-center gap-2">

@@ -15,6 +15,9 @@ import { StatusTicker } from "./status-ticker";
 import { StoryList } from "./story-list";
 import { TopicBar } from "./topic-bar";
 
+/** Stories rendered with the page; the rest load on demand. */
+const FIRST_PAGE = 20;
+
 const WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
 
 /**
@@ -86,7 +89,9 @@ async function Masthead({ stats, digest, topicLabel }: { stats: SiteStats; diges
  * <head>); they refresh with the queries' cacheLife.
  */
 export async function HomeFeed({ filter }: { filter: FeedFilter }) {
-  const [feed, stats, [edition], [review]] = await Promise.all([getFeed(filter, 40), getSiteStats(), getDigests("12h", 1), getDigests("30d", 1)]);
+  // 20 on the page, the rest behind "Цааш үзэх" (/api/feed/<filter>): 40 rows made the phone
+  // hydrate 1,000+ DOM nodes and Lighthouse mobile measured 2 s of Total Blocking Time.
+  const [feed, stats, [edition], [review]] = await Promise.all([getFeed(filter, FIRST_PAGE), getSiteStats(), getDigests("12h", 1), getDigests("30d", 1)]);
   const stories = onePerStory(feed);
   const topic = findTopic(filter);
   return (
@@ -104,7 +109,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       )}
       <div className="mt-2">
         {stories.length ? (
-          <StoryList stories={stories} leadId={filter === "all" ? pickLead(stories) : undefined} />
+          <StoryList stories={stories} leadId={filter === "all" ? pickLead(stories) : undefined} moreFeed={feed.length >= FIRST_PAGE ? filter : undefined} />
         ) : (
           <Empty
             title={filter === "all" ? "Шинэ мэдээ хараахан алга" : "Энэ сэдвээр мэдээ алга"}
