@@ -20,7 +20,7 @@ import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { appSettings, articles, digests, socialPosts, sources } from "@/db/schema";
-import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage } from "@/lib/social/facebook";
+import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, GRAPH_VERSION, publishToPage } from "@/lib/social/facebook";
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
@@ -166,6 +166,19 @@ async function postNews(db: Db, p: Platform) {
   }
 }
 
+/** The page a Page access token belongs to (`GET /me`), or undefined when the call fails. */
+async function pageIdOf(token: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/me?fields=id`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+    const json = (await res.json()) as { id?: string; error?: { message?: string } };
+    if (!json.id) console.error(`::warning::Facebook page id lookup failed: ${json.error?.message ?? res.status}`);
+    return json.id;
+  } catch (err) {
+    console.error(`::warning::Facebook page id lookup failed: ${err instanceof Error ? err.message : err}`);
+    return undefined;
+  }
+}
+
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -174,11 +187,12 @@ async function main() {
   }
   const db = getDb();
   const platforms: Platform[] = [];
-  const pageId = process.env.FB_PAGE_ID?.trim();
   const fbToken = process.env.FB_PAGE_TOKEN?.trim();
+  // A Page token's /me is the page itself, so FB_PAGE_ID is optional.
+  const pageId = process.env.FB_PAGE_ID?.trim() || (fbToken ? await pageIdOf(fbToken) : undefined);
   if (pageId && fbToken) platforms.push(facebook(pageId, fbToken));
   else if (dry) platforms.push(facebook("dry-run", ""));
-  else console.log("📘 Facebook is off: set FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret), see docs/FACEBOOK.md.");
+  else console.log("📘 Facebook is off: set the FB_PAGE_TOKEN secret (FB_PAGE_ID is optional), see docs/FACEBOOK.md.");
   const thToken = await storedToken(db, THREADS_SETTINGS_KEY, process.env.THREADS_TOKEN, (t) => refreshToken(t));
   if (thToken) platforms.push(threads(thToken));
   else console.log("🧵 Threads is off: set the THREADS_TOKEN secret, see docs/FACEBOOK.md.");
