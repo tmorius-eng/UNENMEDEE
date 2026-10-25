@@ -144,7 +144,7 @@ jobs:
         run: npm run push:send -- --mode news
 
       - name: Post the most important new story to Facebook, Threads and Instagram
-        if: (env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != '') || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
+        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode news
 
@@ -159,6 +159,6 @@ jobs:
         run: npm run push:send -- --mode digest
 
       - name: Post the new digest to Facebook, Threads and Instagram
-        if: (env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != '') || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
+        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode digest
