@@ -48,6 +48,10 @@ AI түлхүүр (`GROQ_API_KEY`) тавина. Дэлгэрэнгүйг [READM
 Код MIT, сайтын агуулга [CC BY 4.0](LICENSE-CONTENT.md) лицензтэй. PR илгээснээр та өөрийн хувь
 нэмрийг эдгээр лицензээр нийтлэхийг зөвшөөрч байна.
 
+## Холбоо барих
+
+Кодоос бусад асуудал (хамтын ажиллагаа, хэвлэл мэдээлэл, эх сурвалжийн засвар): [info@iltodmedee.mn](mailto:info@iltodmedee.mn).
+
 ---
 
 ## English
@@ -69,6 +73,8 @@ tiers; keep the home page light.
 
 **Pull requests:** `main` only accepts PRs with green CI. Run `npm run check` and `npm run build`
 first. One topic per PR. Report security problems privately per [SECURITY.md](SECURITY.md).
+
+**Contact** for anything that is not code (partnerships, press, source corrections): [info@iltodmedee.mn](mailto:info@iltodmedee.mn).
 
 Code is MIT; site content is [CC BY 4.0](LICENSE-CONTENT.md). By opening a PR you agree to license
 your contribution under these terms.

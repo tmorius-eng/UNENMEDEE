@@ -4,14 +4,15 @@
 
 Please **do not open a public issue** for a security problem.
 Report it privately: **Security → Report a vulnerability** on this repository
-(GitHub private vulnerability reporting). You will get an answer within 7 days.
+(GitHub private vulnerability reporting), or by email to **info@iltodmedee.mn**.
+You will get an answer within 7 days. (Also published as `/.well-known/security.txt`.)
 
 Useful details: the URL or file, steps to reproduce, and what an attacker could do.
 
 ## Эмзэг байдал мэдэгдэх
 
 Аюулгүй байдлын асуудлыг **нийтэд нээлттэй issue болгож бүү бичээрэй**.
-Энэ repository-ийн **Security → Report a vulnerability** товчоор нууцаар мэдэгдэнэ үү.
+Энэ repository-ийн **Security → Report a vulnerability** товчоор, эсвэл **info@iltodmedee.mn** хаягаар нууцаар мэдэгдэнэ үү.
 7 хоногийн дотор хариу өгнө.
 
 ## Scope

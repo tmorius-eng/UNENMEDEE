@@ -7,7 +7,7 @@ import { Providers } from "@/components/providers";
 import { InstallBanner } from "@/components/pwa/pwa-controls";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
 import { isDemoDatabase } from "@/db";
-import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
+import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL, CONTACT_EMAIL } from "@/lib/site";
 
 import "./globals.css";
 
@@ -50,6 +50,8 @@ const SITE_JSON_LD = {
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/icons/icon-512.png`, width: 512, height: 512 },
       publishingPrinciples: `${SITE_URL}/method`,
+      email: CONTACT_EMAIL,
+      contactPoint: { "@type": "ContactPoint", contactType: "editorial", email: CONTACT_EMAIL, availableLanguage: ["mn", "en"] },
       sameAs: [REPO_URL],
     },
     { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: SITE_NAME, alternateName: SITE_ALTERNATE_NAMES, description: SITE_DESCRIPTION, inLanguage: "mn", publisher: { "@id": `${SITE_URL}/#org` } },

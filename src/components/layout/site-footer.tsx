@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { REPO_URL, repoFile } from "@/lib/site";
+import { CONTACT_EMAIL, REPO_URL, repoFile } from "@/lib/site";
 
 import { DonateCard } from "./donate";
 import { Logo } from "./logo";
@@ -16,6 +16,13 @@ export function SiteFooter() {
             Төрийн албан ёсны мэдээг баримт, пи-ар гэж ялгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг нээлттэй эхийн платформ.
           </p>
           <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-utility-green-700">🟢 0₮ дэд бүтэц</span>
+          <div className="mt-2 flex flex-col gap-1 text-sm">
+            <p className="font-semibold text-primary">Холбоо барих</p>
+            <p className="text-tertiary">Санал хүсэлт, алдаа, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар бичээрэй:</p>
+            <a className="w-fit font-semibold text-brand-secondary hover:underline" href={`mailto:${CONTACT_EMAIL}`}>
+              {CONTACT_EMAIL}
+            </a>
+          </div>
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <p className="font-semibold text-primary">Шалгах боломжтой</p>

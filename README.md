@@ -83,6 +83,10 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 - **Алдаа мэдэгдэх:** AI хураангуй, тоо буруу байвал эх сурвалжийн холбоосыг хавсаргаад issue нээнэ үү.
 - **Код:** PR бүр `npm run check` (typecheck + lint + 150+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Алхам алхмаар заавар: [CONTRIBUTING.md](CONTRIBUTING.md). Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
 
+## Холбоо барих
+
+Сайттай холбоотой санал хүсэлт, алдаа, шинэ эх сурвалж, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар **[info@iltodmedee.mn](mailto:info@iltodmedee.mn)** хаягаар бичээрэй. Кодын алдаа, санааг [issue](https://github.com/tmorius-eng/UNENMEDEE/issues) болгон нээж болно.
+
 ## Аюулгүй байдал
 
 Эмзэг байдал олвол **нээлттэй issue бүү бичээрэй**: [SECURITY.md](SECURITY.md)-ийн дагуу нууцаар мэдэгдэнэ үү.
@@ -160,6 +164,10 @@ npm run build   # must pass without DATABASE_URL
 ```
 
 Changes land through pull requests with CI green; see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately (see [SECURITY.md](SECURITY.md)).
+
+### Contact
+
+Feedback, corrections, new sources, partnerships and press: **[info@iltodmedee.mn](mailto:info@iltodmedee.mn)**. Code issues and ideas: [GitHub issues](https://github.com/tmorius-eng/UNENMEDEE/issues).
 
 ## License
 

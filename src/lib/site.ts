@@ -10,6 +10,8 @@ export const SITE_URL = (
 export const SITE_NAME = "ИЛ ТОД МЭДЭЭ";
 /** The public source code (MIT). Linked from the footer, /method and /transparency. */
 export const REPO_URL = "https://github.com/tmorius-eng/UNENMEDEE";
+/** Contact for readers, partners and press (forwarded by Porkbun to the owner's inbox). */
+export const CONTACT_EMAIL = "info@iltodmedee.mn";
 /** A file or folder in the repository on the main branch. */
 export const repoFile = (path: string) => `${REPO_URL}/blob/main/${path}`;
 export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
