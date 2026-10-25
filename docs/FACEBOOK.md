@@ -139,3 +139,19 @@ Actions-аас REST дуудлага хийдэг (gateway-д холбогддо
 
 Скрипт `allowed_mentions: { parse: [] }` илгээдэг тул мэдээн дэх "@everyone" хэнийг ч дуудахгүй.
 Токеныг чатад бүү бичээрэй; энэ нь зөвхөн `Authorization` толгойд явна, алдааны мессежээс арилгагдана.
+
+### Discord slash command (`/toim`, `/khaih`, `/aimag`)
+
+Хүн бүр өөрөө дуудаж болох командууд: `/toim` (сүүлийн тойм), `/khaih ug: төсөв` (хайлт),
+`/aimag ner: Ховд` (аймаг, дүүргийн мэдээ). Discord командыг манай сайт руу HTTP-ээр илгээдэг
+(`https://iltodmedee.mn/api/discord`), тиймээс бот host хийх шаардлагагүй. Хариулт нь зөвхөн манай мэдээ, AI биш.
+
+1. Developer Portal → таны app → **General Information** → **Public Key**-г хуулна.
+2. Vercel → Project → **Settings → Environment Variables** → `DISCORD_PUBLIC_KEY` = тэр Public Key
+   (Production), дараа нь **Redeploy** хийнэ. (Public key нууц биш, гэхдээ тохиргоонд байлгана.)
+3. Developer Portal → **General Information → Interactions Endpoint URL** =
+   `https://iltodmedee.mn/api/discord` → **Save**. Discord тэр даруй шалгана: алдаа гарвал 2-р алхмыг шалгаарай.
+4. GitHub → **Actions → Discord commands (manual)** → Run (командуудыг бүртгэнэ).
+5. Developer Portal → **Installation**: **Guild Install** ба **User Install**-ийг асааж, Default Install
+   Settings-д `applications.commands` (+ server-т `bot`) сонгоно. Гарсан **Install Link**-ийг нийтэлнэ:
+   хүмүүс өөрийн аккаунтдаа нэмээд ямар ч server, DM дээр командуудыг ашиглана.
