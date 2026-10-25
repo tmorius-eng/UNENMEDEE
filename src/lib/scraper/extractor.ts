@@ -18,13 +18,21 @@ export const MIN_ARTICLE_CHARS = 200;
 
 const silentConsole = new VirtualConsole();
 
-function stripHeavyTags(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "");
+/** Script, style, SVG and frame blocks, closing tags in any spelling ("</script >", "</SCRIPT foo>"). */
+const HEAVY_BLOCK = /<(script|style|noscript|svg|iframe)\b[^>]*>[\s\S]*?<\/\1\b[^>]*>/gi;
+
+/**
+ * Drops heavy blocks before JSDOM parses the page, only to save time and memory: this is not a
+ * sanitizer (JSDOM runs no scripts, Readability drops them again and we keep plain text only).
+ * Repeats until nothing changes, so a block hidden inside another one goes too.
+ */
+export function stripHeavyTags(html: string): string {
+  let out = html;
+  for (let prev = ""; prev !== out; ) {
+    prev = out;
+    out = out.replace(HEAVY_BLOCK, "");
+  }
+  return out;
 }
 
 /** Strip " – Site name" / " | Site name" suffixes from <title>. */
