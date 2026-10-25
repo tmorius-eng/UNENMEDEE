@@ -11,19 +11,29 @@ import { FollowTopicButton } from "./follow-topic";
 import { StoryList } from "./story-list";
 
 const MAX_STORIES = 40;
-const requests = new Map<string, Promise<ArticleListItem[]>>();
+/** Fetched lists are reused this long; a failed fetch only briefly (a PWA that was offline recovers). */
+const FRESH_MS = 5 * 60_000;
+const FAILED_MS = 30_000;
+const requests = new Map<string, { at: number; ttl: number; p: Promise<ArticleListItem[]> }>();
 
-/** One request per topic per page view; JSON dates come back as strings. */
+/** One request per topic per few minutes; JSON dates come back as strings. */
 function topicFeed(key: string): Promise<ArticleListItem[]> {
-  let p = requests.get(key);
-  if (!p) {
-    p = fetch(`/api/topic-feed/${key}`)
-      .then((r) => (r.ok ? (r.json() as Promise<ArticleListItem[]>) : []))
-      .then((items) => items.map((s) => ({ ...s, publishedAt: s.publishedAt ? new Date(s.publishedAt) : null })))
-      .catch(() => []);
-    requests.set(key, p);
-  }
-  return p;
+  const now = Date.now();
+  const cached = requests.get(key);
+  if (cached && now - cached.at < cached.ttl) return cached.p;
+  const entry = { at: now, ttl: FRESH_MS, p: Promise.resolve<ArticleListItem[]>([]) };
+  entry.p = fetch(`/api/topic-feed/${key}`)
+    .then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json() as Promise<ArticleListItem[]>;
+    })
+    .then((items) => items.map((s) => ({ ...s, publishedAt: s.publishedAt ? new Date(s.publishedAt) : null })))
+    .catch(() => {
+      entry.ttl = FAILED_MS;
+      return [];
+    });
+  requests.set(key, entry);
+  return entry.p;
 }
 
 /** Newest first, each story once, one per cross-source cluster. */
@@ -42,12 +52,17 @@ function merge(lists: ArticleListItem[][]): ArticleListItem[] {
     .slice(0, MAX_STORIES);
 }
 
-const keyPromises = new Map<string, Promise<ArticleListItem[][]>>();
+// use() needs the same promise on every render of the same keys: rebuilt only when a topic's
+// request was renewed (expired or failed).
+const keyPromises = new Map<string, { parts: Promise<ArticleListItem[]>[]; all: Promise<ArticleListItem[][]> }>();
 function feeds(keys: string[]): Promise<ArticleListItem[][]> {
   const id = keys.join(",");
-  let p = keyPromises.get(id);
-  if (!p) keyPromises.set(id, (p = Promise.all(keys.map(topicFeed))));
-  return p;
+  const parts = keys.map(topicFeed);
+  const cached = keyPromises.get(id);
+  if (cached && cached.parts.every((p, i) => p === parts[i])) return cached.all;
+  const all = Promise.all(parts);
+  keyPromises.set(id, { parts, all });
+  return all;
 }
 
 function Stories({ keys }: { keys: string[] }) {

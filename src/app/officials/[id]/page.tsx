@@ -107,7 +107,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
   const data = await getPolitician(id);
   if (!data) notFound();
   const { politician: p, declarations: rows, hiddenYears, mentions, nameShared } = data;
-  const flags = declarationFlags(rows);
+  const flags = declarationFlags(rows, hiddenYears);
   const latest = rows.at(-1);
 
   return (

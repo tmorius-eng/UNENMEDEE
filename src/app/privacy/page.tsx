@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Нууцлалын бодлого",
   alternates: { canonical: "/privacy" },
-  description: "ИЛ ТОД МЭДЭЭ ямар мэдээлэл хадгалдаг, юуг хадгалдаггүй вэ: бүртгэлгүй, хувийн мэдээлэл цуглуулдаггүй, Facebook хуудсанд зөвхөн нийтэлдэг.",
+  description: "ИЛ ТОД МЭДЭЭ ямар мэдээлэл хадгалдаг, юуг хадгалдаггүй вэ: бүртгэлгүй, хувийн мэдээлэл цуглуулдаггүй, Facebook, Instagram, Threads-д зөвхөн нийтэлдэг.",
 };
 
 const STORED = [
@@ -50,11 +50,12 @@ export default function PrivacyPage() {
 
       <section aria-labelledby="facebook" className="flex flex-col gap-2">
         <h2 id="facebook" className="text-lg font-semibold text-primary">
-          Facebook хуудас
+          Facebook, Instagram, Threads
         </h2>
         <p className="text-sm text-secondary">
-          Манай Facebook апп ИЛ ТОД МЭДЭЭ-ийн өөрийн хуудсанд тойм, чухал мэдээ нийтэлдэг. Хуудас руу Messenger эсвэл Instagram-аар бичихэд автомат туслах тухайн мессежийг
-          уншиж, сайтын мэдээний холбоосоор хариулдаг. Мессеж, таны нэр, Facebook-ийн мэдээллийг хадгалдаггүй, AI-д дамжуулдаггүй. Facebook-ээр нэвтрэх боломж байхгүй.
+          Манай апп ИЛ ТОД МЭДЭЭ-ийн өөрийн Facebook хуудас, Instagram, Threads акаунтад тойм, чухал мэдээ нийтэлдэг. Messenger эсвэл Instagram-аар бичихэд автомат туслах тухайн
+          мессежийг уншиж, сайтын мэдээний холбоосоор хариулдаг. Мессеж, таны нэр, Facebook-ийн мэдээллийг мэдээллийн санд хадгалдаггүй, AI-д дамжуулдаггүй; хайлтын үр дүнг
+          хурдан гаргахын тулд хайсан үгийг сервер дээр түр (1 цаг хүртэл) кэшлэдэг. Facebook-ээр нэвтрэх боломж байхгүй.
         </p>
       </section>
 

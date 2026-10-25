@@ -51,7 +51,11 @@ export function suspectUnitYears(rows: { year: number; totalAssets: number | nul
   return valued.filter((r) => r.totalAssets > median * UNIT_GAP || r.totalAssets < median / UNIT_GAP).map((r) => r.year);
 }
 
-export function declarationFlags(rows: DeclarationLike[]): Flag[] {
+/**
+ * Neutral markers for a member's yearly filings. `hiddenYears` are years an editor took out of the
+ * comparison: they were published, so a gap there is not a missing filing (saying so would be false).
+ */
+export function declarationFlags(rows: DeclarationLike[], hiddenYears: number[] = []): Flag[] {
   const sorted = [...rows].sort((a, b) => a.year - b.year);
   const suspect = new Set(suspectUnitYears(sorted));
   const flags: Flag[] = [];
@@ -73,9 +77,11 @@ export function declarationFlags(rows: DeclarationLike[]): Flag[] {
     }
   }
   const comparable = sorted.filter((r) => r.totalAssets !== null && !suspect.has(r.year));
+  const hidden = new Set(hiddenYears);
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].year - sorted[i - 1].year > 1) {
-      flags.push({ year: sorted[i - 1].year + 1, kind: "missing_year", text: `${sorted[i - 1].year + 1} оны мэдүүлэг нийтлэгдээгүй байна.` });
+    // Every year of a gap (2020 → 2023 is 2021 and 2022), except the hidden ones.
+    for (let y = sorted[i - 1].year + 1; y < sorted[i].year; y++) {
+      if (!hidden.has(y)) flags.push({ year: y, kind: "missing_year", text: `${y} оны мэдүүлэг нийтлэгдээгүй байна.` });
     }
   }
   for (let i = 1; i < comparable.length; i++) {

@@ -31,4 +31,15 @@ describe("₮ chips", () => {
     assert.equal(largestAmount(["850 сая ₮", "1,2 тэрбум ₮", "3 000 000 ₮"]), "1,2 тэрбум ₮");
     assert.equal(largestAmount([]), undefined);
   });
+
+  it("reads mixed separators, refuses foreign currency and amounts without digits", () => {
+    assert.equal(amountValue("1,250.5 сая ₮"), 1_250_500_000);
+    assert.equal(amountValue("1.250.000 ₮"), 1_250_000);
+    assert.equal(amountValue("4,500 ₮"), 4_500);
+    assert.equal(amountValue("1.2 их наяд ₮"), 1_200_000_000_000);
+    assert.equal(amountValue("хэдэн тэрбум ₮"), null);
+    assert.equal(amountValue("250 мянган ам.доллар"), null);
+    assert.equal(amountValue("ам.доллар 5 сая"), null);
+    assert.equal(largestAmount(["250 мянган ам.доллар", "40 сая ₮"]), "40 сая ₮");
+  });
 });

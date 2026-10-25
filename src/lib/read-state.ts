@@ -35,21 +35,29 @@ export interface Streak {
   d: string;
   /** consecutive days up to `d` */
   n: number;
+  /** the edition that last counted: finishing the same one again on a new day is not a new day of reading */
+  e?: number;
 }
 
 export function parseStreak(raw: string): Streak | null {
   try {
     const s = JSON.parse(raw);
-    return typeof s?.d === "string" && Number.isInteger(s?.n) && s.n > 0 ? { d: s.d, n: s.n } : null;
+    if (typeof s?.d !== "string" || !Number.isInteger(s?.n) || s.n <= 0) return null;
+    return Number.isInteger(s.e) ? { d: s.d, n: s.n, e: s.e } : { d: s.d, n: s.n };
   } catch {
     return null;
   }
 }
 
-/** Finishing a digest today: same day keeps the count, yesterday continues it, older restarts. */
-export function bumpStreak(prev: Streak | null, today: string): Streak {
-  if (prev?.d === today) return prev;
-  return { d: today, n: prev?.d === prevDay(today) ? prev.n + 1 : 1 };
+/**
+ * Finishing a digest today: same day keeps the count, yesterday continues it, older restarts.
+ * `edition` is the digest finished: one already counted (opened again the next morning before a
+ * new edition exists, or while digests stalled) never bumps the streak.
+ */
+export function bumpStreak(prev: Streak | null, today: string, edition?: number): Streak {
+  if (prev?.d === today || (edition !== undefined && prev?.e === edition)) return prev!;
+  const next: Streak = { d: today, n: prev?.d === prevDay(today) ? prev.n + 1 : 1 };
+  return edition === undefined ? next : { ...next, e: edition };
 }
 
 /** The streak as shown today: alive if the last finish was today or yesterday. */
