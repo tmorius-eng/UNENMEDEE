@@ -1,5 +1,5 @@
 # Zero-cost backend: scrape Mongolian government sites and run the AI pipeline
-# (free Groq / Gemini / Requesty / NVIDIA first, paid DeepSeek / Grok capped) every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
+# (free Groq / Mistral / NVIDIA / Requesty / OpenRouter / Z.ai first, paid DeepSeek / Grok capped) every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
 name: Autonomous news pipeline
 
 on:
@@ -50,6 +50,9 @@ jobs:
       GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
       REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
       # Paid (optional). Capped by the budget variables below.
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
@@ -72,6 +75,9 @@ jobs:
       GEMINI_DEEP_MODEL: ${{ vars.GEMINI_DEEP_MODEL }}
       REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
       NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
+      MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL }}
+      OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+      ZAI_MODEL: ${{ vars.ZAI_MODEL }}
       # Facebook page, Threads and Instagram posting (docs/FACEBOOK.md); all unset = the steps are skipped.
       FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
       FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
@@ -95,6 +101,9 @@ jobs:
           GEMINI_API_KEY: ""
           REQUESTY_API_KEY: ""
           NVIDIA_API_KEY: ""
+          MISTRAL_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+          ZAI_API_KEY: ""
           DEEPSEEK_API_KEY: ""
           GROK_API_KEY: ""
           FB_PAGE_TOKEN: ""
@@ -105,7 +114,7 @@ jobs:
       - name: Check required secrets
         run: |
           if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
-          if [ -z "$GROQ_API_KEY$GEMINI_API_KEY$REQUESTY_API_KEY$NVIDIA_API_KEY$DEEPSEEK_API_KEY" ]; then echo "::warning::No AI key is set (GROQ_API_KEY, GEMINI_API_KEY, REQUESTY_API_KEY, NVIDIA_API_KEY or DEEPSEEK_API_KEY): articles will be scraped but not analyzed."; fi
+          if [ -z "$GROQ_API_KEY$GEMINI_API_KEY$REQUESTY_API_KEY$NVIDIA_API_KEY$MISTRAL_API_KEY$OPENROUTER_API_KEY$ZAI_API_KEY$DEEPSEEK_API_KEY" ]; then echo "::warning::No AI key is set (GROQ_API_KEY, GEMINI_API_KEY, REQUESTY_API_KEY, NVIDIA_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, ZAI_API_KEY or DEEPSEEK_API_KEY): articles will be scraped but not analyzed."; fi
 
       - name: Apply database migrations
         id: migrate
@@ -128,6 +137,9 @@ jobs:
           GEMINI_API_KEY: ""
           REQUESTY_API_KEY: ""
           NVIDIA_API_KEY: ""
+          MISTRAL_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+          ZAI_API_KEY: ""
           DEEPSEEK_API_KEY: ""
           GROK_API_KEY: ""
           FB_PAGE_TOKEN: ""
@@ -152,7 +164,7 @@ jobs:
       - name: Analyze with AI (free providers first, paid ones within budget)
         # From here on every step runs even when an earlier one failed (a scrape or AI outage must
         # never stop the digest, its rule-based fallback or the pushes), but never on an old schema.
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.MISTRAL_API_KEY != '' || env.OPENROUTER_API_KEY != '' || env.ZAI_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
         env:
           IN_AI_LIMIT: ${{ inputs.ai_limit || '60' }}
         run: |
@@ -161,7 +173,7 @@ jobs:
           npm run ai:process -- --limit "$IN_AI_LIMIT" --budget 75
 
       - name: Tag older articles with an AI topic (batched, free tier)
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.MISTRAL_API_KEY != '' || env.OPENROUTER_API_KEY != '' || env.ZAI_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
         # A no-op once every article has a topic (Tier 1 returns one for new articles).
         continue-on-error: true
         run: npm run ai:topics -- --limit 200

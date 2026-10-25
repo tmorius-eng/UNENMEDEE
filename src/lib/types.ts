@@ -2,7 +2,7 @@
 
 /** portal = national data portals, local = aimag / district / city governments and councils. */
 export type SourceCategory = "portal" | "ministry" | "agency" | "local";
-export type AIProvider = "deepseek" | "grok" | "gemini" | "nvidia" | "groq" | "requesty" | "ollama";
+export type AIProvider = "deepseek" | "grok" | "gemini" | "nvidia" | "groq" | "requesty" | "mistral" | "openrouter" | "zai" | "ollama";
 
 /** Fact-vs-spin breakdown produced by the Tier-1 analyzer. */
 export interface FactVsSpin {

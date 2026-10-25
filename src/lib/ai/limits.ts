@@ -38,6 +38,10 @@ export function budgetConfig(env: Env = process.env): BudgetConfig {
       nvidia: num(env, "NVIDIA_DAILY_MAX_CALLS", 1_000),
       groq: num(env, "GROQ_DAILY_MAX_CALLS", 900),
       requesty: num(env, "REQUESTY_DAILY_MAX_CALLS", 500),
+      mistral: num(env, "MISTRAL_DAILY_MAX_CALLS", 2_000),
+      // OpenRouter's free models allow 50 requests a day per account without a top-up.
+      openrouter: num(env, "OPENROUTER_DAILY_MAX_CALLS", 45),
+      zai: num(env, "ZAI_DAILY_MAX_CALLS", 900),
       ollama: num(env, "OLLAMA_DAILY_MAX_CALLS", 100_000),
     },
     requestsPerMinute: {
@@ -46,6 +50,10 @@ export function budgetConfig(env: Env = process.env): BudgetConfig {
       nvidia: num(env, "NVIDIA_RPM", 30),
       groq: num(env, "GROQ_RPM", 25),
       requesty: num(env, "REQUESTY_RPM", 20),
+      // Mistral's free plan allows about one request a second; OpenRouter's free models 20 a minute.
+      mistral: num(env, "MISTRAL_RPM", 40),
+      openrouter: num(env, "OPENROUTER_RPM", 15),
+      zai: num(env, "ZAI_RPM", 20),
     },
   };
 }

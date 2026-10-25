@@ -20,7 +20,7 @@ import type { SourceDiff } from "@/lib/scraper/recheck";
 import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
-export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty"]);
+export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai"]);
 
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),

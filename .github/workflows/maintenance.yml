@@ -2,15 +2,17 @@
 #   refetch-dates: fetch undated articles of the last 14 days again and re-date them
 #                  (npm run db:repair-dates -- --refetch; robots.txt and 8 s per host apply)
 #   recluster:     cluster the last 7 days' unclustered articles again (npm run ai:process -- --recluster)
+#   ai-sample:     each free AI provider alone analyzes the built-in Mongolian sample (no database
+#                  writes), so a new key or model can be judged on real output
 name: Maintenance (manual)
 
 on:
   workflow_dispatch:
     inputs:
       task:
-        description: "refetch-dates or recluster"
+        description: "refetch-dates, recluster or ai-sample"
         type: choice
-        options: [refetch-dates, recluster]
+        options: [refetch-dates, recluster, ai-sample]
         default: recluster
       dry_run:
         description: "true = print what would change, write nothing (refetch-dates only)"
@@ -51,6 +53,9 @@ jobs:
           GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
           REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
           IN_TASK: ${{ inputs.task }}
@@ -60,5 +65,12 @@ jobs:
             refetch-dates)
               if [ "$IN_DRY" = "true" ]; then npm run db:repair-dates -- --refetch --dry-run; else npm run db:repair-dates -- --refetch; fi ;;
             recluster) npm run ai:process -- --recluster ;;
+            ai-sample)
+              # One provider at a time; a provider without a key says so and the next one runs.
+              for p in groq mistral nvidia requesty openrouter zai; do
+                echo "::group::$p"
+                AI_TIER1_CHAIN="$p" npm run ai:process -- --sample || echo "::warning::$p failed"
+                echo "::endgroup::"
+              done ;;
             *) echo "::error::unknown task"; exit 1 ;;
           esac
