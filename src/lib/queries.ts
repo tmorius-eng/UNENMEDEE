@@ -217,6 +217,27 @@ export async function getFeed(filter: FeedFilter, limit = 30): Promise<ArticleLi
   });
 }
 
+/**
+ * A place's news (/place/<slug>): every published story from its official sites, newest first. No
+ * importance cut-off: a district's own announcements are what its readers came for.
+ */
+export async function getPlaceFeed(domains: string[], limit = 40): Promise<ArticleListItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  if (domains.length === 0) return [];
+  return safe("getPlaceFeed", [], async () => {
+    const rows = await getDb()
+      .select(listColumns)
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(and(visible, inArray(sources.domain, domains)))
+      .orderBy(desc(articles.publishedAt), desc(articles.id))
+      .limit(limit);
+    return rows.map(toListItem);
+  });
+}
+
 export interface ClusterListItem {
   id: number;
   title: string;
