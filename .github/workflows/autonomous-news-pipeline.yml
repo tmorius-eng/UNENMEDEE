@@ -46,6 +46,8 @@ jobs:
       # Free tiers (used first). Any one of them is enough to analyze articles.
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # "true" only for a key from a Google project WITHOUT billing; otherwise Gemini is skipped.
+      GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
       REQUESTY_API_KEY: ${{ secrets.REQUESTY_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
       # Paid (optional). Capped by the budget variables below.
