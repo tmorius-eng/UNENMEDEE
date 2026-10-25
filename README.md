@@ -122,6 +122,7 @@ GitHub Actions (every 2 h, free on public repos)
 GitHub Actions (08:07 and 20:07 Ulaanbaatar)
  ├─ data:sync / macro:sync / budget:sync   opendata.mn, Mongolbank, NSO, Шилэн данс, World Bank, audit.mn
  ├─ digest                                 rank the last 12 h without AI → editor model picks 10 → /digest
+ ├─ push:send / social:post                Web Push + the Facebook page (docs/FACEBOOK.md)
  └─ db:prune                               bodies older than 180 days become 600-char excerpts
 Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover. Daily: watchdog. Monthly: keepalive.
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.

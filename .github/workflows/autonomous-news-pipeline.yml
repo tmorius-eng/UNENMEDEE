@@ -72,6 +72,9 @@ jobs:
       GEMINI_DEEP_MODEL: ${{ vars.GEMINI_DEEP_MODEL }}
       REQUESTY_MODEL: ${{ vars.REQUESTY_MODEL }}
       NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
+      # Facebook page posting (docs/FACEBOOK.md); both unset = the steps are skipped.
+      FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
+      FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -138,6 +141,11 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode news
 
+      - name: Post the most important new story to the Facebook page
+        if: env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != ''
+        continue-on-error: true
+        run: npm run social:post -- --mode news
+
       - name: Write the 12h digest when it is due (morning / evening window)
         # news-digest.yml starts hours late on GitHub's scheduler, so every pipeline run checks
         # whether an edition is due (src/lib/ai/digest.ts isDigestDue) and writes it here.
@@ -147,3 +155,8 @@ jobs:
       - name: Notify subscribers about a new digest
         continue-on-error: true
         run: npm run push:send -- --mode digest
+
+      - name: Post the new digest to the Facebook page
+        if: env.FB_PAGE_ID != '' && env.FB_PAGE_TOKEN != ''
+        continue-on-error: true
+        run: npm run social:post -- --mode digest

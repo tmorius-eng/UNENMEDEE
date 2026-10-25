@@ -315,3 +315,22 @@ export type Politician = typeof politicians.$inferSelect;
 export type AssetDeclaration = typeof assetDeclarations.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type LedgerRow = typeof transparencyLedger.$inferSelect;
+
+/**
+ * What was published to social media (Facebook page), one row per platform + item, so a run that
+ * retries never posts the same story twice. The row is reserved before the API call and removed
+ * if the call fails; post_id is the platform's id of the published post.
+ */
+export const socialPosts = pgTable(
+  "social_posts",
+  {
+    id: serial("id").primaryKey(),
+    platform: varchar("platform", { length: 16 }).notNull(),
+    /** "digest" (digests.id) or "article" (articles.id). */
+    kind: varchar("kind", { length: 16 }).notNull(),
+    refId: integer("ref_id").notNull(),
+    postId: varchar("post_id", { length: 120 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("social_posts_platform_kind_ref_idx").on(t.platform, t.kind, t.refId)],
+);
