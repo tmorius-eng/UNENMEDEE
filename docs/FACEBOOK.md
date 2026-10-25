@@ -69,11 +69,11 @@ Pipeline токеныг 7 хоног тутам өөрөө шинэчилж `app
 Тойм, чухал мэдээ Instagram-д 1080×1350 JPEG карт + тайлбартай нийтлэгдэнэ (`/ig-image`). Instagram DM-д
 Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбоосоор) хариулна.
 
-1. Instagram-ыг **Professional → Business** болгож Facebook хуудастай холбох (Business Suite дээр хоёулаа харагдана).
-2. Instagram апп → **Settings → Messages and story replies → Message controls → Connected tools →
-   Allow access to messages** асаах (DM бот).
-3. **Use cases → Manage messaging & content on Instagram → API setup with Facebook login** →
-   **Add required content permissions** ба **Add required messaging permissions**.
-4. Хуудасны токеныг дахин гаргахдаа `instagram_basic`, `instagram_content_publish`,
-   `instagram_manage_messages` эрхийг нэмэх → `FB_PAGE_TOKEN` болон Vercel-ийн `MESSENGER_SETTINGS`-ийг шинэчлэх.
-5. GitHub **Variables**-д `IG_USER_ID` (хуудасны `instagram_business_account` id).
+1. Instagram акаунтыг **Professional → Business** болгох.
+2. **Use cases → Manage messaging & content on Instagram → API setup with Instagram login**:
+   **Add account** → iltodmedee.mn → **Generate token**.
+3. Токеныг GitHub **Secrets**-д `INSTAGRAM_TOKEN` нэрээр хадгална. Pipeline 7 хоног тутам өөрөө шинэчилж
+   `app_settings`-д хадгална; DM бот тэндээс уншина.
+4. DM бот: Instagram апп → **Settings → Messages and story replies → Message controls → Connected tools →
+   Allow access to messages**; webhook (`/api/messenger`, object `instagram`, field `messages`); Instagram app
+   secret-ийг `MESSENGER_SETTINGS`-д `igAppSecret` болгож нэмнэ.

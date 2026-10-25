@@ -7,9 +7,9 @@
  *
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
- * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram uses the page token plus
- * IG_USER_ID (variable) and posts our JPEG card from /ig-image. Each platform without credentials
- * is skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
+ * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram works the same way with
+ * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Each platform without credentials is
+ * skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
  * importance >= FB_IMPORTANCE_MIN (75) or a risk flag, one per cluster, FB_NEWS_PER_RUN (1) per run
  * and FB_NEWS_PER_DAY (4) per day and platform, so the feeds stay curated, not a firehose.
  */
@@ -21,7 +21,7 @@ import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { appSettings, articles, digests, socialPosts, sources } from "@/db/schema";
 import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage } from "@/lib/social/facebook";
-import { instagramArticlePost, instagramDigestPost, publishInstagram } from "@/lib/social/instagram";
+import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
 
@@ -58,13 +58,13 @@ function threads(token: string): Platform {
   return { name: "threads", digest: (d) => make(threadsDigestPost(d)), article: (a) => make(threadsArticlePost(a)) };
 }
 
-function instagram(igUserId: string, token: string): Platform {
-  const make = (post: { imageUrl: string; caption: string }) => ({ preview: `${post.imageUrl}\n${post.caption}`, publish: () => publishInstagram({ igUserId, token, post }) });
+function instagram(token: string): Platform {
+  const make = (post: { imageUrl: string; caption: string }) => ({ preview: `${post.imageUrl}\n${post.caption}`, publish: () => publishInstagram({ token, post }) });
   return { name: "instagram", digest: (d) => make(instagramDigestPost(d)), article: (a) => make(instagramArticlePost(a)) };
 }
 
 /**
- * A 60-day token (Threads) seeded by a secret and kept in app_settings: refreshed and
+ * A 60-day token (Threads, Instagram) seeded by a secret and kept in app_settings: refreshed and
  * stored when it is a week old (not on dry runs). See src/lib/social/token-state.ts.
  */
 async function storedToken(db: Db, key: string, envToken: string | undefined, refresh: (token: string) => Promise<string>): Promise<string | null> {
@@ -176,9 +176,9 @@ async function main() {
   const thToken = await storedToken(db, THREADS_SETTINGS_KEY, process.env.THREADS_TOKEN, (t) => refreshToken(t));
   if (thToken) platforms.push(threads(thToken));
   else console.log("🧵 Threads is off: set the THREADS_TOKEN secret, see docs/FACEBOOK.md.");
-  const igUserId = process.env.IG_USER_ID?.trim();
-  if (igUserId && fbToken) platforms.push(instagram(igUserId, fbToken));
-  else console.log("📸 Instagram is off: set IG_USER_ID (variable) next to FB_PAGE_TOKEN, see docs/FACEBOOK.md.");
+  const igToken = await storedToken(db, INSTAGRAM_SETTINGS_KEY, process.env.INSTAGRAM_TOKEN, (t) => refreshInstagramToken(t));
+  if (igToken) platforms.push(instagram(igToken));
+  else console.log("📸 Instagram is off: set the INSTAGRAM_TOKEN secret, see docs/FACEBOOK.md.");
 
   const mode = values.mode === "digest" ? "digest" : "news";
   for (const p of platforms) {

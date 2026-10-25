@@ -26,23 +26,23 @@ describe("instagram posts", () => {
     let polls = 0;
     const f = (async (url: string, init?: RequestInit) => {
       calls.push(`${init?.method ?? "GET"} ${url.split("?")[0]}`);
-      if (url.endsWith("/17841/media")) {
+      if (url.endsWith("/me/media")) {
         assert.equal(new URLSearchParams(String(init?.body)).get("image_url"), "https://iltodmedee.mn/ig-image?d=1");
         return Response.json({ id: "c1" });
       }
       if (url.includes("/c1?")) return Response.json({ status_code: ++polls < 2 ? "IN_PROGRESS" : "FINISHED" });
       return Response.json({ id: "m1" });
     }) as unknown as typeof fetch;
-    const id = await publishInstagram({ igUserId: "17841", token: "SECRET", post: { imageUrl: "https://iltodmedee.mn/ig-image?d=1", caption: "x" }, fetchImpl: f, sleep: async () => {} });
+    const id = await publishInstagram({ token: "SECRET", post: { imageUrl: "https://iltodmedee.mn/ig-image?d=1", caption: "x" }, fetchImpl: f, sleep: async () => {} });
     assert.equal(id, "m1");
     assert.deepEqual(calls, [
-      "POST https://graph.facebook.com/v26.0/17841/media",
-      "GET https://graph.facebook.com/v26.0/c1",
-      "GET https://graph.facebook.com/v26.0/c1",
-      "POST https://graph.facebook.com/v26.0/17841/media_publish",
+      "POST https://graph.instagram.com/v26.0/me/media",
+      "GET https://graph.instagram.com/v26.0/c1",
+      "GET https://graph.instagram.com/v26.0/c1",
+      "POST https://graph.instagram.com/v26.0/me/media_publish",
     ]);
     const bad = (async () => Response.json({ error: { message: "Invalid OAuth access token", code: 190 } }, { status: 400 })) as unknown as typeof fetch;
-    const err = await publishInstagram({ igUserId: "17841", token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: bad }).catch((e: Error) => e);
+    const err = await publishInstagram({ token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: bad }).catch((e: Error) => e);
     assert.ok(err instanceof Error && err.message.includes("code 190") && !err.message.includes("SECRET"));
   });
 });

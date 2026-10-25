@@ -54,11 +54,14 @@ describe("messenger bot", () => {
       ],
     };
     assert.deepEqual(incoming(body), [
-      { senderId: "1", text: "тойм" },
-      { senderId: "3", text: "GET_STARTED" },
-      { senderId: "4", text: "" },
+      { channel: "messenger", senderId: "1", text: "тойм" },
+      { channel: "messenger", senderId: "3", text: "GET_STARTED" },
+      { channel: "messenger", senderId: "4", text: "" },
     ]);
-    assert.equal(incoming({ object: "instagram", entry: body.entry }).length, 3);
+    assert.deepEqual(
+      incoming({ object: "instagram", entry: body.entry }).map((m) => m.channel),
+      ["instagram", "instagram", "instagram"],
+    );
     assert.deepEqual(incoming({ object: "user", entry: body.entry }), []);
   });
 
@@ -75,5 +78,8 @@ describe("messenger bot", () => {
     assert.ok(!seen?.url.includes("SECRET"));
     assert.equal((seen?.init.headers as Record<string, string>).authorization, "Bearer SECRET");
     assert.deepEqual(JSON.parse(String(seen?.init.body)), { recipient: { id: "9" }, messaging_type: "RESPONSE", message: { text: "hi" } });
+    assert.equal(seen?.url, "https://graph.facebook.com/v26.0/me/messages");
+    await sendText({ pageToken: "IG", channel: "instagram", recipientId: "9", text: "hi", fetchImpl: ok });
+    assert.equal(seen?.url, "https://graph.instagram.com/v26.0/me/messages");
   });
 });
