@@ -1,5 +1,5 @@
 /**
- * Registers ИЛ ТОД МЭДЭЭ's Discord slash commands (/toim, /khaih, /aimag) globally, for servers and
+ * Registers ИЛ ТОД МЭДЭЭ's Discord slash commands (/toim, /haih, /aimag) globally, for servers and
  * for people who add the app to their own account. Run it once after setup and whenever COMMANDS
  * changes (src/lib/social/discord-interactions.ts); PUT replaces the whole list.
  *

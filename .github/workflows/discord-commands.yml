@@ -1,4 +1,4 @@
-# Manual: registers the Discord slash commands (/toim, /khaih, /aimag) with the bot token. Run it once
+# Manual: registers the Discord slash commands (/toim, /haih, /aimag) with the bot token. Run it once
 # after the Discord setup (docs/FACEBOOK.md) and whenever COMMANDS in
 # src/lib/social/discord-interactions.ts changes. The commands themselves are answered by
 # https://iltodmedee.mn/api/discord on Vercel (needs the DISCORD_PUBLIC_KEY env var there).

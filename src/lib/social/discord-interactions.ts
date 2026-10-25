@@ -21,7 +21,7 @@ export const ResponseType = { PONG: 1, MESSAGE: 4, DEFERRED: 5, AUTOCOMPLETE: 8 
 export const COMMANDS = [
   { name: "toim", description: "Сүүлийн онцлох мэдээний тойм (5 гол мэдээ)" },
   {
-    name: "khaih",
+    name: "haih",
     description: "Төрийн мэдээнээс хайх (кириллээр бичвэл сайн)",
     options: [{ type: 3, name: "ug", description: "Хайх үг: төсөв, тендер, Х.Баттулга…", required: true, max_length: 100 }],
   },
@@ -85,9 +85,9 @@ export function toimReply(d: { title: string; items: { headline: string; slug: s
   return fit([`🗞 **${d.title.replace(/\*/g, "")}**`, ...lines, "", `👉 Бүтэн тойм: <${site}/digest>`].join("\n"));
 }
 
-export function khaihReply(q: string, results: { title: string; slug: string; sourceName: string }[], site = PRODUCTION_URL): string {
+export function haihReply(q: string, results: { title: string; slug: string; sourceName: string }[], site = PRODUCTION_URL): string {
   const more = `${site}/search?q=${encodeURIComponent(q)}`;
-  if (!q) return "Хайх үгээ бичээрэй: `/khaih ug: төсөв`";
+  if (!q) return "Хайх үгээ бичээрэй: `/haih ug: төсөв`";
   if (results.length === 0) {
     const latin = /^[\sa-z0-9.,!?'"-]+$/i.test(q) ? " Кириллээр бичээд үзээрэй 🙂" : "";
     return `🔎 "${q}" гэсэн мэдээ олдсонгүй.${latin}\n<${more}>`;
