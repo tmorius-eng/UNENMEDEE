@@ -71,3 +71,12 @@ describe("source recheck", () => {
     assert.deepEqual(week, { status: "gone", missingCount: 2 });
   });
 });
+
+describe("source recheck: our own lines", () => {
+  it("ignores the issuer line legalinfo.ts adds, so a short act is not 'changed'", () => {
+    const body = "Нэгдүгээр заалт энд байна. Хоёрдугаар заалт энд байна. Гуравдугаар заалт энд байна.";
+    const c = compareTexts(`Батлагдсан байгууллага: Засгийн газар\n\n${body}`, body);
+    assert.equal(c.containment, 1);
+    assert.equal(c.compared, 3);
+  });
+});

@@ -1,10 +1,10 @@
 import "./net-setup";
-import { CheerioCrawler, Configuration, log, PlaywrightCrawler } from "crawlee";
+import { CheerioCrawler, Configuration, gotScraping, log, PlaywrightCrawler } from "crawlee";
 
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
 import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS, parseDateValue } from "./extractor";
 import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "./links";
-import { BOT_NAME, MIN_DOMAIN_DELAY_MS, USER_AGENT } from "./robots";
+import { getRobots, MIN_DOMAIN_DELAY_MS, USER_AGENT } from "./robots";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Storage hooks so the crawler works with the DB or in --dry-run mode. */
@@ -54,10 +54,35 @@ interface SourceState extends SourceRunResult {
   pendingSections: number;
   /** Sections are followed once per pass (a section page never fans out again). */
   sectionsTried: boolean;
+  /** Article requests that failed (403, timeout): all of them failing is a failing source. */
+  articleFailures: number;
+  lastArticleError: string | null;
 }
 
 const BODY_MIME_TYPES = ["application/json", "application/rss+xml", "application/atom+xml", "application/xml", "text/xml"];
 const BLOCKED_RESOURCES = new Set(["image", "media", "font", "stylesheet"]);
+
+/**
+ * robots.txt fetched with the same TLS stance as the pages themselves (many .gov.mn certificates
+ * are broken; the page crawl ignores that), so a bad certificate does not read as "unreachable".
+ */
+const robotsFetch = (async (url: string) => {
+  const res = await gotScraping({
+    url,
+    headers: { "user-agent": USER_AGENT },
+    https: { rejectUnauthorized: false },
+    timeout: { request: 15_000 },
+    throwHttpErrors: false,
+    useHeaderGenerator: false,
+  });
+  return new Response(res.statusCode === 204 || res.statusCode === 304 ? null : res.body, {
+    status: res.statusCode,
+    headers: { "content-type": String(res.headers["content-type"] ?? "") },
+  });
+}) as unknown as typeof fetch;
+
+/** Longest robots.txt Crawl-delay we honour for every domain (Crawlee's delay is global). */
+const MAX_CRAWL_DELAY_MS = 20_000;
 
 function homepage(source: SourceRef): string {
   return `${new URL(source.urlPattern).origin}/`;
@@ -102,9 +127,18 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         needsBrowserArticles: [],
         pendingSections: 0,
         sectionsTried: false,
+        articleFailures: 0,
+        lastArticleError: null,
       },
     ]),
   );
+
+  // Our own robots.txt check (src/lib/scraper/robots.ts) instead of Crawlee's, which treats an
+  // unreachable robots.txt as "allowed", fetches it again before every request and ignores
+  // Crawl-delay. RFC 9309: a 5xx or unreachable robots.txt means crawl nothing this run.
+  const robotsFor = (url: string) => getRobots(new URL(url).origin, robotsFetch);
+  const policies = await Promise.all(sources.map((s) => robotsFor(s.urlPattern)));
+  const crawlDelayMs = Math.min(MAX_CRAWL_DELAY_MS, Math.max(MIN_DOMAIN_DELAY_MS, ...policies.map((p) => p.crawlDelayMs ?? 0)));
 
   // ---------------------------------------------------------------- shared logic
   async function saveItem(state: SourceState, item: ScrapedItem) {
@@ -141,10 +175,35 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
     return picked;
   }
 
-  async function runPass(mode: Mode, seed: (add: Adder) => Promise<void>): Promise<void> {
+  /** Runs one pass; false when there was no time left to start it. */
+  async function runPass(mode: Mode, seed: (add: Adder) => Promise<void>): Promise<boolean> {
     const remaining = deadline - Date.now();
-    if (remaining < 30_000) return;
+    if (remaining < 30_000) return false;
     const config = new Configuration({ persistStorage: false, purgeOnStart: true });
+    let crawler: CheerioCrawler | PlaywrightCrawler;
+
+    /** Queues requests that robots.txt allows; a refused one fails like a failed request. */
+    const add: Adder = async (reqs) => {
+      const allowed: CrawlRequest[] = [];
+      for (const r of reqs) {
+        const u = new URL(r.url);
+        const policy = await robotsFor(r.url);
+        if (policy.isAllowed(u.pathname + u.search)) {
+          allowed.push(r);
+          continue;
+        }
+        const why = policy.unavailable ?? `robots.txt disallows ${u.pathname}`;
+        const state = states.get(r.userData.sourceId);
+        if (state && r.userData.label === "ARTICLE") {
+          state.queuedArticles -= 1; // give the slot back
+          state.found -= 1;
+          progress(`  ⛔ ${state.domain} ${r.url}: ${why}`);
+        } else {
+          await onFailure(r.url, r.userData, new Error(why), add);
+        }
+      }
+      if (allowed.length) await crawler.addRequests(allowed);
+    };
 
     const handle = async (url: string, loadedUrl: string, data: UserData, html: string, add: Adder) => {
       const state = states.get(data.sourceId);
@@ -197,19 +256,21 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         state.error = `${data.label === "WP_API" ? "WordPress API" : "feed"} failed: ${message}`;
         if (mode === "http") state.needsBrowserListing = true;
       }
+      if (data.label === "ARTICLE") {
+        state.articleFailures += 1;
+        state.lastArticleError = message;
+      }
       progress(`  ✗ ${state.domain} ${data.label} ${url} — ${message}`);
     };
 
     const common = {
       maxConcurrency: mode === "http" ? opts.concurrency : Math.min(4, opts.concurrency),
-      sameDomainDelaySecs: MIN_DOMAIN_DELAY_MS / 1000,
-      respectRobotsTxtFile: { userAgent: BOT_NAME },
+      sameDomainDelaySecs: crawlDelayMs / 1000,
       maxRequestRetries: 1,
       navigationTimeoutSecs: 45, // some .gov.mn servers answer slowly from abroad
       requestHandlerTimeoutSecs: 90,
     };
 
-    let crawler: CheerioCrawler | PlaywrightCrawler;
     if (mode === "http") {
       const c: CheerioCrawler = new CheerioCrawler(
         {
@@ -224,11 +285,10 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
             },
           ],
           requestHandler: async (ctx) => {
-            const add: Adder = async (reqs) => void (reqs.length && (await c.addRequests(reqs)));
             await handle(ctx.request.url, ctx.request.loadedUrl ?? ctx.request.url, ctx.request.userData as UserData, ctx.body.toString(), add);
           },
           failedRequestHandler: async ({ request }, error) => {
-            await onFailure(request.url, request.userData as UserData, error, async (reqs) => void (reqs.length && (await c.addRequests(reqs))));
+            await onFailure(request.url, request.userData as UserData, error, add);
           },
         },
         config,
@@ -254,7 +314,6 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
             },
           ],
           requestHandler: async ({ page, request, response }) => {
-            const add: Adder = async (reqs) => void (reqs.length && (await p.addRequests(reqs)));
             const status = response?.status() ?? 200;
             if (status >= 400) return onFailure(request.url, request.userData as UserData, new Error(`HTTP ${status}`), add);
             // Let client-side rendering finish (SPAs fetch their news after load).
@@ -263,7 +322,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
             await handle(request.url, request.loadedUrl ?? request.url, request.userData as UserData, html, add);
           },
           failedRequestHandler: async ({ request }, error) => {
-            await onFailure(request.url, request.userData as UserData, error, async (reqs) => void (reqs.length && (await p.addRequests(reqs))));
+            await onFailure(request.url, request.userData as UserData, error, add);
           },
         },
         config,
@@ -271,7 +330,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
       crawler = p;
     }
 
-    await seed(async (reqs) => void (reqs.length && (await crawler.addRequests(reqs))));
+    await seed(add);
     const timer = setTimeout(() => {
       progress(`⏱  Time budget reached; stopping the ${mode} pass gracefully.`);
       crawler.stop("time budget reached");
@@ -281,6 +340,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
     } finally {
       clearTimeout(timer);
     }
+    return true;
   }
 
   // ---------------------------------------------------------------- handlers
@@ -396,7 +456,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
   if (browserEnabled && forBrowser.length) {
     progress(`🖥  Rendering ${forBrowser.length} JavaScript-heavy source(s) in headless Chromium…`);
     try {
-      await runPass("browser", async (add) => {
+      const ran = await runPass("browser", async (add) => {
         const reqs = [];
         for (const s of forBrowser) {
           if (s.needsBrowserListing) {
@@ -412,23 +472,36 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         }
         await add(reqs);
       });
+      // The HTTP pass used the whole budget: these sources were never tried in the browser, so
+      // they are not failures. Left uncompleted, they are first in line next run (no backoff).
+      if (!ran) for (const s of forBrowser) if (s.inserted === 0) s.completed = false;
     } catch (err) {
       for (const s of forBrowser) s.completed = true;
       progress(`  ✗ Browser pass unavailable: ${errorMessage(err)} (set CHROMIUM_EXECUTABLE_PATH or run \`npx playwright install chromium\`)`);
     }
   }
 
-  return [...states.values()].map(({ sourceId, domain, found, inserted, skippedDuplicates, error, completed }) => ({
-    sourceId,
-    domain,
-    found,
-    inserted,
-    skippedDuplicates,
-    completed,
-    // A source that produced or already had articles is healthy even if one request failed. One
-    // that was reached but stored nothing and knew nothing is not: back it off and say why.
-    error: inserted > 0 || skippedDuplicates > 0 ? null : (error ?? (completed && found === 0 ? "listing reached but no articles were stored" : null)),
+  return [...states.values()].map((s) => ({
+    sourceId: s.sourceId,
+    domain: s.domain,
+    found: s.found,
+    inserted: s.inserted,
+    skippedDuplicates: s.skippedDuplicates,
+    completed: s.completed,
+    error: sourceError(s),
   }));
+}
+
+/**
+ * A source that produced or already had articles is healthy even if one request failed. One that
+ * was reached but stored nothing and knew nothing is not, and neither is one whose every article
+ * request failed (403, timeouts): back it off and say why.
+ */
+export function sourceError(s: Pick<SourceState, "inserted" | "skippedDuplicates" | "error" | "completed" | "found" | "articleFailures" | "lastArticleError">): string | null {
+  if (s.inserted > 0 || s.skippedDuplicates > 0) return null;
+  if (s.error) return s.error;
+  if (s.found > 0 && s.articleFailures >= s.found) return `every article request failed: ${s.lastArticleError ?? "error"}`;
+  return s.completed && s.found === 0 ? "listing reached but no articles were stored" : null;
 }
 
 type CrawlRequest = { url: string; uniqueKey?: string; userData: UserData };

@@ -90,4 +90,18 @@ describe("stripHeavyTags", () => {
     const html = `<p>a</p><script>x</script ><p>b</p><SCRIPT type="m">y</SCRIPT foo><style>.c{}</style><svg><path/></svg><iframe src="u"></iframe><scr<script>z</script>ipt>w</script><p>c</p>`;
     assert.equal(stripHeavyTags(html), "<p>a</p><p>b</p><p>c</p>");
   });
+
+  it("keeps the article after a self-closing <svg/> or <iframe/>", async () => {
+    const { stripHeavyTags } = await import("@/lib/scraper/extractor");
+    assert.equal(stripHeavyTags("<svg/><p>ARTICLE BODY</p><svg><path/></svg><p>rest</p>"), "<svg/><p>ARTICLE BODY</p><p>rest</p>");
+    assert.equal(stripHeavyTags('<iframe src="x" /><p>body</p><scriptx>k</scriptx>'), '<iframe src="x" /><p>body</p><scriptx>k</scriptx>');
+  });
+
+  it("stays fast on thousands of unclosed openers", async () => {
+    const { stripHeavyTags } = await import("@/lib/scraper/extractor");
+    const html = "<p>x</p>" + "<svg ".repeat(2) + "<svg><p>filler</p>".repeat(5_000) + "a".repeat(1_000_000);
+    const t0 = performance.now();
+    stripHeavyTags(html);
+    assert.ok(performance.now() - t0 < 300, `took ${performance.now() - t0} ms`);
+  });
 });

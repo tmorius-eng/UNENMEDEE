@@ -3,6 +3,7 @@ import { JSDOM, VirtualConsole } from "jsdom";
 
 import { contentHash, normalizeText } from "@/lib/text";
 
+import { isFutureDate } from "./dates";
 import { chooseTitle } from "./titles";
 
 export interface ExtractedArticle {
@@ -18,19 +19,47 @@ export const MIN_ARTICLE_CHARS = 200;
 
 const silentConsole = new VirtualConsole();
 
-/** Script, style, SVG and frame blocks, closing tags in any spelling ("</script >", "</SCRIPT foo>"). */
-const HEAVY_BLOCK = /<(script|style|noscript|svg|iframe)\b[^>]*>[\s\S]*?<\/\1\b[^>]*>/gi;
+/** Opening tag of a script, style, SVG or frame block. */
+const HEAVY_OPEN = /<(script|style|noscript|svg|iframe)\b[^>]*>/gi;
+
+/** One linear pass: each block runs to its own closing tag in any spelling ("</script >", "</SCRIPT foo>"). */
+function stripHeavyOnce(html: string): string {
+  const lower = html.toLowerCase();
+  const unclosed = new Set<string>(); // no closing tag after this point: later openers of it stay
+  let out = "";
+  let last = 0;
+  HEAVY_OPEN.lastIndex = 0;
+  for (let m = HEAVY_OPEN.exec(html); m; m = HEAVY_OPEN.exec(html)) {
+    const name = m[1].toLowerCase();
+    // A self-closing "<svg .../>" has no body: scanning to the next "</svg>" ate article text.
+    if (m[0].endsWith("/>") || unclosed.has(name)) continue;
+    let close = lower.indexOf(`</${name}`, HEAVY_OPEN.lastIndex);
+    while (close >= 0 && /[a-z0-9-]/.test(lower[close + 2 + name.length] ?? "")) close = lower.indexOf(`</${name}`, close + 1);
+    if (close < 0) {
+      unclosed.add(name);
+      continue;
+    }
+    const end = lower.indexOf(">", close);
+    const stop = end < 0 ? html.length : end + 1;
+    out += html.slice(last, m.index);
+    last = stop;
+    HEAVY_OPEN.lastIndex = stop;
+  }
+  return out + html.slice(last);
+}
 
 /**
  * Drops heavy blocks before JSDOM parses the page, only to save time and memory: this is not a
  * sanitizer (JSDOM runs no scripts, Readability drops them again and we keep plain text only).
- * Repeats until nothing changes, so a block hidden inside another one goes too.
+ * Each pass is linear (an unclosed opener never rescans the page: 5,000 of them in 1 MB took
+ * 1.4 s with a lazy regex); passes repeat until nothing changes, so a block hidden inside
+ * another one goes too.
  */
 export function stripHeavyTags(html: string): string {
   let out = html;
   for (let prev = ""; prev !== out; ) {
     prev = out;
-    out = out.replace(HEAVY_BLOCK, "");
+    out = stripHeavyOnce(out);
   }
   return out;
 }
@@ -39,6 +68,11 @@ export function stripHeavyTags(html: string): string {
 export function cleanTitle(title: string): string {
   const t = normalizeText(title).replace(/\s+/g, " ");
   const parts = t.split(/\s+[|–—-]\s+/);
+  // "Headline | Site" or "Site | Headline": with two parts the headline is the longer one.
+  if (parts.length === 2) {
+    const longer = parts[0].length >= parts[1].length ? parts[0] : parts[1];
+    return longer.length >= 15 ? longer.trim() : t;
+  }
   if (parts.length > 1 && parts[0].length >= 15) return parts[0].trim();
   return t;
 }
@@ -55,7 +89,7 @@ function validDate(y: number, m: number, d: number, hour?: number, minute?: numb
   const timed = hour !== undefined && minute !== undefined && hour < 24 && minute < 60;
   const date = new Date(timed ? Date.UTC(y, m - 1, d, hour - 8, minute) : Date.UTC(y, m - 1, d));
   // Ignore dates in the future (typos, event dates).
-  return date.getTime() > Date.now() + 86_400_000 ? null : date;
+  return isFutureDate(date) ? null : date;
 }
 
 /** Finds a "2026-10-21", "2026.10.21", "2026 оны 10 сарын 21" or "2026 ... 10-р сар ... 21" date in text. */
@@ -89,7 +123,7 @@ export function parseDateValue(value: string | null | undefined): Date | null {
   const local = v.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/);
   if (local) v = `${local[1]}T${local[2]}+08:00`;
   const d = new Date(v);
-  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000 || d.getTime() > Date.now() + 86_400_000) return null;
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000 || isFutureDate(d)) return null;
   return d;
 }
 
@@ -226,7 +260,11 @@ export function extractArticle(html: string, url: string): ExtractedArticle | nu
   const dom = new JSDOM(stripHeavyTags(html), { url, virtualConsole: silentConsole });
   const doc = dom.window.document;
   const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute("content");
-  const siteNames = [doc.querySelector('meta[property="og:site_name"]')?.getAttribute("content"), ...doc.title.split(/\s*[|–—]\s*|\s+-\s+/).slice(1)];
+  // The site's name is every part of <title> after the first, except that "Site | Headline"
+  // puts it first: with two parts, the shorter one is the site.
+  const titleParts = doc.title.split(/\s*[|–—]\s*|\s+-\s+/).filter((p) => p.trim());
+  const siteParts = titleParts.length === 2 ? [titleParts[0].length < titleParts[1].length ? titleParts[0] : titleParts[1]] : titleParts.slice(1);
+  const siteNames = [doc.querySelector('meta[property="og:site_name"]')?.getAttribute("content"), ...siteParts];
   const h1 = [...doc.querySelectorAll("article h1, main h1, h1")].map((h) => h.textContent ?? "").find((t) => t.trim().length > 0);
   const parsed = new Readability(doc.cloneNode(true) as Document, { charThreshold: 100 }).parse();
 

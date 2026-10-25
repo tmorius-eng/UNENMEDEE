@@ -5,7 +5,7 @@ import { articles, sources } from "@/db/schema";
 import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
-import { isDayLevel, MAX_AGE_DAYS, publishDecision } from "./dates";
+import { isDayLevel, isFutureDate, MAX_AGE_DAYS, publishDecision } from "./dates";
 import { firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "./titles";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
@@ -58,7 +58,9 @@ export function createDbSink(db: DB, options: SinkOptions = {}): ArticleSink {
       const notNews = siteTitle && looksLikeNavigation(item.text);
       if (siteTitle && !notNews) title = firstSentenceTitle(item.text);
       title = unshoutTitle(title);
-      let publishedAt = item.publishedAt;
+      // Feeds and APIs (zasag RSS, parliament, WordPress date_gmt) are not checked by the extractor:
+      // a date in the future is an event date or a typo, never the publication time.
+      let publishedAt = item.publishedAt && !isFutureDate(item.publishedAt) ? item.publishedAt : null;
       // A day-level date from weeks ago that this source already gave 10+ articles is a stamp in
       // the page chrome (judcouncil.mn dated 39 stories "2019-10-22"): keep the story, drop the date.
       if (publishedAt && isDayLevel(publishedAt) && publishedAt.getTime() < Date.now() - SHARED_DATE_MIN_DAYS * 86_400_000) {

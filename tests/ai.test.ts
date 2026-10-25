@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { analyzeArticle, formatDeepAnalysis, shouldResynthesize } from "@/lib/ai/analyze";
@@ -168,5 +169,19 @@ describe("clustering", () => {
     assert.ok(similarity(a, c) < CLUSTER_THRESHOLD, `unrelated: ${similarity(a, c)}`);
     assert.equal(findBestMatch(a, [b, c])?.doc.id, 2);
     assert.equal(findBestMatch(c, [a, b]), null);
+  });
+});
+
+describe("clustering on real same-story and different-story pairs (Oct 2026)", () => {
+  type Doc = Omit<ClusterDoc, "clusterId">;
+  const pairs = JSON.parse(readFileSync(new URL("./fixtures/cluster-pairs.json", import.meta.url), "utf8")) as { same: [Doc, Doc][]; different: [Doc, Doc][] };
+  const doc = (d: Doc): ClusterDoc => ({ ...d, clusterId: null });
+
+  it("joins the same story posted by two sites with the AI wording each summary differently", () => {
+    for (const [a, b] of pairs.same) assert.ok(similarity(doc(a), doc(b)) >= CLUSTER_THRESHOLD, `#${a.id}/#${b.id}: ${similarity(doc(a), doc(b))}`);
+  });
+
+  it("keeps identical generic headlines about different events apart", () => {
+    for (const [a, b] of pairs.different) assert.ok(similarity(doc(a), doc(b)) < CLUSTER_THRESHOLD, `#${a.id}/#${b.id}: ${similarity(doc(a), doc(b))}`);
   });
 });
