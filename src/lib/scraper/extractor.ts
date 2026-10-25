@@ -172,13 +172,23 @@ function dateNearHeadline(doc: Document, headline?: string): Date | null {
   return null;
 }
 
-/** The element that holds the headline and the box (up to three ancestors) its page chrome sits in. */
-function headlineBox(doc: Document, headline?: string): Element | null {
+/**
+ * The element that holds the headline: the first <h1>, else the heading or title/header element
+ * whose text starts with the headline (mlsp.gov.mn uses <h5 class="blog-post-title">,
+ * uvurkhangai.gov.mn <div class="single_news_header">).
+ */
+function headlineElement(doc: Document, headline?: string): Element | null {
   const key = headline ? normalizeText(headline).replace(/\s+/g, " ").slice(0, 40) : "";
-  const h1 =
+  return (
     [...doc.querySelectorAll("h1")].find((h) => (h.textContent ?? "").trim().length > 0) ??
-    // No <h1>: the element that holds the headline (mlsp.gov.mn uses <h5 class="blog-post-title">).
-    (key ? [...doc.querySelectorAll("h2, h3, h4, h5, h6, [class*=title]")].find((h) => normalizeText(h.textContent ?? "").replace(/\s+/g, " ").startsWith(key)) : undefined);
+    (key ? [...doc.querySelectorAll("h2, h3, h4, h5, h6, [class*=title], [class*=header]")].find((h) => normalizeText(h.textContent ?? "").replace(/\s+/g, " ").startsWith(key)) : undefined) ??
+    null
+  );
+}
+
+/** The box (up to three ancestors of the headline) the page chrome around the headline sits in. */
+function headlineBox(doc: Document, headline?: string): Element | null {
+  const h1 = headlineElement(doc, headline);
   if (!h1) return null;
   let box: Element = h1;
   for (let i = 0; i < 3 && box.parentElement && box.parentElement !== doc.body; i++) box = box.parentElement;
@@ -205,6 +215,28 @@ function timeElementDate(doc: Document, headline?: string): Date | null {
   if (!times.length) return null;
   const newest = Math.max(...times.map((d) => d.getTime()));
   return times.find((d) => d.getTime() >= newest - STALE_TEXT_DATE_MS) ?? null;
+}
+
+const STAMP_ICON = /\b(?:fa|bi|icon|glyphicon|ti)-(?:clock|calendar|time)|\bfa-regular fa-(?:clock|calendar)/i;
+
+/**
+ * A timestamp printed next to a clock or calendar icon in the headline's own container, before or
+ * after the body (uvurkhangai.gov.mn prints `<i class="fa fa-clock-o"></i> 2025-09-13 16:34:21`
+ * under the text). The icon marks it as this article's stamp, so it is trusted even when old: an
+ * old story then gets its real date and stays off the feed instead of showing as undated news.
+ * Only the headline's parent counts, so the icons of a "related news" list beside it do not.
+ */
+function iconStampDate(doc: Document, headline?: string): Date | null {
+  const container = headlineElement(doc, headline)?.parentElement;
+  if (!container || container === doc.body) return null;
+  for (const icon of container.querySelectorAll("i[class], span[class], svg[class]")) {
+    if (!STAMP_ICON.test(icon.getAttribute("class") ?? "")) continue;
+    const text = (icon.parentElement?.textContent ?? "").trim();
+    if (text.length > 40) continue;
+    const d = dateFromText(text);
+    if (d) return d;
+  }
+  return null;
 }
 
 function jsonLdDate(doc: Document): Date | null {
@@ -235,6 +267,7 @@ export function jsonBlobDate(html: string): Date | null {
 export function extractPublishedDate(doc: Document, url: string, text: string, headline?: string, blobDate: Date | null = null): Date | null {
   const metaSelectors = [
     'meta[property="article:published_time"]',
+    'meta[property="og:article:published_time"]',
     'meta[name="pubdate"]',
     'meta[name="publishdate"]',
     'meta[name="date"]',
@@ -254,6 +287,8 @@ export function extractPublishedDate(doc: Document, url: string, text: string, h
     const d = validDate(+fromUrl[1], +fromUrl[2], +fromUrl[3]);
     if (d) return d;
   }
+  const stamp = iconStampDate(doc, headline);
+  if (stamp) return stamp;
   // A date printed in the page is only trusted when it is recent: an old one is a quoted
   // resolution date or an archive page (mrpam.gov.mn stored 2007 stories as that day's news).
   const printed = dateNearHeadline(doc, headline) ?? dateFromText(text.slice(0, 600));
