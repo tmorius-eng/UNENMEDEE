@@ -26,8 +26,8 @@ export const SOCIAL = {
  * and the app's install link for the slash commands. null = not set yet; the page then says so.
  */
 export const DISCORD: { invite: string | null; install: string | null } = {
-  invite: null,
-  install: null,
+  invite: "https://discord.gg/zSW5FbWRrZ",
+  install: "https://discord.com/oauth2/authorize?client_id=1563927031438245888",
 };
 /** A file or folder in the repository on the main branch. */
 export const repoFile = (path: string) => `${REPO_URL}/blob/main/${path}`;
