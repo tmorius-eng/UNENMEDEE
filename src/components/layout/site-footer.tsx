@@ -5,6 +5,7 @@ import { CONTACT_EMAIL, REPO_URL, repoFile } from "@/lib/site";
 
 import { DonateCard } from "./donate";
 import { Logo } from "./logo";
+import { SocialLinks } from "./social-links";
 
 export function SiteFooter() {
   return (
@@ -16,6 +17,10 @@ export function SiteFooter() {
             Төрийн албан ёсны мэдээг баримт, пи-ар гэж ялгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг нээлттэй эхийн платформ.
           </p>
           <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-utility-green-700">🟢 0₮ дэд бүтэц</span>
+          <div className="mt-2 flex flex-col gap-3 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+            <p className="text-sm font-semibold text-primary">Биднийг дагаарай: өдөр бүр тойм, чухал мэдээ</p>
+            <SocialLinks size="lg" labels />
+          </div>
           <div className="mt-2 flex flex-col gap-1 text-sm">
             <p className="font-semibold text-primary">Холбоо барих</p>
             <p className="text-tertiary">Санал хүсэлт, алдаа, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар бичээрэй:</p>
