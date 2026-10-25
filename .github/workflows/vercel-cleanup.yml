@@ -1,0 +1,51 @@
+# Daily: deletes old Vercel deployments (keeps the one serving production, the newest 3 production
+# deployments and unfinished builds). Every merge to main is a production deployment, and the
+# Hobby plan's 10 GB Functions Storage was full in Oct 2026. Needs the VERCEL_TOKEN secret
+# (vercel.com → Account Settings → Tokens, scope: the team). Manual runs are dry runs unless
+# dry_run=false.
+name: Vercel cleanup
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = list what would be deleted, delete nothing"
+        type: boolean
+        default: true
+
+concurrency:
+  group: vercel-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Delete old deployments
+        # The secret only reaches this step, never the dependency install above.
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_ReSbUAv8QvTtGNQBVefYt7mX5lTm' }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID || 'team_ogiLPIu73hMJPeisTEZBwsGB' }}
+          IN_DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then echo "::warning::VERCEL_TOKEN is not set: nothing to clean."; exit 0; fi
+          if [ "$IN_DRY" = "true" ]; then npm run vercel:cleanup -- --dry-run; else npm run vercel:cleanup; fi

@@ -25,6 +25,7 @@
     "budget:sync": "tsx scripts/sync-budget.ts",
     "push:send": "tsx scripts/send-push.ts",
     "social:post": "tsx scripts/post-social.ts",
+    "vercel:cleanup": "tsx scripts/vercel-cleanup.ts",
     "sources:discover": "tsx scripts/discover-sources.ts",
     "sources:recheck": "tsx scripts/recheck-sources.ts",
     "db:prune": "tsx scripts/prune-content.ts",
