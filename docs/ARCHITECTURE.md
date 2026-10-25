@@ -256,6 +256,8 @@ digest edition and at most one important story per run (four per day, one per cl
 Facebook page through the Graph API (`POST /{page-id}/feed`, message + link; Facebook builds the card
 from our Open Graph image). A `social_posts` row is reserved before each call and removed if it fails.
 The never-expiring Page token is the `FB_PAGE_TOKEN` Actions secret ([setup](FACEBOOK.md)).
+The same posts go to Threads (text + link, 500 characters); its 60-day token is refreshed weekly by the
+pipeline and kept in `app_settings`.
 
 People who message the page get an automatic Messenger reply from `/api/messenger`
 ([`route.ts`](../src/app/api/messenger/route.ts)): the request must carry Meta's HMAC signature, and the
