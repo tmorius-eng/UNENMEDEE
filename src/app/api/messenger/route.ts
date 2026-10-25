@@ -9,6 +9,7 @@ import {
   digestReply,
   helpReply,
   incoming,
+  IG_APP_SECRET_KEY,
   MESSENGER_SETTINGS_KEY,
   type MessengerSettings,
   parseSettings,
@@ -52,6 +53,19 @@ async function instagramToken(): Promise<string | null> {
   return token;
 }
 
+let igSecretCached: { at: number; secret: string | null } | undefined;
+
+/** Instagram-Login webhooks are signed with the Instagram app secret: settings JSON, IG_APP_SECRET or app_settings. */
+async function instagramAppSecret(s: MessengerSettings): Promise<string | null> {
+  const direct = s.igAppSecret ?? process.env.IG_APP_SECRET?.trim();
+  if (direct) return direct;
+  if (igSecretCached && Date.now() - igSecretCached.at < 5 * 60_000) return igSecretCached.secret;
+  if (!hasDatabase()) return null;
+  const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, IG_APP_SECRET_KEY));
+  igSecretCached = { at: Date.now(), secret: row?.value.trim() || null };
+  return igSecretCached.secret;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const s = await settings();
@@ -73,8 +87,10 @@ export async function POST(req: Request) {
   const raw = await req.text();
   const s = await settings();
   const signature = req.headers.get("x-hub-signature-256");
-  if (!s || !(validSignature(raw, signature, s.appSecret) || (s.igAppSecret && validSignature(raw, signature, s.igAppSecret)))) {
-    return new Response("forbidden", { status: 403 });
+  if (!s) return new Response("forbidden", { status: 403 });
+  if (!validSignature(raw, signature, s.appSecret)) {
+    const igSecret = await instagramAppSecret(s);
+    if (!igSecret || !validSignature(raw, signature, igSecret)) return new Response("forbidden", { status: 403 });
   }
   let body: unknown;
   try {
