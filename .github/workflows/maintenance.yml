@@ -74,7 +74,7 @@ jobs:
             recluster) npm run ai:process -- --recluster ;;
             ai-sample)
               # One provider at a time; a provider without a key says so and the next one runs.
-              for spec in ${IN_MODELS:-groq mistral nvidia requesty openrouter zai}; do
+              for spec in ${IN_MODELS:-groq nvidia requesty openrouter zai}; do
                 if ! printf '%s' "$spec" | grep -Eq '^[a-z]+(=[A-Za-z0-9._:/-]+)?$'; then echo "::error::bad spec: $spec"; exit 1; fi
                 p="${spec%%=*}"
                 model_var="UNUSED_MODEL="
