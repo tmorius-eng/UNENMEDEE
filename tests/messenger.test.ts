@@ -16,9 +16,10 @@ describe("messenger bot", () => {
 
   it("replies only with our own links", () => {
     const d = digestReply({ title: "Өглөөний тойм", items: [{ headline: "А", slug: "a-1" }] });
-    assert.ok(d.includes("https://iltodmedee.mn/article/a-1"));
-    assert.ok(d.includes("https://iltodmedee.mn/digest"));
-    assert.ok(digestReply(null).includes("https://iltodmedee.mn"));
+    const lines = d.split("\n");
+    assert.ok(lines.includes("https://iltodmedee.mn/article/a-1"));
+    assert.equal(lines.at(-1), "Бүтэн тойм: https://iltodmedee.mn/digest");
+    assert.equal(digestReply(null), "Одоогоор тойм алга байна. Шинэ мэдээг эндээс: https://iltodmedee.mn");
     const s = searchReply("төсөв", [{ title: "Төсөв батлав", slug: "tusuv", sourceName: "Сангийн яам" }]);
     assert.ok(s.includes("Төсөв батлав (Сангийн яам)\nhttps://iltodmedee.mn/article/tusuv"));
     assert.ok(s.includes("/search?q=%D1%82%D3%A9%D1%81%D3%A9%D0%B2"));
