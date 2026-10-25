@@ -190,7 +190,7 @@ export async function assignCluster(db: DB, id: number, log?: UsageLogger, budge
       sourceId: articles.sourceId,
     })
     .from(articles)
-    .where(and(isNotNull(articles.tldrSummary), gte(articles.createdAt, since)))
+    .where(and(isNotNull(articles.tldrSummary), eq(articles.isPublished, true), gte(articles.createdAt, since)))
     .orderBy(desc(articles.createdAt))
     .limit(500);
 

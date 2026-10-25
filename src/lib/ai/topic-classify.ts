@@ -4,12 +4,15 @@ import { AI_TOPIC_KEYS, isAiTopic } from "@/lib/topics";
 import { truncate } from "@/lib/text";
 
 import type { ChatMessage } from "./gemini";
+import { DATA_GUARD, wrap } from "./prompts";
 
 /**
  * Batch topic tagging for articles analyzed before Tier 1 returned a topic: one cheap call
  * classifies up to 25 headlines (title + summary), instead of re-running the full analysis.
  */
 export const TOPIC_BATCH = 25;
+/** A row the model answered for this many times without a usable topic keeps its domain topic. */
+export const TOPIC_MAX_ATTEMPTS = 2;
 
 export interface TopicItem {
   id: number;
@@ -27,9 +30,9 @@ politics = УИХ, Засгийн газар, нам, томилгоо; economy 
 justice = хууль, шүүх, цагдаа, гэмт хэрэг; mining = уул уурхай, эрчим хүч; health = эрүүл мэнд; education = боловсрол, соёл, спорт;
 society = халамж, хөдөлмөр, гэр бүл, хүүхэд, хот, амьтан; environment = байгаль, ус, цаг уур, хөдөө аж ахуй;
 infrastructure = зам, барилга, харилцаа холбоо, технологи; foreign = гадаад харилцаа, батлан хамгаалах.
-ЗӨВХӨН JSON буцаа: {"topics": {"<id>": "<сэдэв>", ...}}`,
+ЗӨВХӨН JSON буцаа: {"topics": {"<id>": "<сэдэв>", ...}}${DATA_GUARD}`,
     },
-    { role: "user", content: list },
+    { role: "user", content: wrap("news_list", list) },
   ];
 }
 

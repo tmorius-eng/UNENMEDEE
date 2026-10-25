@@ -29,6 +29,8 @@ export interface ScrapeMeta {
   dataset_updated?: string;
   /** The page shows no publication date: `published_at` is the time we found it. */
   date_unknown?: boolean;
+  /** Batch topic calls that returned no usable topic for this row (scripts/classify-topics.ts). */
+  topic_attempts?: number;
 }
 
 export const RISK_FLAG_THRESHOLD = 65;

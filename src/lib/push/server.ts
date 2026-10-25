@@ -4,7 +4,7 @@ import webpush from "web-push";
 import type { DB } from "@/db";
 import { appSettings, pushSubscriptions } from "@/db/schema";
 
-import { classifyPushFailure, MAX_PUSH_FAILURES, type PushPayload } from "./core";
+import { classifyPushFailure, isSystemicFailure, MAX_PUSH_FAILURES, type PushPayload } from "./core";
 
 /**
  * Web Push sending (GitHub Actions) and key storage.
@@ -80,6 +80,8 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
   webpush.setVapidDetails(SUBJECT, publicKey, privateKey);
   const subs = await db.select().from(pushSubscriptions);
   const gone: number[] = [];
+  const succeeded: number[] = [];
+  const failedPermanently: number[] = [];
 
   // Small batches: push services rate limit, and a run has at most a few payloads.
   for (let i = 0; i < subs.length; i += 50) {
@@ -112,13 +114,19 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
         }
         // A push-service outage (429/5xx/network) leaves the counter alone: only the subscription's
         // own permanent errors count towards its removal.
-        if (!ok && transient) return;
-        await db
-          .update(pushSubscriptions)
-          .set(ok ? { lastSuccessAt: new Date(), failures: 0 } : { failures: sql`${pushSubscriptions.failures} + 1` })
-          .where(eq(pushSubscriptions.id, s.id));
+        if (ok) succeeded.push(s.id);
+        else if (!transient) failedPermanently.push(s.id);
       }),
     );
+  }
+  if (succeeded.length) await db.update(pushSubscriptions).set({ lastSuccessAt: new Date(), failures: 0 }).where(inArray(pushSubscriptions.id, succeeded));
+  if (isSystemicFailure(failedPermanently.length, subs.length - gone.length)) {
+    console.error(`::error::${failedPermanently.length}/${subs.length - gone.length} push subscriptions were rejected (4xx): a VAPID or payload problem on our side, so no subscription is counted towards removal.`);
+  } else if (failedPermanently.length) {
+    await db
+      .update(pushSubscriptions)
+      .set({ failures: sql`${pushSubscriptions.failures} + 1` })
+      .where(inArray(pushSubscriptions.id, failedPermanently));
   }
   if (gone.length) await db.delete(pushSubscriptions).where(inArray(pushSubscriptions.id, gone));
   const stale = await db.delete(pushSubscriptions).where(sql`${pushSubscriptions.failures} >= ${MAX_PUSH_FAILURES}`).returning({ id: pushSubscriptions.id });

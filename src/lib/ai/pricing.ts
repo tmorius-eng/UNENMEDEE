@@ -35,6 +35,7 @@ export function geminiModelPrice(model: string): { input: number; output: number
   if (m.includes("3.1-flash-lite")) return { input: 0.25, output: 1.5 };
   if (m.includes("lite")) return { input: 0.3, output: 2.5 }; // 3.5 Flash-Lite, "flash-lite-latest"
   if (m.includes("2.5-flash")) return { input: 0.3, output: 2.5 };
+  if (m.includes("pro")) return { input: 1.25, output: 10 }; // 2.5 Pro and later Pro list prices (≤ 200k prompt)
   return { input: 0.75, output: 3.75 }; // 3.x Flash, "flash-latest" (until 2026-12-31)
 }
 

@@ -102,3 +102,12 @@ export function classifyPushFailure(status: number | undefined): "gone" | "perma
 
 /** Consecutive permanent failures after which a subscription is dropped. */
 export const MAX_PUSH_FAILURES = 5;
+
+/**
+ * True when most subscriptions failed "permanently" in one run: that is our side (a restored or
+ * wrong VAPID pair, a bad payload), not each subscriber's, so nobody's counter goes up. Without
+ * this, 5 runs of a VAPID mismatch (under a day) would delete every subscriber.
+ */
+export function isSystemicFailure(permanent: number, attempted: number): boolean {
+  return permanent >= 3 && permanent * 2 > attempted;
+}

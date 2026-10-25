@@ -40,7 +40,11 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        # Dependency install scripts never see the database secret.
+        env:
+          DATABASE_URL: ""
+        run: npm ci
 
       - name: Check required secrets
         run: |
