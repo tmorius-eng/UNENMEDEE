@@ -11,6 +11,7 @@ import { formatShare, perPersonShare, POPULATION_LABEL } from "@/lib/per-person"
 import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
+import type { Quiz } from "./quiz";
 import { cut } from "./threads";
 
 export const DISCORD_API = "https://discord.com/api/v10";
@@ -23,6 +24,8 @@ export interface DiscordPost {
   text: string;
   link: string;
   imageUrl?: string;
+  /** A native Discord poll (the daily quiz), open for `hours`. */
+  poll?: { question: string; answers: string[]; hours: number };
 }
 
 /** Five blocks for a 0–100 score: "🟩🟩🟩⬜⬜". */
@@ -68,11 +71,40 @@ export function discordDigestPost(d: DigestForPost, site = PRODUCTION_URL): Disc
   return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
+/** Letter emojis for the poll options (🅰️ 🅱️ 🇨 🇩). */
+export const OPTION_EMOJI = ["🅰️", "🅱️", "🇨", "🇩"];
+
+/**
+ * The daily quiz as a poll for younger readers: a guess-the-number game, the answer under it as
+ * a spoiler with its per-person share and the story's link. Playful wording, real numbers only.
+ */
+export function discordQuizPost(q: Quiz): DiscordPost {
+  const share = perPersonShare([q.answers[q.correct]]);
+  const answer = `${q.answers[q.correct]}${share !== null ? `, ${POPULATION_LABEL} хүнд хуваавал ${formatShare(share)} / хүн` : ""}`;
+  const text = [
+    `🧠 ${bold("Өдрийн асуулт")} · таагаад үз 👀`,
+    "Санал өгөөд, дараа нь хариултаа нээгээрэй 👇",
+    `🔓 Хариулт: ||${answer}||`,
+    `📰 Эх мэдээ: <${q.link}>`,
+  ].join("\n");
+  return { text, link: q.link, poll: { question: `${q.question} 🤔`, answers: q.answers, hours: 24 } };
+}
+
 /** The message body: scraped text can contain "@everyone", so no mention is ever resolved. */
 export function discordMessage(post: DiscordPost) {
   return {
     content: cut(post.text, CONTENT_MAX),
     embeds: post.imageUrl ? [{ url: post.link, image: { url: post.imageUrl }, color: EMBED_COLOR }] : [],
+    ...(post.poll
+      ? {
+          poll: {
+            question: { text: post.poll.question },
+            answers: post.poll.answers.map((text, i) => ({ poll_media: { text, ...(OPTION_EMOJI[i] ? { emoji: { name: OPTION_EMOJI[i] } } : {}) } })),
+            duration: post.poll.hours,
+            allow_multiselect: false,
+          },
+        }
+      : {}),
     allowed_mentions: { parse: [] as string[] },
   };
 }

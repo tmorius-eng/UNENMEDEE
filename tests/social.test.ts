@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
-import { discordArticlePost, discordDigestPost, discordMessage, meter, publishDiscord } from "@/lib/social/discord";
+import { discordArticlePost, discordDigestPost, discordMessage, discordQuizPost, meter, publishDiscord } from "@/lib/social/discord";
+import { makeQuiz, maskAmounts } from "@/lib/social/quiz";
 import { formatShare, perPersonLine, perPersonShare } from "@/lib/per-person";
 
 const digest = {
@@ -193,5 +194,36 @@ describe("per-person share", () => {
     assert.equal(meter(0, "🟩"), "⬜⬜⬜⬜⬜");
     assert.equal(meter(100, "🟩"), "🟩🟩🟩🟩🟩");
     assert.equal(meter(140, "🟩"), "🟩🟩🟩🟩🟩");
+  });
+});
+
+describe("daily quiz", () => {
+  const energy = { id: 932, slug: "erchim", title: "Эрчим хүчний салбарт 186.2 тэрбум төгрөгийн төсөв баталлаа.", amounts: ["186.2 тэрбум ₮", "107 тэрбум ₮"] };
+
+  it("masks the headline's amount and offers four options of equal precision", () => {
+    const q = makeQuiz(energy);
+    assert.ok(q);
+    assert.equal(q.question, "Эрчим хүчний салбарт ❓ төсөв баталлаа. ❓ хэд вэ?");
+    assert.deepEqual(q.answers, ["18.62 тэрбум ₮", "62.07 тэрбум ₮", "186.2 тэрбум ₮", "558.6 тэрбум ₮"]);
+    assert.equal(q.answers[q.correct], "186.2 тэрбум ₮");
+    assert.equal(makeQuiz({ ...energy, id: 933 })?.answers[0], "62.07 тэрбум ₮", "the right answer moves with the story");
+  });
+
+  it("needs a ₮ amount in the headline that the story itself names", () => {
+    assert.equal(makeQuiz({ ...energy, title: "Татварын реформыг дэмжиж байна" }), null);
+    assert.equal(makeQuiz({ ...energy, title: "1 тэрбум мод тарих аян", amounts: ["48 сая ₮"] }), null);
+    assert.equal(makeQuiz({ ...energy, title: "225 сая ам.доллараар эмнэлэг барина", amounts: ["5 сая ₮"] }), null);
+    assert.equal(makeQuiz({ ...energy, title: "Сургуульд 50 сая төгрөг өглөө", amounts: ["50 сая ₮"] }), null, "below 100 сая");
+    assert.equal(maskAmounts("3 их наяд төгрөгийн зээл, 500 сая ₮-ийн тусламж"), "❓ зээл, ❓ тусламж");
+  });
+
+  it("Discord: a poll with letter options, the answer as a spoiler with its per-person share", () => {
+    const m = discordMessage(discordQuizPost(makeQuiz(energy)!));
+    assert.equal(m.poll?.answers.length, 4);
+    assert.equal(m.poll?.answers[0].poll_media.emoji?.name, "🅰️");
+    assert.equal(m.poll?.duration, 24);
+    assert.ok(m.content.includes("||186.2 тэрбум ₮, 3.43 сая хүнд хуваавал ≈ 54 400₮ / хүн||"));
+    assert.deepEqual(m.embeds, []);
+    assert.deepEqual(m.allowed_mentions, { parse: [] });
   });
 });
