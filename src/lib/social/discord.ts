@@ -28,6 +28,15 @@ export interface DiscordPost {
   poll?: { question: string; answers: string[]; hours: number };
 }
 
+/**
+ * The channel id from DISCORD_CHANNEL_ID: the bare id, or the channel's whole URL
+ * ("https://discord.com/channels/<server>/<channel>"), whose last number is the channel.
+ */
+export function discordChannelId(value: string | undefined): string | undefined {
+  const ids = value?.match(/\d{17,20}/g);
+  return ids?.[ids.length - 1];
+}
+
 /** Five blocks for a 0–100 score: "🟩🟩🟩⬜⬜". */
 export function meter(score: number, full: string): string {
   const n = Math.max(0, Math.min(5, Math.round(score / 20)));

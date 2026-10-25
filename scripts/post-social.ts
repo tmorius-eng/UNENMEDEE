@@ -13,7 +13,7 @@
  * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram works the same way with
  * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Telegram needs
  * TELEGRAM_BOT_TOKEN (secret) and TELEGRAM_CHAT_ID (variable, "@channel"). Discord needs DISCORD_BOT_TOKEN
- * (secret) and DISCORD_CHANNEL_ID (variable); the message is crossposted to every server that follows
+ * (secret) and DISCORD_CHANNEL_ID (variable or secret; the bare id or the channel URL); the message is crossposted to every server that follows
  * the announcement channel. Each platform without credentials is
  * skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
  * importance >= FB_IMPORTANCE_MIN (75) or a risk flag, one per cluster, FB_NEWS_PER_RUN (1) per run
@@ -30,7 +30,7 @@ import { type ArticleForPost, articlePost, type DigestForPost, digestPost, Faceb
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
-import { discordArticlePost, discordDigestPost, type DiscordPost, discordQuizPost, publishDiscord } from "@/lib/social/discord";
+import { discordArticlePost, discordChannelId, discordDigestPost, type DiscordPost, discordQuizPost, publishDiscord } from "@/lib/social/discord";
 import { makeQuiz, type Quiz } from "@/lib/social/quiz";
 import { biggestAmount, isWeeklyDue, mostNamed, previousWeek, type WeeklyTop, weeklyShortText, weeklyText } from "@/lib/social/weekly";
 import { sharedShortNames } from "@/lib/officials/flags";
@@ -353,9 +353,9 @@ async function main() {
   else if (tgToken || tgChat) console.error("::error::Telegram needs both the TELEGRAM_BOT_TOKEN secret and the TELEGRAM_CHAT_ID variable (docs/FACEBOOK.md).");
   else console.log("✈️ Telegram is off: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, see docs/FACEBOOK.md.");
   const dcToken = process.env.DISCORD_BOT_TOKEN?.trim();
-  const dcChannel = process.env.DISCORD_CHANNEL_ID?.trim();
+  const dcChannel = discordChannelId(process.env.DISCORD_CHANNEL_ID);
   if (dcToken && dcChannel) platforms.push(discord(dcToken, dcChannel));
-  else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and the DISCORD_CHANNEL_ID variable (docs/FACEBOOK.md).");
+  else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and DISCORD_CHANNEL_ID (the channel id or its discord.com/channels/… URL, docs/FACEBOOK.md).");
   else console.log("🎮 Discord is off: set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID, see docs/FACEBOOK.md.");
 
   const mode = values.mode === "digest" || values.mode === "quiz" || values.mode === "weekly" ? values.mode : "news";
