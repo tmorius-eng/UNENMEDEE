@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isFollowableTopic, parseTopicFollows, toggleTopicFollow } from "@/lib/topic-follow";
+import { isFollowablePlace, isFollowableTopic, parsePlaceFollows, parseTopicFollows, toggleTopicFollow } from "@/lib/topic-follow";
 
 describe("topic follows", () => {
   it("keeps only known topics, once, in order", () => {
@@ -18,5 +18,11 @@ describe("topic follows", () => {
   });
   it("knows local and data topics", () => {
     assert.ok(isFollowableTopic("local") && isFollowableTopic("data") && !isFollowableTopic("risk"));
+  });
+  it("keeps only known places, apart from topics", () => {
+    assert.deepEqual(parsePlaceFollows(JSON.stringify(["khovd", "politics", "khan-uul", "khovd", "atlantis"])), ["khovd", "khan-uul"]);
+    assert.deepEqual(parsePlaceFollows("{broken"), []);
+    assert.ok(isFollowablePlace("sukhbaatar") && isFollowablePlace("sukhbaatar-duureg") && !isFollowablePlace("economy"));
+    assert.deepEqual(parseTopicFollows(JSON.stringify(["khovd", "economy"])), ["economy"]);
   });
 });

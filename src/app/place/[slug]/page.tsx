@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { Empty } from "@/components/iltod/empty";
 import { FollowCard } from "@/components/iltod/follow-card";
+import { FollowPlaceButton } from "@/components/iltod/follow-topic";
 import { PlacePicker } from "@/components/iltod/place-picker";
 import { StoryList } from "@/components/iltod/story-list";
 import { findPlace, type Place, placeGenitive, placeLabel, PLACES } from "@/lib/places";
@@ -62,7 +63,10 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
             Орон нутаг
           </Link>
         </p>
-        <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">{placeGenitive(place)} мэдээ</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">{placeGenitive(place)} мэдээ</h1>
+          <FollowPlaceButton place={place.slug} />
+        </div>
         <p className="text-sm text-secondary">{description(place)}</p>
         {place.domains.length > 0 && (
           <p className="text-sm text-tertiary">
