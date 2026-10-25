@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
+import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
 
 const digest = {
   id: 9,
@@ -97,5 +98,28 @@ describe("facebook page token", () => {
   it("a user token without Pages is an error, not a post to the person's profile", async () => {
     const r = await resolveFacebookPage({ token: "USER", fetchImpl: graph({ "/me/accounts": { data: [] } }) });
     assert.ok("error" in r && r.error.includes("user token"));
+  });
+});
+
+describe("telegram channel", () => {
+  const story = { id: 1, slug: "a-b", title: "Гарчиг", tldr: "Нэг. Хоёр.", sourceName: "Сангийн яам", amounts: ["48.5 тэрбум ₮"], riskFlag: false, topic: "economy" };
+
+  it("posts our card with the Facebook text as caption, cut to Telegram's 1024", async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const f = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 42 } }));
+    }) as typeof fetch;
+    const post = telegramArticlePost(story);
+    const id = await publishTelegram({ token: "123:SECRET", chatId: "@iltodmedee", post: { ...post, text: "ж".repeat(3000) }, fetchImpl: f });
+    assert.equal(id, "42");
+    assert.ok(calls[0].url.endsWith("/sendPhoto"));
+    assert.equal(calls[0].body.photo, "https://iltodmedee.mn/ig-image?a=a-b");
+    assert.ok(String(calls[0].body.caption).length <= 1024);
+  });
+
+  it("never echoes the token in an error", async () => {
+    const f = (async () => new Response(JSON.stringify({ ok: false, description: "Unauthorized: bot123:SECRET" }), { status: 401 })) as unknown as typeof fetch;
+    await assert.rejects(publishTelegram({ token: "123:SECRET", chatId: "@x", post: { text: "t", link: "l" }, fetchImpl: f }), (e: Error) => !e.message.includes("SECRET") && e.message.includes("401"));
   });
 });

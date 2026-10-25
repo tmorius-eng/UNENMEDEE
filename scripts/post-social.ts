@@ -1,5 +1,5 @@
 /**
- * Posts to the ИЛ ТОД МЭДЭЭ Facebook page, Threads and Instagram (docs/FACEBOOK.md has the setup).
+ * Posts to the ИЛ ТОД МЭДЭЭ Facebook page, Threads, Instagram and Telegram channel (docs/FACEBOOK.md).
  *
  *   npm run social:post -- --mode digest            # the newest digest edition (morning / evening)
  *   npm run social:post -- --mode news              # the most important new story, if any
@@ -8,7 +8,8 @@
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
  * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram works the same way with
- * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Each platform without credentials is
+ * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Telegram needs
+ * TELEGRAM_BOT_TOKEN (secret) and TELEGRAM_CHAT_ID (variable, "@channel"). Each platform without credentials is
  * skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
  * importance >= FB_IMPORTANCE_MIN (75) or a risk flag, one per cluster, FB_NEWS_PER_RUN (1) per run
  * and FB_NEWS_PER_DAY (4) per day and platform, so the feeds stay curated, not a firehose.
@@ -23,6 +24,7 @@ import { appSettings, articles, digests, socialPosts, sources } from "@/db/schem
 import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
+import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
@@ -42,7 +44,7 @@ type Db = ReturnType<typeof getDb>;
 
 /** One destination: how a digest / story is worded there and how it is published. */
 interface Platform {
-  name: "facebook" | "threads" | "instagram";
+  name: "facebook" | "threads" | "instagram" | "telegram";
   digest(d: DigestForPost): { preview: string; publish(): Promise<string> };
   article(a: ArticleForPost): { preview: string; publish(): Promise<string> };
 }
@@ -58,6 +60,11 @@ function facebook(pageId: string, token: string): Platform {
 function threads(token: string): Platform {
   const make = (post: { text: string; link: string }) => ({ preview: `${post.link}\n${post.text}`, publish: () => publishThreads({ token, post }) });
   return { name: "threads", digest: (d) => make(threadsDigestPost(d)), article: (a) => make(threadsArticlePost(a)) };
+}
+
+function telegram(token: string, chatId: string): Platform {
+  const make = (post: TelegramPost) => ({ preview: `${post.link}\n${post.text}`, publish: () => publishTelegram({ token, chatId, post }) });
+  return { name: "telegram", digest: (d) => make(telegramDigestPost(d)), article: (a) => make(telegramArticlePost(a)) };
 }
 
 function instagram(token: string): Platform {
@@ -210,6 +217,11 @@ async function main() {
   const igToken = await storedToken(db, INSTAGRAM_SETTINGS_KEY, process.env.INSTAGRAM_TOKEN, (t) => refreshInstagramToken(t));
   if (igToken) platforms.push(instagram(igToken));
   else console.log("📸 Instagram is off: set the INSTAGRAM_TOKEN secret, see docs/FACEBOOK.md.");
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  const tgChat = process.env.TELEGRAM_CHAT_ID?.trim();
+  if (tgToken && tgChat) platforms.push(telegram(tgToken, tgChat));
+  else if (tgToken || tgChat) console.error("::error::Telegram needs both the TELEGRAM_BOT_TOKEN secret and the TELEGRAM_CHAT_ID variable (docs/FACEBOOK.md).");
+  else console.log("✈️ Telegram is off: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, see docs/FACEBOOK.md.");
 
   const mode = values.mode === "digest" ? "digest" : "news";
   for (const p of platforms) {

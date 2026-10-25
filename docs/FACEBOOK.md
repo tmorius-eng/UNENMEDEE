@@ -99,3 +99,18 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
 4. DM бот: Instagram апп → **Settings → Messages and story replies → Message controls → Connected tools →
    Allow access to messages**; webhook (`/api/messenger`, object `instagram`, field `messages`); Instagram app
    secret-ийг `MESSENGER_SETTINGS`-д `igAppSecret` болгож нэмнэ.
+
+## Telegram суваг
+
+Тойм, чухал мэдээ Telegram сувагт hook карттай зураг + тайлбартай (≤ 1024 тэмдэгт) нийтлэгдэнэ. Bot API үнэгүй.
+
+1. Telegram-д **@BotFather** → `/newbot` → нэр (жишээ нь "ИЛ ТОД МЭДЭЭ"), username (`iltodmedee_bot` гэх мэт) →
+   өгсөн токеныг хуулна.
+2. Шинэ **нийтийн суваг** (Channel) үүсгэнэ, хаяг нь жишээ нь `t.me/iltodmedee`.
+3. Сувгийн **Administrators → Add Admin** → ботоо нэмж **Post Messages** эрх өгнө.
+4. GitHub → **Settings → Secrets and variables → Actions**:
+   - **Secrets** → `TELEGRAM_BOT_TOKEN` = BotFather-ын токен;
+   - **Variables** → `TELEGRAM_CHAT_ID` = `@iltodmedee` (сувгийн @хаяг).
+5. Шалгах: **Actions → Social post (manual)** (`dry_run=true`, дараа нь `false`).
+
+Токеныг чатад бүү бичээрэй. Bot API токеныг URL-д хийдэг тул скрипт URL-ыг хэзээ ч лог-д бичихгүй, алдааны мессежээс токеныг арилгана.
