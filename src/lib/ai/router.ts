@@ -126,7 +126,7 @@ export function openRouterModel(env: Record<string, string | undefined>): string
   const override = env.OPENROUTER_MODEL?.trim();
   if (override && override.endsWith(":free")) return override;
   if (override) console.warn(`[ai] OpenRouter: "${override}" ignored, only ":free" models are used`);
-  return "google/gemma-4-31b-it:free";
+  return "nvidia/nemotron-3-ultra-550b-a55b:free";
 }
 
 /** Z.ai model: only the free "-flash" GLM models; "-flashx" and the larger GLM models bill. */
@@ -196,14 +196,15 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
           })
         : null;
     case "mistral":
-      // Mistral "Experiment" plan: free with a verified phone, about one request a second. Medium
-      // writes the best Mongolian of its free models; Small is faster (MISTRAL_MODEL).
+      // Opt-in only (not in DEFAULT_CHAINS): the free Experiment plan has answered 429 since Aug 2026.
       return env.MISTRAL_API_KEY
         ? openaiProvider(provider, env.MISTRAL_MODEL || "mistral-medium-latest", env.MISTRAL_BASE_URL || "https://api.mistral.ai/v1", env.MISTRAL_API_KEY)
         : null;
     case "openrouter":
-      // OpenRouter's free models (one key, 50 calls a day): Gemma 4 31B, a separate quota from
-      // the same model on NVIDIA and Requesty. It reasons first, hence the output headroom.
+      // OpenRouter's free models (one key, 50 calls a day): Nemotron 3 Ultra. On the Mongolian sample
+      // (Oct 2026) it answered in ~25 s with sound facts and risk; the free Gemma endpoints were
+      // saturated (429). Free endpoints need the account's "free endpoints that may train" setting
+      // on and Zero Data Retention off. It reasons first, hence the output headroom.
       return env.OPENROUTER_API_KEY
         ? openaiProvider(provider, openRouterModel(env), env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1", env.OPENROUTER_API_KEY, {
             timeoutMs: 150_000,
@@ -228,8 +229,11 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
 const PROVIDERS: AIProvider[] = ["deepseek", "grok", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai", "ollama"];
 
 /**
- * Fallback order per tier. Free providers go first for bulk work (Groq, Mistral, NVIDIA NIM,
- * Requesty, OpenRouter and Z.ai take turns; Gemini joins them when its key is free); each has its
+ * Fallback order per tier. Free providers go first for bulk work (Groq, NVIDIA NIM, Requesty and
+ * OpenRouter take turns, then Z.ai; Gemini joins them when its key is free). Mistral is not in the
+ * default chains: its free API answers every request with 429 (paused since Aug 2026, paying
+ * accounts only), and a paid Mistral key would be billed while the price table says $0; name it in
+ * AI_TIER1_CHAIN with MISTRAL_PRICE_IN/OUT set to use it; each has its
  * own daily quota, so together they cover far more articles than any one (with only Groq, NVIDIA
  * and Requesty, 38 % of the bulk calls overflowed to the billed Gemini key in Oct 2026). Deep
  * analysis: Grok (paid, capped), then Gemini. A key from a billed Google project (GEMINI_FREE_TIER unset) is charged
@@ -239,8 +243,8 @@ const PROVIDERS: AIProvider[] = ["deepseek", "grok", "gemini", "nvidia", "groq",
  * Providers without an API key are skipped.
  */
 export const DEFAULT_CHAINS: Record<Tier, AIProvider[]> = {
-  tier1: ["groq", "gemini", "mistral", "nvidia", "requesty", "openrouter", "zai", "deepseek", "ollama"],
-  tier2: ["grok", "gemini", "mistral", "groq", "nvidia", "requesty", "openrouter", "zai", "deepseek", "ollama"],
+  tier1: ["groq", "gemini", "nvidia", "requesty", "openrouter", "zai", "deepseek", "ollama"],
+  tier2: ["grok", "gemini", "groq", "nvidia", "requesty", "openrouter", "zai", "deepseek", "ollama"],
 };
 
 /**
@@ -249,7 +253,7 @@ export const DEFAULT_CHAINS: Record<Tier, AIProvider[]> = {
  * risk 55 where the others gave 85, so it only takes what the others cannot (free overflow before
  * the billed Gemini).
  */
-const SPREAD: AIProvider[] = ["groq", "mistral", "nvidia", "requesty", "openrouter"];
+const SPREAD: AIProvider[] = ["groq", "nvidia", "requesty", "openrouter"];
 
 /**
  * A billed Gemini key goes after the free providers (it is the paid overflow, inside the USD

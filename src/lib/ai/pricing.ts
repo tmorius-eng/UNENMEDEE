@@ -22,8 +22,8 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   // Requesty gateway: the default model (google/gemma-4-31b-it) is free. The router logs the
   // cost Requesty itself reports, so a paid REQUESTY_MODEL is still logged exactly.
   requesty: { input: 0, output: 0 },
-  // Mistral "Experiment" plan (console.mistral.ai): free, rate limited, no card. A paid Scale
-  // plan would bill: set MISTRAL_PRICE_IN / MISTRAL_PRICE_OUT and it counts against the budget.
+  // Mistral: opt-in only. Its free plan is paused (429); a pay-as-you-go key bills, so set
+  // MISTRAL_PRICE_IN / MISTRAL_PRICE_OUT to its list price and it counts against the budget.
   mistral: { input: 0, output: 0 },
   // OpenRouter: only ":free" model ids are ever called (openRouterModel), so nothing is billed.
   openrouter: { input: 0, output: 0 },

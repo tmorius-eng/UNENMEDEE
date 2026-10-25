@@ -60,29 +60,31 @@ describe("budget limits", () => {
 
   it("parses chain overrides and ignores unknown providers", () => {
     // A billed Gemini key goes behind the free providers; a free one (no billing) stays near the front.
-    const free = ["mistral", "nvidia", "requesty", "openrouter", "zai"];
+    const free = ["nvidia", "requesty", "openrouter", "zai"];
     assert.deepEqual(chainFor("tier1", {}), ["groq", ...free, "gemini", "deepseek", "ollama"]);
-    assert.deepEqual(chainFor("tier2", {}), ["grok", "mistral", "groq", "nvidia", "requesty", "openrouter", "zai", "gemini", "deepseek", "ollama"]);
+    assert.deepEqual(chainFor("tier2", {}), ["grok", "groq", "nvidia", "requesty", "openrouter", "zai", "gemini", "deepseek", "ollama"]);
+    assert.ok(!chainFor("tier1", {}).includes("mistral"), "Mistral's free API is paused: opt-in only");
+    assert.deepEqual(chainFor("tier1", { AI_TIER1_CHAIN: "mistral,groq" }), ["mistral", "groq"]);
     assert.deepEqual(chainFor("tier1", { GEMINI_FREE_TIER: "true" }), ["groq", "gemini", ...free, "deepseek", "ollama"]);
     assert.deepEqual(chainFor("tier2", { AI_TIER2_CHAIN: "gemini, openai ,deepseek,gemini" }), ["gemini", "deepseek"]);
   });
 
   it("spreads bulk calls over the free providers in turn, paid ones stay last", () => {
     const chain = chainFor("tier1", {});
-    const free = ["groq", "mistral", "nvidia", "requesty", "openrouter"];
-    assert.deepEqual(spreadFree(chain, 0).slice(0, 5), free);
-    assert.deepEqual(spreadFree(chain, 1).slice(0, 5), [...free.slice(1), "groq"]);
-    assert.deepEqual(spreadFree(chain, 4).slice(0, 5), ["openrouter", ...free.slice(0, 4)]);
-    assert.deepEqual(spreadFree(chain, 1).slice(5), ["zai", "gemini", "deepseek", "ollama"], "Z.ai is the free overflow, not in the rotation");
+    const free = ["groq", "nvidia", "requesty", "openrouter"];
+    assert.deepEqual(spreadFree(chain, 0).slice(0, 4), free);
+    assert.deepEqual(spreadFree(chain, 1).slice(0, 4), [...free.slice(1), "groq"]);
+    assert.deepEqual(spreadFree(chain, 3).slice(0, 4), ["openrouter", ...free.slice(0, 3)]);
+    assert.deepEqual(spreadFree(chain, 1).slice(4), ["zai", "gemini", "deepseek", "ollama"], "Z.ai is the free overflow, not in the rotation");
     assert.deepEqual(spreadFree(["grok", "groq"], 1), ["grok", "groq"], "a paid head is not rotated");
   });
 });
 
 describe("free-only model locks", () => {
   it("OpenRouter calls only :free models", () => {
-    assert.equal(openRouterModel({}), "google/gemma-4-31b-it:free");
-    assert.equal(openRouterModel({ OPENROUTER_MODEL: "nvidia/nemotron-3-super-120b-a12b:free" }), "nvidia/nemotron-3-super-120b-a12b:free");
-    assert.equal(openRouterModel({ OPENROUTER_MODEL: "anthropic/claude-x" }), "google/gemma-4-31b-it:free", "a billed model id is ignored");
+    assert.equal(openRouterModel({}), "nvidia/nemotron-3-ultra-550b-a55b:free");
+    assert.equal(openRouterModel({ OPENROUTER_MODEL: "google/gemma-4-31b-it:free" }), "google/gemma-4-31b-it:free");
+    assert.equal(openRouterModel({ OPENROUTER_MODEL: "anthropic/claude-x" }), "nvidia/nemotron-3-ultra-550b-a55b:free", "a billed model id is ignored");
   });
 
   it("Z.ai calls only the free -flash models", () => {
