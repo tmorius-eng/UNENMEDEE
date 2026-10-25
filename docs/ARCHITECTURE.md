@@ -156,7 +156,7 @@ flowchart TD
 **Provider chains** ([`router.ts`](../src/lib/ai/router.ts)), all through the `openai` SDK with a
 custom `baseURL` except Gemini (native `generateContent`):
 
-- Tier 1: Groq, Mistral (free Experiment plan), NVIDIA NIM, Requesty (free Gemma), OpenRouter (`:free` models only) and Z.ai (GLM Flash only) take turns → Gemini → DeepSeek → Ollama. Gemini is free with a key from a Google project without billing (`GEMINI_FREE_TIER=true`, then it sits right after Groq); a billed key comes after the free providers and uses only `gemini-2.5-flash-lite` inside the USD budget. Image/video/speech models are refused.
+- Tier 1: Groq, Mistral (free Experiment plan), NVIDIA NIM, Requesty (free Gemma), OpenRouter (`:free` models only) take turns → Z.ai (GLM Flash only, free overflow: weaker Mongolian) → Gemini → DeepSeek → Ollama. Gemini is free with a key from a Google project without billing (`GEMINI_FREE_TIER=true`, then it sits right after Groq); a billed key comes after the free providers and uses only `gemini-2.5-flash-lite` inside the USD budget. Image/video/speech models are refused.
 - Tier 2: xAI Grok → Gemini → Mistral → Groq → NVIDIA → Requesty → OpenRouter → Z.ai → DeepSeek → Ollama (billed Gemini moves behind the free ones)
 
 A provider that errors, rate-limits (one retry after a 429) or returns invalid JSON hands over to the
