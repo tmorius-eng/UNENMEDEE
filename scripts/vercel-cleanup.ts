@@ -64,7 +64,13 @@ async function main() {
       await api(`/v13/deployments/${encodeURIComponent(d.uid)}`, { method: "DELETE" });
       deleted += 1;
     } catch (err) {
-      console.log(`::warning::${d.uid}: ${err instanceof Error ? err.message : err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      // Vercel allows about 200 deletions per 10 minutes: stop and leave the rest to the next run.
+      if (message.includes("Vercel 429")) {
+        console.log(`⏸ Vercel's delete limit reached; ${doomed.length - deleted} left for the next run.`);
+        break;
+      }
+      console.log(`::warning::${d.uid}: ${message}`);
     }
   }
   if (!values["dry-run"]) console.log(`✓ Deleted ${deleted} deployment(s).`);
