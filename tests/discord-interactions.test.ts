@@ -7,7 +7,7 @@ import {
   COMMANDS,
   editOriginal,
   findPlaceByName,
-  khaihReply,
+  haihReply,
   placeChoices,
   toimReply,
   validDiscordSignature,
@@ -32,7 +32,7 @@ describe("discord interactions", () => {
   it("registers three commands for servers, DMs and user installs", () => {
     assert.deepEqual(
       COMMANDS.map((c) => c.name),
-      ["toim", "khaih", "aimag"],
+      ["toim", "haih", "aimag"],
     );
     for (const c of COMMANDS) {
       assert.match(c.name, /^[a-z]{1,32}$/);
@@ -56,8 +56,8 @@ describe("discord interactions", () => {
     assert.ok(t.includes("`1` [Төсөв шинэ](<https://iltodmedee.mn/article/tusuv>)"));
     assert.ok(t.includes("<https://iltodmedee.mn/digest>"));
     assert.ok(toimReply(null).includes("тойм алга"));
-    assert.ok(khaihReply("tusuv", []).includes("Кириллээр"));
-    assert.ok(khaihReply("төсөв", [{ title: "A", slug: "a", sourceName: "Сангийн яам" }]).includes("· Сангийн яам"));
+    assert.ok(haihReply("tusuv", []).includes("Кириллээр"));
+    assert.ok(haihReply("төсөв", [{ title: "A", slug: "a", sourceName: "Сангийн яам" }]).includes("· Сангийн яам"));
     assert.ok(aimagReply(undefined, "Атлантис", []).includes("олдсонгүй"));
     assert.ok(aimagReply(findPlaceByName("Ховд"), "Ховд", []).includes("<https://iltodmedee.mn/place/khovd>"));
   });

@@ -7,7 +7,7 @@ import {
   findPlaceByName,
   type Interaction,
   InteractionType,
-  khaihReply,
+  haihReply,
   optionValue,
   placeChoices,
   ResponseType,
@@ -24,16 +24,16 @@ import {
 async function answer(i: Interaction): Promise<string> {
   const name = i.data?.name;
   if (name === "toim") return toimReply((await getDigests("12h", 1))[0] ?? null);
-  if (name === "khaih") {
+  if (name === "haih") {
     const q = optionValue(i, "ug").slice(0, 100);
-    return khaihReply(q, q ? (await search(q)).articles : []);
+    return haihReply(q, q ? (await search(q)).articles : []);
   }
   if (name === "aimag") {
     const typed = optionValue(i, "ner");
     const place = findPlaceByName(typed);
     return aimagReply(place, typed, place ? await getPlaceFeed(place.domains, 5) : []);
   }
-  return "Энэ командыг танихгүй байна. `/toim`, `/khaih`, `/aimag` ашиглаарай.";
+  return "Энэ командыг танихгүй байна. `/toim`, `/haih`, `/aimag` ашиглаарай.";
 }
 
 export async function POST(req: Request) {
