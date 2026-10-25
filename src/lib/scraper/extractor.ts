@@ -92,7 +92,7 @@ function validDate(y: number, m: number, d: number, hour?: number, minute?: numb
   return isFutureDate(date) ? null : date;
 }
 
-/** Finds a "2026-10-21", "2026.10.21", "2026 оны 10 сарын 21" or "2026 ... 10-р сар ... 21" date in text. */
+/** Finds a "2026-10-21", "2026.10.21", "2026 оны 10 сарын 21", "2026 ... 10-р сар ... 21" or "10 сарын 21, 2026" date in text. */
 export function dateFromText(text: string): Date | null {
   const iso = text.match(/(20\d{2})[./-](\d{1,2})[./-](\d{1,2})(?:[ T]+(\d{1,2}):(\d{2}))?/);
   if (iso) {
@@ -107,6 +107,12 @@ export function dateFromText(text: string): Date | null {
   const m = text.match(MONTH_LABEL);
   if (m) {
     const d = validDate(+m[1], +m[2], +m[3]);
+    if (d) return d;
+  }
+  // Month and day first, the year after a comma: "10 сарын 20, 2026" (iaac.mn).
+  const md = text.match(/(?<![\d.])(\d{1,2})\s*(?:-р|дугаар|дүгээр)?\s*сарын\s*(\d{1,2})(?:-?(?:ны|ний|нд))?\s*,\s*(20\d{2})(?!\d)/);
+  if (md) {
+    const d = validDate(+md[3], +md[1], +md[2]);
     if (d) return d;
   }
   return null;
