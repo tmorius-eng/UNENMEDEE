@@ -143,6 +143,13 @@ export const SOURCE_SEEDS: SourceSeed[] = [
   s("local", "bagakhangai.ub.gov.mn", "Багахангай дүүрэг", "http://www.bagakhangai.ub.gov.mn/"),
   s("local", "chingeltei.gov.mn", "Чингэлтэй дүүрэг", "http://www.chingeltei.gov.mn/"),
   s("local", "niislel.khural.mn", "Нийслэлийн Иргэдийн Төлөөлөгчдийн Хурал"),
+  // Ulaanbaatar districts (Oct 2026): khanuul.mn, bgd.mn and sbd.gov.mn are the districts' own
+  // domains; bzd.ub.gov.mn (Баянзүрх) answers with a hosting "suspended" page and ulaanbaatar.mn
+  // itself times out from outside Mongolia, so both stay as they are until they come back.
+  s("local", "khanuul.mn", "Хан-Уул дүүрэг", "https://www.khanuul.mn/"),
+  s("local", "shd.ub.gov.mn", "Сонгинохайрхан дүүрэг", "http://www.shd.ub.gov.mn/"),
+  s("local", "bgd.mn", "Баянгол дүүрэг", "https://www.bgd.mn/"),
+  s("local", "sbd.gov.mn", "Сүхбаатар дүүрэг"),
 ];
 
 /** Pages that link out to many government sites; used by `npm run sources:discover`. */
@@ -163,4 +170,6 @@ export const AIMAG_SLUGS = [
   "govisumber", "darkhan", "darkhan-uul", "dornogovi", "dornod", "dundgovi", "zavkhan", "orkhon",
   "uvurkhangai", "ovorkhangai", "omnogovi", "umnugovi", "sukhbaatar", "selenge", "tov", "tuv",
   "uvs", "khovd", "khovsgol", "khuvsgul", "khentii", "ulaanbaatar", "niislel",
+  // Ulaanbaatar districts by their site slugs
+  "khanuul", "shd", "bgd", "sbd", "bzd", "chingeltei", "nalaikh", "baganuur", "bagakhangai",
 ];

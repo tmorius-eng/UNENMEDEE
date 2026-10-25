@@ -28,6 +28,7 @@ We are building a 100% transparent, open-source investigative news and public da
 
 ## 3. Target Data Sources (Phased Approach)
 - **Tier 1 (Structured & High-Value):** `opendata.gov.mn` (HTML scraping of dataset listings, no CKAN API), `tender.gov.mn` (procurement invitations & results), `legalinfo.mn` (new resolutions).
+- **Ulaanbaatar:** `ulaanbaatar.mn` (times out from outside Mongolia, kept), `niislel.khural.mn`, and the districts on their own domains: `khanuul.mn`, `shd.ub.gov.mn` (http), `bgd.mn` (JavaScript app, browser pass), `sbd.gov.mn`, `chingeltei.gov.mn`, `nad.ub.gov.mn`, `bnd.ub.gov.mn`, `bagakhangai.ub.gov.mn`. `bzd.ub.gov.mn` (Баянзүрх) is a suspended hosting page (Oct 2026): re-check before seeding. District slugs are in `AIMAG_SLUGS` so discovery files them as `local`.
 - **Tier 2 (Ministries & Agencies):** `zasag.mn`, `mof.gov.mn` (Finance), `mojha.gov.mn` (Justice), `mmhi.gov.mn` (Mining), `med.gov.mn` (Economy), `mfa.gov.mn` (Foreign Affairs), `moh.gov.mn` (Health), `met.gov.mn` (Environment), `iaac.mn` (Anti-Corruption), `audit.mn` (National Audit), plus the remaining ministries seeded in `scripts/seed-sources.ts`.
 
 ### Scraper architecture (`src/lib/scraper`)
