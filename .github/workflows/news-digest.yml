@@ -150,3 +150,8 @@ jobs:
         if: env.DISCORD_BOT_TOKEN != ''
         continue-on-error: true
         run: npm run social:post -- --mode quiz
+
+      - name: Weekly top list on Mondays (once a week)
+        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != ''
+        continue-on-error: true
+        run: npm run social:post -- --mode weekly
