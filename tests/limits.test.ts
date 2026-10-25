@@ -80,9 +80,9 @@ describe("budget limits", () => {
 
 describe("free-only model locks", () => {
   it("OpenRouter calls only :free models", () => {
-    assert.equal(openRouterModel({}), "google/gemma-4-31b-it:free");
-    assert.equal(openRouterModel({ OPENROUTER_MODEL: "nvidia/nemotron-3-super-120b-a12b:free" }), "nvidia/nemotron-3-super-120b-a12b:free");
-    assert.equal(openRouterModel({ OPENROUTER_MODEL: "anthropic/claude-x" }), "google/gemma-4-31b-it:free", "a billed model id is ignored");
+    assert.equal(openRouterModel({}), "nvidia/nemotron-3-ultra-550b-a55b:free");
+    assert.equal(openRouterModel({ OPENROUTER_MODEL: "google/gemma-4-31b-it:free" }), "google/gemma-4-31b-it:free");
+    assert.equal(openRouterModel({ OPENROUTER_MODEL: "anthropic/claude-x" }), "nvidia/nemotron-3-ultra-550b-a55b:free", "a billed model id is ignored");
   });
 
   it("Z.ai calls only the free -flash models", () => {
