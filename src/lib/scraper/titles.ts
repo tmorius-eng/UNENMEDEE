@@ -82,6 +82,22 @@ export function looksLikeNavigation(text: string): boolean {
   );
 }
 
+const UNIT_TITLE = /(хэлтэс|тасаг|алба|газар|хороо|төв|нэгж)\s*$/iu;
+const UNIT_TOPIC_TITLE = /^(үндсэн\s+)?чиг үүрэг|бүтэц,?\s+зохион байгуулалт|хүний нөөцийн ил тод байдал/iu;
+const UNIT_BODY = /ЭРХЭМ ЗОРИЛГО|ЗОРИЛГО|ЗОРИЛТ|ТАНИЛЦУУЛГА|чиг үүрэг|бүтэц,?\s+зохион байгуулалт/u;
+
+/**
+ * An "about this department" page from a district or agency CMS ("Санхүү, төрийн сангийн хэлтэс"
+ * opening with "ЗОРИЛГО" / "ТАНИЛЦУУЛГА" / "чиг үүрэг"): reached through the same /v/<id> links as
+ * news, stored as today's undated story (Oct 2026, shd.ub.gov.mn and chingeltei.gov.mn). A unit
+ * name as headline AND an about-page opening, or an about-page headline: not news.
+ */
+export function looksLikeUnitPage(title: string, text: string): boolean {
+  const t = normalizeText(title).trim();
+  if (UNIT_TOPIC_TITLE.test(t)) return true;
+  return UNIT_TITLE.test(t) && UNIT_BODY.test(normalizeText(text).slice(0, 300));
+}
+
 /** The first sentence of the text as a headline (≤ 110 characters, cut at a word). */
 export function firstSentenceTitle(text: string, max = 110): string {
   const lines = normalizeText(text)

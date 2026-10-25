@@ -7,7 +7,7 @@ import { sourceError } from "@/lib/scraper/crawl";
 import { JSDOM } from "jsdom";
 
 import { cleanTitle, dateFromText, extractArticle, extractPublishedDate, jsonBlobDate, parseDateValue } from "@/lib/scraper/extractor";
-import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "@/lib/scraper/titles";
+import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, looksLikeUnitPage, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
 
@@ -211,5 +211,21 @@ describe("future dates, Ulaanbaatar year, title order, failing sources", () => {
     assert.equal(sourceError({ ...base, articleFailures: 2 }), null);
     assert.equal(sourceError({ ...base, inserted: 1 }), null);
     assert.equal(sourceError({ ...base, found: 0, articleFailures: 0 }), "listing reached but no articles were stored");
+  });
+});
+
+describe("department about-pages are not news", () => {
+  it("unit name + about-page opening (real Oct 2026 rows)", () => {
+    assert.ok(looksLikeUnitPage("Санхүү, төрийн сангийн хэлтэс", "6\n\nТАНИЛЦУУЛГА\nЗОРИЛГО: Санхүү, төсвийн тогтвортой байдлыг хангаж"));
+    assert.ok(looksLikeUnitPage("Төлөвлөлт, гүйцэтгэлийн удирдлагын хэлтэс", "2\n\nЗОРИЛГО\nМонгол Улсын тогтвортой хөгжлийн үзэл баримтлал"));
+    assert.ok(looksLikeUnitPage("Хэвлэл мэдээлэл, олон нийттэй харилцах төв", "3\n\nЭРХЭМ ЗОРИЛГО\nДүүргийн засаг даргын 2020-2024 оны"));
+    assert.ok(looksLikeUnitPage("Хүнс, худалдаа, үйлчилгээний хэлтэс", "5\n\nХүнс, худалдаа үйлчилгээний хэлтсийн чиг үүрэг\nХүнс, худалдаа"));
+    assert.ok(looksLikeUnitPage("Үндсэн чиг үүрэг, Тэргүүлэх чиглэл", "Агентлагийн үндсэн чиг үүрэг"));
+  });
+
+  it("news about a department stays news", () => {
+    assert.ok(!looksLikeUnitPage("Хяналт, үнэлгээний үндэсний хорооны ээлжит хуралдаан боллоо", "Хорооны хуралдаанаар 2026 оны ЗОРИЛТ"));
+    assert.ok(!looksLikeUnitPage("Авлигатай тэмцэх газар", "Өнөөдөр АТГ хэвлэлийн бага хурал хийж, 3 хэргийг шүүхэд шилжүүлснээ мэдэгдлээ."));
+    assert.ok(!looksLikeUnitPage("Чанвон хотод төвийн явуулын үйлчилгээ үзүүлнэ", "ТАНИЛЦУУЛГА"));
   });
 });
