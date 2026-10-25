@@ -15,7 +15,9 @@ import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
 async function LiveStatus() {
-  const stats = await getSiteStats();
+  // Decorative: a database blip here must not take the whole page (the root layout) down.
+  const stats = await getSiteStats().catch(() => null);
+  if (!stats) return null;
   return (
     <span className="flex items-center gap-2">
       <span className="relative flex size-2">

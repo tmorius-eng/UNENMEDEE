@@ -101,3 +101,30 @@ describe("billed Gemini stays on Flash-Lite", () => {
     assert.deepEqual(geminiModelPrice("gemini-2.5-pro"), { input: 1.25, output: 10 });
   });
 });
+
+describe("web input hardening", () => {
+  it("keeps generated-image URLs canonical so junk parameters cannot bypass the CDN", async () => {
+    const { canonicalImageQuery } = await import("@/lib/site");
+    assert.equal(canonicalImageQuery(new URL("https://iltodmedee.mn/ig-image?d=10"), ["d", "a"]), null);
+    assert.equal(canonicalImageQuery(new URL("https://iltodmedee.mn/ig-image?d=10&x=1"), ["d", "a"]), "/ig-image?d=10");
+    assert.equal(canonicalImageQuery(new URL("https://iltodmedee.mn/ig-image?d=10&d=11"), ["d", "a"]), "/ig-image?d=10");
+    assert.equal(canonicalImageQuery(new URL(`https://iltodmedee.mn/story-image?p=${encodeURIComponent("/article/x-1")}`), ["p"]), null);
+  });
+
+  it("404s route ids that are not small positive integers", async () => {
+    const { parseRouteId } = await import("@/lib/site");
+    assert.equal(parseRouteId("46"), 46);
+    for (const bad of ["abc", "0", "-1", "1.5", "3000000000", "", "12abc"]) assert.equal(parseRouteId(bad), null, bad);
+  });
+
+  it("drops characters XML forbids before escaping", async () => {
+    const { xmlEscape } = await import("@/lib/site");
+    assert.equal(xmlEscape("a\u0001b\u000Bc & <d>￾"), "abc &amp; &lt;d&gt;");
+    assert.equal(xmlEscape("line\nnext\ttab"), "line\nnext\ttab");
+  });
+
+  it("refuses a megabyte-long push endpoint", async () => {
+    const { isAllowedPushEndpoint } = await import("@/lib/push/core");
+    assert.equal(isAllowedPushEndpoint(`https://fcm.googleapis.com/fcm/send/${"a".repeat(2_000)}`), false);
+  });
+});

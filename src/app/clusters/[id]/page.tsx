@@ -9,6 +9,7 @@ import { ArticleGrid } from "@/components/iltod/article-grid";
 import { RiskBadge } from "@/components/iltod/badges";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { getCluster, getClusters } from "@/lib/queries";
+import { parseRouteId } from "@/lib/site";
 
 export async function generateStaticParams() {
   const clusters = await getClusters(20);
@@ -17,13 +18,14 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/clusters/[id]">): Promise<Metadata> {
   const { id } = await params;
-  const data = await getCluster(Number(id));
+  const parsed = parseRouteId(id);
+  const data = parsed ? await getCluster(parsed) : null;
   return { title: data?.cluster.title ?? "Кластер", alternates: { canonical: `/clusters/${id}` } };
 }
 
 async function ClusterView({ params }: { params: PageProps<"/clusters/[id]">["params"] }) {
-  const id = Number((await params).id);
-  if (!Number.isInteger(id) || id <= 0) notFound();
+  const id = parseRouteId((await params).id);
+  if (!id) notFound();
   const data = await getCluster(id);
   if (!data) notFound();
   const { cluster, articles } = data;

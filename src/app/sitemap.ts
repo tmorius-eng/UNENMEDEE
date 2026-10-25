@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
 
-import { getPoliticianIds, getSitemapArticles } from "@/lib/queries";
+import { getPoliticianIds, getSitemapSlugs } from "@/lib/queries";
 import { absoluteUrl } from "@/lib/site";
 import { TOPICS } from "@/lib/topics";
 
 /** Every public page and article. Builds without a database (static pages only). */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [articles, officials] = await Promise.all([getSitemapArticles(45_000) /* a sitemap holds 50k URLs: every published article is listed */, getPoliticianIds()]);
+  const [articles, officials] = await Promise.all([getSitemapSlugs(45_000) /* a sitemap holds 50k URLs: every published article is listed */, getPoliticianIds()]);
   const newest = articles[0]?.lastModified;
   const pages: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), lastModified: newest, changeFrequency: "hourly", priority: 1 },

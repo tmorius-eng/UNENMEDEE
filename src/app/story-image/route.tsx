@@ -1,6 +1,7 @@
 import { formatDateMn } from "@/lib/format";
 import { storyImage } from "@/lib/og";
 import { getArticleBySlug, getPolitician } from "@/lib/queries";
+import { canonicalImageQuery } from "@/lib/site";
 
 /**
  * Story image for a page of this site (GET /story-image?p=/article/<slug>). Text comes from our
@@ -33,7 +34,10 @@ async function contentFor(path: string) {
 }
 
 export async function GET(request: Request) {
-  const path = new URL(request.url).searchParams.get("p") ?? "";
+  const url = new URL(request.url);
+  const canonical = canonicalImageQuery(url, ["p"]);
+  if (canonical) return Response.redirect(new URL(canonical, url), 308);
+  const path = url.searchParams.get("p") ?? "";
   const content = await contentFor(path);
   if (!content) return new Response("Not found", { status: 404 });
   const res = await storyImage(content);
