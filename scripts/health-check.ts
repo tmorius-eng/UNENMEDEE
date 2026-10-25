@@ -22,8 +22,9 @@ async function main() {
   const db = getDb();
   const [r] = (
     await db.execute(sql`select
-      extract(epoch from now() - (select max(created_at) from articles)) / 3600 as hours_since_article,
-      extract(epoch from now() - (select max(created_at) from articles where tldr_summary is not null and not summary_fallback)) / 3600 as hours_since_ai,
+      -- Published rows only: archive/menu pages stored unpublished must not make a dead feed look alive.
+      extract(epoch from now() - (select max(created_at) from articles where is_published)) / 3600 as hours_since_article,
+      extract(epoch from now() - (select max(created_at) from articles where is_published and tldr_summary is not null and not summary_fallback)) / 3600 as hours_since_ai,
       extract(epoch from now() - (select max(created_at) from digests)) / 3600 as hours_since_digest,
       (select count(*) from articles where tldr_summary is null)::int as ai_backlog,
       (select count(*) from sources where is_active)::int as active_sources,
