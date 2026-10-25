@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { after } from "next/server";
 
 import { getDb, hasDatabase } from "@/db";
 import { appSettings } from "@/db/schema";
@@ -13,7 +14,9 @@ import {
   MESSENGER_SETTINGS_KEY,
   type MessengerSettings,
   parseSettings,
+  sameSecret,
   searchReply,
+  seenOnce,
   sendText,
   validSignature,
 } from "@/lib/social/messenger";
@@ -21,7 +24,9 @@ import {
 /**
  * Messenger and Instagram DM webhook for ИЛ ТОД МЭДЭЭ (src/lib/social/messenger.ts). GET answers
  * Meta's subscription check; POST verifies the X-Hub-Signature-256 HMAC (app secret or Instagram
- * app secret) before reading anything and replies with our own stories only. Secrets come from the
+ * app secret) before reading anything, answers 200 at once and replies afterwards (`after()`), so a
+ * slow search never makes Meta redeliver the event; a redelivered message id is answered once per
+ * instance (`seenOnce`). Replies use our own stories only. Secrets come from the
  * MESSENGER_SETTINGS env var (Vercel) or app_settings; the Instagram token is the one the pipeline
  * keeps refreshed in app_settings (`instagram`). Both are cached per instance for 5 minutes.
  */
@@ -69,7 +74,7 @@ async function instagramAppSecret(s: MessengerSettings): Promise<string | null> 
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const s = await settings();
-  if (s && url.searchParams.get("hub.mode") === "subscribe" && url.searchParams.get("hub.verify_token") === s.verifyToken) {
+  if (s && url.searchParams.get("hub.mode") === "subscribe" && sameSecret(url.searchParams.get("hub.verify_token"), s.verifyToken)) {
     return new Response(url.searchParams.get("hub.challenge") ?? "", { headers: { "content-type": "text/plain" } });
   }
   return new Response("forbidden", { status: 403 });
@@ -83,8 +88,10 @@ async function replyTo(text: string): Promise<string> {
   return searchReply(intent.q, found.articles);
 }
 
+const alreadyAnswered = seenOnce();
+
 export async function POST(req: Request) {
-  const raw = await req.text();
+  const raw = Buffer.from(await req.arrayBuffer());
   const s = await settings();
   const signature = req.headers.get("x-hub-signature-256");
   if (!s) return new Response("forbidden", { status: 403 });
@@ -94,20 +101,22 @@ export async function POST(req: Request) {
   }
   let body: unknown;
   try {
-    body = JSON.parse(raw);
+    body = JSON.parse(raw.toString("utf8"));
   } catch {
     return new Response("bad request", { status: 400 });
   }
-  const messages = incoming(body);
-  const igToken = messages.some((m) => m.channel === "instagram") ? await instagramToken() : null;
-  const results = await Promise.allSettled(
-    messages.map(async (m) => {
-      const token = m.channel === "instagram" ? igToken : s.pageToken;
-      if (!token) throw new Error("no Instagram token stored yet");
-      await sendText({ pageToken: token, channel: m.channel, recipientId: m.senderId, text: await replyTo(m.text) });
-    }),
-  );
-  for (const r of results) if (r.status === "rejected") console.error("[messenger]", r.reason instanceof Error ? r.reason.message : r.reason);
-  // Always 200 once the signature is valid: Meta retries non-200 answers and would repeat replies.
+  const messages = incoming(body).filter((m) => !alreadyAnswered(m.mid));
+  // Answer Meta first (it redelivers slow or non-200 answers, which repeated replies), then reply.
+  after(async () => {
+    const igToken = messages.some((m) => m.channel === "instagram") ? await instagramToken().catch(() => null) : null;
+    const results = await Promise.allSettled(
+      messages.map(async (m) => {
+        const token = m.channel === "instagram" ? igToken : s.pageToken;
+        if (!token) throw new Error("no Instagram token stored yet");
+        await sendText({ pageToken: token, channel: m.channel, recipientId: m.senderId, text: await replyTo(m.text) });
+      }),
+    );
+    for (const r of results) if (r.status === "rejected") console.error("[messenger]", r.reason instanceof Error ? r.reason.message : r.reason);
+  });
   return new Response("EVENT_RECEIVED");
 }

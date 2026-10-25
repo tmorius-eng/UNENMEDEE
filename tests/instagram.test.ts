@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CAPTION_MAX, instagramArticlePost, instagramDigestPost, publishInstagram } from "@/lib/social/instagram";
+import { outcomeUnknown } from "@/lib/social/outcome";
+import { cut, publishThreads, threadsLength } from "@/lib/social/threads";
 
 describe("instagram posts", () => {
   it("digest: our JPEG card, every headline and the bio hint in the caption", () => {
@@ -44,5 +46,35 @@ describe("instagram posts", () => {
     const bad = (async () => Response.json({ error: { message: "Invalid OAuth access token", code: 190 } }, { status: 400 })) as unknown as typeof fetch;
     const err = await publishInstagram({ token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: bad }).catch((e: Error) => e);
     assert.ok(err instanceof Error && err.message.includes("code 190") && !err.message.includes("SECRET"));
+  });
+});
+
+describe("social publishing safety", () => {
+  it("never publishes a container that stays IN_PROGRESS", async () => {
+    const calls: string[] = [];
+    const f = (async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? "GET"} ${url.split("?")[0]}`);
+      if (url.endsWith("/me/media") || url.endsWith("/me/threads")) return Response.json({ id: "c1" });
+      if (url.includes("/c1?")) return Response.json({ status_code: "IN_PROGRESS", status: "IN_PROGRESS" });
+      return Response.json({ id: "m1" });
+    }) as unknown as typeof fetch;
+    const ig = await publishInstagram({ token: "T", post: { imageUrl: "u", caption: "c" }, fetchImpl: f, sleep: async () => {} }).catch((e: Error) => e);
+    assert.ok(ig instanceof Error && /not finished/.test(ig.message));
+    const th = await publishThreads({ token: "T", post: { text: "x", link: "l", imageUrl: "u" }, fetchImpl: f, sleep: async () => {} }).catch((e: Error) => e);
+    assert.ok(th instanceof Error && /not finished/.test(th.message));
+    assert.ok(!calls.some((c) => c.includes("publish")), calls.join("\n"));
+  });
+
+  it("treats timeouts and dropped connections as 'may have posted'", () => {
+    assert.equal(outcomeUnknown(new DOMException("t", "TimeoutError")), true);
+    assert.equal(outcomeUnknown(Object.assign(new TypeError("fetch failed"), { cause: { code: "UND_ERR_SOCKET" } })), true);
+    assert.equal(outcomeUnknown(new Error("Instagram 400: Invalid OAuth access token")), false);
+  });
+
+  it("cuts Threads text at whole emoji and counts the emoji variation selector", () => {
+    assert.equal(threadsLength("⚖️"), threadsLength("⚖") + 3);
+    const out = cut("ab😀😀😀", 6);
+    assert.ok(!/[\uD800-\uDBFF]…$/.test(out), JSON.stringify(out));
+    assert.ok(threadsLength(out) <= 6);
   });
 });

@@ -36,9 +36,10 @@ export function parseSettings(value: string | null | undefined): MessengerSettin
 }
 
 /** `X-Hub-Signature-256: sha256=<hex>` = HMAC-SHA256 of the raw body with the app secret. */
-export function validSignature(rawBody: string, header: string | null, appSecret: string): boolean {
+export function validSignature(rawBody: string | Buffer, header: string | null, appSecret: string): boolean {
   if (!header?.startsWith("sha256=")) return false;
-  const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest();
+  // HMAC over the exact bytes Meta sent (a Buffer); a string is hashed as UTF-8.
+  const expected = createHmac("sha256", appSecret).update(rawBody).digest();
   const given = Buffer.from(header.slice(7), "hex");
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
@@ -90,8 +91,19 @@ function fit(text: string): string {
 export type Channel = "messenger" | "instagram";
 
 /** Text messages and postbacks people sent to the page or its Instagram (echoes of our own replies skipped). */
-export function incoming(body: unknown): { channel: Channel; senderId: string; text: string }[] {
-  const out: { channel: Channel; senderId: string; text: string }[] = [];
+/** Meta batches up to ~1,000 events per POST; we answer at most this many per delivery. */
+export const MAX_REPLIES_PER_DELIVERY = 25;
+
+export interface IncomingMessage {
+  channel: Channel;
+  senderId: string;
+  text: string;
+  /** Message id: Meta redelivers a webhook it thinks failed, and the same mid must not be answered twice. */
+  mid?: string;
+}
+
+export function incoming(body: unknown): IncomingMessage[] {
+  const out: IncomingMessage[] = [];
   const entries = (body as { object?: string; entry?: unknown[] })?.entry;
   // "page" = Messenger (answered with the page token), "instagram" = Instagram DMs (Instagram token).
   const object = (body as { object?: string })?.object;
@@ -100,17 +112,38 @@ export function incoming(body: unknown): { channel: Channel; senderId: string; t
   for (const entry of entries) {
     for (const ev of ((entry as { messaging?: unknown[] }).messaging ?? []) as {
       sender?: { id?: string };
-      message?: { text?: string; is_echo?: boolean };
+      message?: { text?: string; is_echo?: boolean; mid?: string };
       postback?: { payload?: string };
     }[]) {
       const senderId = ev.sender?.id;
       if (!senderId || ev.message?.is_echo) continue;
-      if (typeof ev.message?.text === "string") out.push({ channel, senderId, text: ev.message.text });
+      const mid = ev.message?.mid ? { mid: ev.message.mid } : {};
+      if (typeof ev.message?.text === "string") out.push({ channel, senderId, text: ev.message.text, ...mid });
       else if (ev.postback?.payload) out.push({ channel, senderId, text: ev.postback.payload });
-      else if (ev.message) out.push({ channel, senderId, text: "" }); // a sticker or photo: answer with help
+      else if (ev.message) out.push({ channel, senderId, text: "", ...mid }); // a sticker or photo: answer with help
     }
   }
-  return out.slice(0, 10);
+  return out.slice(0, MAX_REPLIES_PER_DELIVERY);
+}
+
+/** Message ids already answered by this instance (a small LRU: Meta's retries come within minutes). */
+export function seenOnce(max = 500) {
+  const seen = new Set<string>();
+  return (mid: string | undefined): boolean => {
+    if (!mid) return false;
+    if (seen.has(mid)) return true;
+    seen.add(mid);
+    if (seen.size > max) seen.delete(seen.values().next().value as string);
+    return false;
+  };
+}
+
+/** Constant-time comparison for the subscription check's verify_token. */
+export function sameSecret(given: string | null, expected: string): boolean {
+  if (given === null) return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**

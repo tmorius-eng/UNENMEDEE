@@ -80,10 +80,12 @@ export async function publishInstagram(opts: { token: string; post: InstagramPos
   });
   const id = String(created.id ?? "");
   if (!id) throw new Error("Instagram returned no container id");
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; ; i++) {
     const s = await call(f, `${base}/${encodeURIComponent(id)}?${new URLSearchParams({ fields: "status_code,status", access_token: token })}`);
     if (s.status_code === "FINISHED") break;
     if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new Error(`Instagram container ${String(s.status_code)}: ${String(s.status ?? "")}`);
+    // Never publish a container that is not ready (media_publish would fail or post without the image).
+    if (i >= 11) throw new Error(`Instagram container not finished after ${i + 1} checks (${String(s.status_code ?? "?")})`);
     await sleep(5_000);
   }
   const published = await call(f, `${base}/me/media_publish`, { method: "POST", body: new URLSearchParams({ creation_id: id, access_token: token }) });

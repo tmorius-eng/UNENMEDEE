@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
 
-import { classify, digestReply, helpReply, incoming, MAX_TEXT, parseSettings, searchReply, sendText, validSignature } from "@/lib/social/messenger";
+import { classify, digestReply, helpReply, incoming, MAX_TEXT, parseSettings, sameSecret, searchReply, seenOnce, sendText, validSignature } from "@/lib/social/messenger";
 
 describe("messenger bot", () => {
   it("classifies greetings, the digest word and searches", () => {
@@ -81,5 +81,33 @@ describe("messenger bot", () => {
     assert.equal(seen?.url, "https://graph.facebook.com/v26.0/me/messages");
     await sendText({ pageToken: "IG", channel: "instagram", recipientId: "9", text: "hi", fetchImpl: ok });
     assert.equal(seen?.url, "https://graph.instagram.com/v26.0/me/messages");
+  });
+});
+
+describe("messenger webhook redelivery", () => {
+  it("answers a message id once, keeps a bounded memory and reads mids", () => {
+    const seen = seenOnce(2);
+    assert.equal(seen("m1"), false);
+    assert.equal(seen("m1"), true);
+    assert.equal(seen(undefined), false);
+    seen("m2");
+    seen("m3"); // m1 falls out
+    assert.equal(seen("m1"), false);
+    const [m] = incoming({ object: "page", entry: [{ messaging: [{ sender: { id: "u" }, message: { text: "тойм", mid: "mid.1" } }] }] });
+    assert.equal(m.mid, "mid.1");
+  });
+
+  it("compares the verify token in constant time and refuses a missing one", () => {
+    assert.equal(sameSecret("abc", "abc"), true);
+    assert.equal(sameSecret("abd", "abc"), false);
+    assert.equal(sameSecret("ab", "abc"), false);
+    assert.equal(sameSecret(null, "abc"), false);
+  });
+
+  it("checks the signature over the raw bytes", () => {
+    const raw = Buffer.from('{"object":"page","entry":[]}');
+    const sig = `sha256=${createHmac("sha256", "s3cret").update(raw).digest("hex")}`;
+    assert.equal(validSignature(raw, sig, "s3cret"), true);
+    assert.equal(validSignature(raw, sig, "other"), false);
   });
 });

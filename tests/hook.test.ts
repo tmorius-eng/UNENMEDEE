@@ -21,6 +21,12 @@ describe("hook highlight", () => {
     assert.equal(hot("195.5 мянган өрхийн 61.8 сая мал"), "195.5 мянган өрхийн");
   });
 
+  it("skips a year and strips brackets around the number", () => {
+    assert.equal(hot("2026 оны төсөвт 1.2 их наяд төгрөг нэмэгдлээ"), "1.2 их наяд төгрөг");
+    assert.equal(hot("Шинэ журам (250 мянган ₮ торгууль) батлагдлаа"), "(250 мянган ₮ торгууль)");
+    assert.equal(hot("2026 онд хэрэгжинэ"), "");
+  });
+
   it("leaves headlines without numbers plain", () => {
     assert.equal(hot("Шинэ хууль батлагдлаа"), "");
     assert.equal(hookWords("Шинэ хууль").length, 2);

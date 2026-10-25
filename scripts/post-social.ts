@@ -24,6 +24,8 @@ import { type ArticleForPost, articlePost, type DigestForPost, digestPost, Faceb
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
+import { outcomeUnknown } from "@/lib/social/outcome";
+import { topicFor } from "@/lib/topics";
 
 const { values } = parseArgs({
   options: {
@@ -95,19 +97,34 @@ async function storedToken(db: Db, key: string, envToken: string | undefined, re
 const notPosted = (platform: string, kind: string, ref: unknown) =>
   sql`not exists (select 1 from ${socialPosts} where ${socialPosts.platform} = ${platform} and ${socialPosts.kind} = ${kind} and ${socialPosts.refId} = ${ref})`;
 
-/** Reserve, post, record the id; a failed post frees the row so the next run can try again. */
+/**
+ * Reserve, post, record the id. Only a post the platform clearly refused frees the row for the
+ * next run. Once it may have gone out (published but the DB update failed, or the answer was lost
+ * to a timeout) the reservation stays, marked for a manual check: a repost would be a duplicate.
+ */
 async function post(db: Db, p: Platform, kind: "digest" | "article", refId: number, item: { preview: string; publish(): Promise<string> }) {
   console.log(`  → ${p.name} ${kind} #${refId}: ${item.preview.replace(/\n/g, "\n    ")}`);
   if (dry) return;
   const [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
   if (!row) return console.log("    already posted, skipped");
+  let id: string;
   try {
-    const id = await item.publish();
-    await db.update(socialPosts).set({ postId: id }).where(eq(socialPosts.id, row.id));
-    console.log(`    ✓ posted ${id}`);
+    id = await item.publish();
   } catch (err) {
+    if (outcomeUnknown(err)) {
+      await db.update(socialPosts).set({ postId: "unknown" }).where(eq(socialPosts.id, row.id));
+      console.error(`::warning::${p.name} ${kind} #${refId}: no answer (${err instanceof Error ? err.message : err}); kept as posted, check the page by hand.`);
+      return;
+    }
     await db.delete(socialPosts).where(eq(socialPosts.id, row.id));
     throw err;
+  }
+  console.log(`    ✓ posted ${id}`);
+  try {
+    await db.update(socialPosts).set({ postId: id }).where(eq(socialPosts.id, row.id));
+  } catch (err) {
+    // Published: keep the reservation (without its id) rather than posting it again next run.
+    console.error(`::warning::${p.name} post ${id} went out but its id was not stored: ${err instanceof Error ? err.message : err}`);
   }
 }
 
@@ -139,6 +156,7 @@ async function postNews(db: Db, p: Platform) {
       entities: articles.extractedEntities,
       riskFlag: articles.riskFlag,
       topic: articles.topic,
+      domain: sources.domain,
       category: sources.category,
     })
     .from(articles)
@@ -160,8 +178,9 @@ async function postNews(db: Db, p: Platform) {
     .limit(room);
   if (rows.length === 0) return console.log(`📘 ${p.name}: no new important story to post.`);
   for (const r of rows) {
-    // Aimag and district sites read as local news, like the site's own topic labels (topics.ts).
-    const topic = r.category === "local" ? "local" : r.topic;
+    // The site's own topic rule (topics.ts): aimag/district sites are local, opendata is data,
+    // otherwise the AI topic with the domain as fallback.
+    const topic = topicFor(r.domain, r.category, r.topic).key;
     await post(db, p, "article", r.id, p.article({ ...r, topic, tldr: r.tldr ?? "", amounts: r.entities?.amounts_mnt ?? [] }));
   }
 }
@@ -171,10 +190,11 @@ async function pageIdOf(token: string): Promise<string | undefined> {
   try {
     const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/me?fields=id`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
     const json = (await res.json()) as { id?: string; error?: { message?: string } };
-    if (!json.id) console.error(`::warning::Facebook page id lookup failed: ${json.error?.message ?? res.status}`);
+    // FB_PAGE_TOKEN is set but unusable: an error, not a quiet skip.
+    if (!json.id) console.error(`::error::Facebook page id lookup failed: ${json.error?.message ?? res.status}`);
     return json.id;
   } catch (err) {
-    console.error(`::warning::Facebook page id lookup failed: ${err instanceof Error ? err.message : err}`);
+    console.error(`::error::Facebook page id lookup failed: ${err instanceof Error ? err.message : err}`);
     return undefined;
   }
 }
