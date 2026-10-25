@@ -9,12 +9,14 @@ import { AIMessage } from "@/components/iltod/ai-message";
 import { ArticleGrid } from "@/components/iltod/article-grid";
 import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod/badges";
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
+import { FollowCard } from "@/components/iltod/follow-card";
 import { HashBadge } from "@/components/iltod/hash-badge";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
+import { placeGenitive, placeOfDomain } from "@/lib/places";
 import { type ArticleDetail, getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
 import { absoluteUrl, jsonLd, safeHttpUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import { topicFor } from "@/lib/topics";
@@ -120,6 +122,8 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
+  // Local stories link to their aimag / district page ("Ховд аймгийн бүх мэдээ →").
+  const place = article.sourceCategory === "local" ? placeOfDomain(article.sourceDomain) : undefined;
 
   const dateUnknown = article.scrapeMeta?.date_unknown === true;
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
@@ -247,6 +251,12 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <Related clusterId={article.clusterId} currentId={article.id} />
         </Suspense>
       )}
+      {place && (
+        <Link href={`/place/${place.slug}`} prefetch={false} className="w-fit text-sm font-semibold text-brand-secondary hover:underline">
+          {placeGenitive(place)} бүх мэдээ →
+        </Link>
+      )}
+      <FollowCard />
     </article>
   );
 }

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { Empty } from "@/components/iltod/empty";
+import { FollowCard } from "@/components/iltod/follow-card";
 import { PlacePicker } from "@/components/iltod/place-picker";
 import { StoryList } from "@/components/iltod/story-list";
 import { findPlace, type Place, placeGenitive, placeLabel, PLACES } from "@/lib/places";
@@ -105,6 +106,7 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
         />
       )}
 
+      <FollowCard />
       <PlacePicker current={place.slug} title="Бусад аймаг, дүүрэг" />
     </div>
   );
