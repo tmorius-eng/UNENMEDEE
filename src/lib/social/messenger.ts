@@ -11,6 +11,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { PRODUCTION_URL } from "@/lib/site";
 
 export const MESSENGER_SETTINGS_KEY = "messenger";
+/** app_settings key of the Instagram app secret (Instagram-Login DM webhooks are signed with it). */
+export const IG_APP_SECRET_KEY = "instagram_app_secret";
 /** Messenger rejects texts over 2000 characters. */
 export const MAX_TEXT = 2000;
 
