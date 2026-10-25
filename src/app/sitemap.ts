@@ -3,6 +3,8 @@ import type { MetadataRoute } from "next";
 import { getPoliticianIds, getSitemapSlugs } from "@/lib/queries";
 import { absoluteUrl } from "@/lib/site";
 import { PLACES } from "@/lib/places";
+import { ALL_DIRECTIONS } from "@/lib/promises";
+import { directionSlug } from "@/lib/promises/programme";
 import { TOPICS } from "@/lib/topics";
 
 /** Every public page and article. Builds without a database (static pages only). */
@@ -21,6 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/budget"), changeFrequency: "weekly", priority: 0.8 },
     { url: absoluteUrl("/tax"), changeFrequency: "monthly", priority: 0.7 },
     { url: absoluteUrl("/laws"), changeFrequency: "daily", priority: 0.8 },
+    { url: absoluteUrl("/promises"), changeFrequency: "monthly", priority: 0.7 },
+    ...ALL_DIRECTIONS.map(({ direction }) => ({ url: absoluteUrl(`/promises/${directionSlug(direction.id)}`), changeFrequency: "monthly" as const, priority: 0.5 })),
     { url: absoluteUrl("/support"), changeFrequency: "monthly", priority: 0.4 },
     { url: absoluteUrl("/privacy"), changeFrequency: "yearly", priority: 0.2 },
     { url: absoluteUrl("/sources"), changeFrequency: "daily", priority: 0.4 },
