@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
-import { discordArticlePost, discordDigestPost, discordMessage, discordQuizPost, meter, publishDiscord } from "@/lib/social/discord";
+import { discordArticlePost, discordChannelId, discordDigestPost, discordMessage, discordQuizPost, meter, publishDiscord } from "@/lib/social/discord";
 import { makeQuiz, maskAmounts } from "@/lib/social/quiz";
 import { formatShare, perPersonLine, perPersonShare } from "@/lib/per-person";
 
@@ -225,5 +225,15 @@ describe("daily quiz", () => {
     assert.ok(m.content.includes("||186.2 тэрбум ₮, 3.43 сая хүнд хуваавал ≈ 54 400₮ / хүн||"));
     assert.deepEqual(m.embeds, []);
     assert.deepEqual(m.allowed_mentions, { parse: [] });
+  });
+});
+
+describe("discord channel id", () => {
+  it("takes the bare id or the channel URL's last number", () => {
+    assert.equal(discordChannelId("1563925741400236156"), "1563925741400236156");
+    assert.equal(discordChannelId(" https://discord.com/channels/1563925739798138952/1563925741400236156 \n"), "1563925741400236156");
+    assert.equal(discordChannelId(""), undefined);
+    assert.equal(discordChannelId(undefined), undefined);
+    assert.equal(discordChannelId("мэдээ"), undefined);
   });
 });
