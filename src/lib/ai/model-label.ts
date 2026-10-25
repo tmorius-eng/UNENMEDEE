@@ -6,6 +6,9 @@ export const PROVIDER_NAMES: Record<string, string> = {
   nvidia: "NVIDIA NIM",
   groq: "Groq",
   requesty: "Requesty",
+  mistral: "Mistral AI",
+  openrouter: "OpenRouter",
+  zai: "Z.ai GLM",
   ollama: "Ollama",
 };
 

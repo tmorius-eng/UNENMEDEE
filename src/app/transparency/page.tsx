@@ -49,6 +49,9 @@ const PROVIDER_LABEL: Record<string, string> = {
   nvidia: "NVIDIA NIM · Gemma (үнэгүй)",
   groq: "Groq · Qwen (үнэгүй)",
   requesty: "Requesty · Gemma (үнэгүй загвар)",
+  mistral: "Mistral AI (үнэгүй багц)",
+  openrouter: "OpenRouter · үнэгүй загварууд",
+  zai: "Z.ai · GLM Flash (үнэгүй)",
   ollama: "Ollama (локал, 0$)",
 };
 
