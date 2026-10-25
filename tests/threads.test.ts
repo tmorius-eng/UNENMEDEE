@@ -23,13 +23,13 @@ describe("threads posts", () => {
     const p = threadsDigestPost({ ...digest, items: digest.items.map((it) => ({ ...it, whyItMatters: "ү".repeat(400) })) });
     assert.ok(threadsLength(p.text) <= THREADS_MAX);
     assert.ok(p.text.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\n\n⚡ Гарчиг 1"));
-    assert.ok(p.text.endsWith("Бүх 6 мэдээ 👉 https://iltodmedee.mn/digest\n#ИлТодМэдээ"));
+    assert.ok(p.text.endsWith("Бүх 6 мэдээ 👉 https://iltodmedee.mn/digest\n#мэдээ"));
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=1");
   });
 
   it("article: headline hook, first summary sentence, amount, source, link", () => {
-    const p = threadsArticlePost({ id: 1, slug: "s", title: "Т", tldr: "Нэг.\nХоёр.", sourceName: "Яам", amounts: ["2 тэрбум ₮", "5 сая ₮"], riskFlag: false });
-    assert.equal(p.text, "⚡ Т\n\nНэг.\n\n💰 2 тэрбум ₮\n🏛 Яам\n\n👉 https://iltodmedee.mn/article/s");
+    const p = threadsArticlePost({ id: 1, slug: "s", title: "Т", tldr: "Нэг.\nХоёр.", sourceName: "Яам", amounts: ["2 тэрбум ₮", "5 сая ₮"], riskFlag: false, topic: "economy" });
+    assert.equal(p.text, "⚡ Т\n\nНэг.\n\n💰 2 тэрбум ₮\n🏛 Яам\n\n👉 https://iltodmedee.mn/article/s\n#эдийнзасаг");
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=s");
   });
 

@@ -9,8 +9,9 @@ import { editionLabel } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { PRODUCTION_URL } from "@/lib/site";
 
+import { hashtags } from "./hashtags";
+
 export const GRAPH_VERSION = process.env.FB_GRAPH_VERSION || "v26.0";
-const HASHTAG = "#ИлТодМэдээ";
 
 export interface FacebookPost {
   message: string;
@@ -36,6 +37,8 @@ export interface ArticleForPost {
   sourceName: string;
   amounts: string[];
   riskFlag: boolean;
+  /** The article's topic key (src/lib/topics.ts) for hashtags. */
+  topic?: string | null;
 }
 
 /** Hook first: the top story and why it matters, then the next four headlines and the link. */
@@ -45,7 +48,7 @@ export function digestPost(d: DigestForPost, site = PRODUCTION_URL): FacebookPos
   const lines = [`🗞 ${editionLabel(d)}`, ""];
   if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
   if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 4).map((it) => `• ${it.headline}`), "");
-  lines.push(`Бүх ${d.items.length} мэдээ, эх сурвалжтай нь 👉 ${link}`, "", HASHTAG);
+  lines.push(`Бүх ${d.items.length} мэдээ, эх сурвалжтай нь 👉 ${link}`, "", hashtags("facebook"));
   return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
@@ -63,7 +66,7 @@ export function articlePost(a: ArticleForPost, site = PRODUCTION_URL): FacebookP
     "",
     `Дэлгэрэнгүй, эх баримтын холбоос 👉 ${link}`,
     "",
-    HASHTAG,
+    hashtags("facebook", a.topic),
   ];
   return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }

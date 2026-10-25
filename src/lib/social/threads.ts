@@ -11,6 +11,7 @@ import { largestAmount, tldrSentences } from "@/lib/format";
 import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
+import { hashtags } from "./hashtags";
 
 export const THREADS_API = "https://graph.threads.com";
 export const THREADS_SETTINGS_KEY = "threads";
@@ -45,7 +46,7 @@ export function threadsDigestPost(d: DigestForPost, site = PRODUCTION_URL): Thre
   const link = `${site}/digest`;
   const top = d.items[0];
   const head = `🗞 ${editionLabel(d)}\n\n⚡ ${cut(top?.headline ?? d.title, 180)}`;
-  const tail = `\n\nБүх ${d.items.length} мэдээ 👉 ${link}\n#ИлТодМэдээ`;
+  const tail = `\n\nБүх ${d.items.length} мэдээ 👉 ${link}\n${hashtags("threads")}`;
   const room = THREADS_MAX - threadsLength(head + tail + "\n👉 ");
   const why = top?.whyItMatters && room > 40 ? `\n👉 ${cut(top.whyItMatters, room)}` : "";
   return { text: cut(head + why + tail, THREADS_MAX), link, imageUrl: `${site}/ig-image?d=${d.id}` };
@@ -55,7 +56,7 @@ export function threadsDigestPost(d: DigestForPost, site = PRODUCTION_URL): Thre
 export function threadsArticlePost(a: ArticleForPost, site = PRODUCTION_URL): ThreadsPost {
   const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
-  const tail = `\n\n👉 ${link}`;
+  const tail = `\n\n👉 ${link}\n${hashtags("threads", a.topic)}`;
   const parts = [`${a.riskFlag ? "🚨" : "⚡"} ${cut(a.title, 200)}`, "", cut(tldrSentences(a.tldr, 1)[0] ?? "", 180), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
   return { text: cut(parts.join("\n"), THREADS_MAX - threadsLength(tail)) + tail, link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }

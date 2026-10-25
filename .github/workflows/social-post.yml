@@ -1,0 +1,54 @@
+# Manual social posting: runs `npm run social:post` with the same secrets as the pipeline, so a
+# new digest or important story can be sent to Facebook, Threads and Instagram right away (or a
+# setup checked) without waiting for the 2-hourly pipeline. social_posts keeps it from posting
+# anything twice, whichever run gets there first.
+name: Social post (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "news = the most important new story, digest = the newest digest edition"
+        required: false
+        default: "news"
+      dry_run:
+        description: "true = print the posts, publish nothing"
+        required: false
+        default: "false"
+
+concurrency:
+  group: social-post
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
+      FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+      THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+      INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+      IN_MODE: ${{ inputs.mode }}
+      IN_DRY: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Post to Facebook, Threads and Instagram
+        run: |
+          case "$IN_MODE" in news|digest) ;; *) echo "::error::mode must be news or digest"; exit 1;; esac
+          if [ "$IN_DRY" = "true" ]; then npm run social:post -- --mode "$IN_MODE" --dry-run; else npm run social:post -- --mode "$IN_MODE"; fi
