@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 
 import { NavLinks, NavLinksFallback } from "./nav-links";
+import { SocialLinks } from "./social-links";
 import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -29,6 +30,10 @@ export function MobileMenu() {
           <Link href="/support" onClick={() => setOpen(false)} className="mt-2 block rounded-lg border-t border-secondary px-3 pt-3 pb-1 text-sm font-semibold text-brand-secondary">
             💙 Ил тод мэдээг дэмжих (хандив)
           </Link>
+          <div className="mt-2 flex items-center gap-3 border-t border-secondary px-3 pt-3 pb-1 text-sm text-tertiary">
+            <span>Биднийг дагаарай</span>
+            <SocialLinks size="md" className="ml-auto" />
+          </div>
           <div className="mt-2 flex items-center gap-1 border-t border-secondary px-1 pt-2 text-sm text-tertiary sm:hidden">
             <span className="px-2">Үсгийн хэмжээ</span>
             <TextSizeToggle />

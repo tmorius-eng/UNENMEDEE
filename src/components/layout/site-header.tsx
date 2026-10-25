@@ -10,6 +10,7 @@ import { DonateChip } from "./donate";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { NavLinks, NavLinksFallback } from "./nav-links";
+import { SocialLinks } from "./social-links";
 import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -52,6 +53,11 @@ export function SiteHeader() {
           <DonateChip className="mx-auto hidden rounded-full bg-secondary px-3 py-1.5 sm:flex xl:hidden" />
         </Suspense>
         <div className="ml-auto flex items-center gap-1">
+          {/* Our accounts fill the empty part of the bar: three small ones on phones from 390 px (with the
+              🔔 button a 360 px row has no room), all five with RSS on desktop; tablets have the donation
+              chip there, and the menu lists them everywhere. */}
+          <SocialLinks only={["facebook", "instagram", "threads"]} size="xs" className="hidden min-[390px]:flex sm:hidden" />
+          <SocialLinks size="md" className="mr-2 hidden border-r border-secondary pr-3 xl:flex" />
           <Link href="/search" aria-label="Хайх" title="Хайх" className="flex size-10 items-center justify-center rounded-lg text-fg-quaternary transition hover:bg-primary_hover hover:text-fg-secondary">
             <SearchLg className="size-5" aria-hidden />
           </Link>

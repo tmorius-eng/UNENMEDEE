@@ -14,6 +14,13 @@ export const PRODUCTION_URL = "https://iltodmedee.mn";
 export const REPO_URL = "https://github.com/tmorius-eng/UNENMEDEE";
 /** Contact for readers, partners and press (forwarded by Porkbun to the owner's inbox). */
 export const CONTACT_EMAIL = "info@iltodmedee.mn";
+/** The site's own social accounts (header, footer, mobile menu, JSON-LD sameAs). */
+export const SOCIAL = {
+  facebook: "https://www.facebook.com/profile.php?id=61595785044734",
+  instagram: "https://www.instagram.com/iltodmedee.mn/",
+  threads: "https://www.threads.com/@iltodmedee.mn",
+  messenger: "https://m.me/61595785044734",
+} as const;
 /** A file or folder in the repository on the main branch. */
 export const repoFile = (path: string) => `${REPO_URL}/blob/main/${path}`;
 export const SITE_TITLE = "ИЛ ТОД МЭДЭЭ — Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ";
