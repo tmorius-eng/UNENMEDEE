@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { currentState, needsRefresh, publishThreads, seedOf, THREADS_MAX, threadsArticlePost, threadsDigestPost, threadsLength } from "@/lib/social/threads";
+import { publishThreads, THREADS_MAX, threadsArticlePost, threadsDigestPost, threadsLength } from "@/lib/social/threads";
+import { currentState, needsRefresh, seedOf } from "@/lib/social/token-state";
 
 const digest = {
   id: 1,

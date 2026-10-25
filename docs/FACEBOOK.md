@@ -63,3 +63,13 @@ npm run social:post -- --mode digest
 
 Pipeline токеныг 7 хоног тутам өөрөө шинэчилж `app_settings`-д хадгална, тиймээс дахин юу ч хийх шаардлагагүй.
 Токен хүчингүй болбол (нууц үг солих г.м.) шинэ токеныг `THREADS_TOKEN`-д хадгалахад хангалттай.
+
+## Instagram
+
+Тойм, чухал мэдээ Instagram-д 1080×1350 JPEG карт + тайлбартай нийтлэгдэнэ (`/ig-image`).
+
+1. Instagram акаунтыг **Professional → Business** болгох.
+2. Апп → **App roles → Roles → Instagram Tester** болгож нэмээд Instagram-ын **Website permissions → Tester invites**-ээс зөвшөөрөх.
+3. **Use cases → Manage messaging & content on Instagram → API setup with Instagram login**:
+   `instagram_business_basic`, `instagram_business_content_publish` → Add; **Generate token**.
+4. Токеныг GitHub **Secrets**-д `INSTAGRAM_TOKEN` нэрээр хадгална. Pipeline 7 хоног тутам өөрөө шинэчилнэ.

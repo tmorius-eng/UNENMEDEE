@@ -629,6 +629,20 @@ export async function getDigests(kind: "12h" | "30d", limit = 10): Promise<Diges
   });
 }
 
+/** One digest edition by id (the Instagram card, /ig-image). */
+export async function getDigestById(id: number): Promise<Pick<DigestView, "id" | "kind" | "periodEnd" | "title" | "items"> | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("digests");
+  return safe("getDigestById", null, async () => {
+    const [d] = await getDb()
+      .select({ id: digests.id, kind: digests.kind, periodEnd: digests.periodEnd, title: digests.title, items: digests.items })
+      .from(digests)
+      .where(eq(digests.id, id));
+    return d ?? null;
+  });
+}
+
 /** opendata.mn catalogue with computed highlights (see scripts/sync-opendata-mn.ts). */
 export async function getOpenDatasets(): Promise<OpenDataset[]> {
   "use cache";

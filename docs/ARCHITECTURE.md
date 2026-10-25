@@ -258,6 +258,8 @@ from our Open Graph image). A `social_posts` row is reserved before each call an
 The never-expiring Page token is the `FB_PAGE_TOKEN` Actions secret ([setup](FACEBOOK.md)).
 The same posts go to Threads (text + link, 500 characters); its 60-day token is refreshed weekly by the
 pipeline and kept in `app_settings`.
+Instagram gets the same stories as a 1080×1350 JPEG card rendered by `/ig-image` (Instagram accepts only
+JPEG from a public URL), with the summary as the caption; its token is kept and refreshed the same way.
 
 People who message the page get an automatic Messenger reply from `/api/messenger`
 ([`route.ts`](../src/app/api/messenger/route.ts)): the request must carry Meta's HMAC signature, and the

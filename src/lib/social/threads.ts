@@ -1,12 +1,10 @@
 /**
  * Threads posting (graph.threads.com): a TEXT container with `link_attachment`, then publish.
  * Long-lived tokens last 60 days and are refreshed by the pipeline (scripts/post-social.ts keeps
- * the current one in app_settings key THREADS_SETTINGS_KEY; THREADS_TOKEN only seeds it).
- * Texts are capped at 500 characters, emoji counting as their UTF-8 bytes. The token travels as the
- * documented `access_token` parameter and never appears in an error message.
+ * the current one in app_settings key THREADS_SETTINGS_KEY; THREADS_TOKEN only seeds it, see
+ * token-state.ts). Texts are capped at 500 characters, emoji counting as their UTF-8 bytes. The
+ * token travels as the documented `access_token` parameter and never appears in an error message.
  */
-import { createHash } from "node:crypto";
-
 import { editionLabel } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { PRODUCTION_URL } from "@/lib/site";
@@ -16,19 +14,10 @@ import type { ArticleForPost, DigestForPost } from "./facebook";
 export const THREADS_API = "https://graph.threads.com";
 export const THREADS_SETTINGS_KEY = "threads";
 export const THREADS_MAX = 500;
-/** Refresh well before the 60-day expiry (a token must be 24 h old to be refreshed). */
-export const REFRESH_AFTER_DAYS = 7;
 
 export interface ThreadsPost {
   text: string;
   link: string;
-}
-
-export interface ThreadsState {
-  token: string;
-  refreshedAt: string;
-  /** sha256 of the THREADS_TOKEN secret this state came from: a new secret replaces the state. */
-  seed: string;
 }
 
 /** Threads counts emoji (and other astral symbols) as their UTF-8 byte length. */
@@ -63,21 +52,6 @@ export function threadsArticlePost(a: ArticleForPost, site = PRODUCTION_URL): Th
   const amount = largestAmount(a.amounts);
   const parts = [`📰 ${cut(a.title, 200)}`, "", cut(tldrSentences(a.tldr, 1)[0] ?? "", 200), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
   return { text: cut(parts.join("\n"), THREADS_MAX), link: `${site}/article/${a.slug}` };
-}
-
-export function seedOf(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-/** Which token to use: a new THREADS_TOKEN secret wins over the stored state, else the state. */
-export function currentState(stored: ThreadsState | null, envToken: string | undefined, now = new Date()): ThreadsState | null {
-  const env = envToken?.trim();
-  if (env && (!stored || stored.seed !== seedOf(env))) return { token: env, refreshedAt: now.toISOString(), seed: seedOf(env) };
-  return stored;
-}
-
-export function needsRefresh(state: ThreadsState, now = new Date()): boolean {
-  return now.getTime() - new Date(state.refreshedAt).getTime() > REFRESH_AFTER_DAYS * 86_400_000;
 }
 
 type Fetch = typeof fetch;

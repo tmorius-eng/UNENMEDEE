@@ -1,5 +1,5 @@
 /**
- * Posts to the ИЛ ТОД МЭДЭЭ Facebook page and Threads account (docs/FACEBOOK.md has the setup).
+ * Posts to the ИЛ ТОД МЭДЭЭ Facebook page, Threads and Instagram (docs/FACEBOOK.md has the setup).
  *
  *   npm run social:post -- --mode digest            # the newest digest edition (morning / evening)
  *   npm run social:post -- --mode news              # the most important new story, if any
@@ -7,7 +7,8 @@
  *
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
- * (`threads`); a new THREADS_TOKEN secret replaces it. Each platform without credentials is
+ * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram works the same way with
+ * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Each platform without credentials is
  * skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
  * importance >= FB_IMPORTANCE_MIN (75) or a risk flag, one per cluster, FB_NEWS_PER_RUN (1) per run
  * and FB_NEWS_PER_DAY (4) per day and platform, so the feeds stay curated, not a firehose.
@@ -20,16 +21,9 @@ import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { appSettings, articles, digests, socialPosts, sources } from "@/db/schema";
 import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage } from "@/lib/social/facebook";
-import {
-  currentState,
-  needsRefresh,
-  publishThreads,
-  refreshToken,
-  THREADS_SETTINGS_KEY,
-  threadsArticlePost,
-  threadsDigestPost,
-  type ThreadsState,
-} from "@/lib/social/threads";
+import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
+import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
+import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
 
 const { values } = parseArgs({
   options: {
@@ -46,7 +40,7 @@ type Db = ReturnType<typeof getDb>;
 
 /** One destination: how a digest / story is worded there and how it is published. */
 interface Platform {
-  name: "facebook" | "threads";
+  name: "facebook" | "threads" | "instagram";
   digest(d: DigestForPost): { preview: string; publish(): Promise<string> };
   article(a: ArticleForPost): { preview: string; publish(): Promise<string> };
 }
@@ -64,28 +58,36 @@ function threads(token: string): Platform {
   return { name: "threads", digest: (d) => make(threadsDigestPost(d)), article: (a) => make(threadsArticlePost(a)) };
 }
 
-/** The Threads token to use, refreshed and stored when it is a week old (not on dry runs). */
-async function threadsToken(db: Db): Promise<string | null> {
-  const [row] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, THREADS_SETTINGS_KEY));
-  let stored: ThreadsState | null = null;
+function instagram(token: string): Platform {
+  const make = (post: { imageUrl: string; caption: string }) => ({ preview: `${post.imageUrl}\n${post.caption}`, publish: () => publishInstagram({ token, post }) });
+  return { name: "instagram", digest: (d) => make(instagramDigestPost(d)), article: (a) => make(instagramArticlePost(a)) };
+}
+
+/**
+ * A 60-day token (Threads, Instagram) seeded by a secret and kept in app_settings: refreshed and
+ * stored when it is a week old (not on dry runs). See src/lib/social/token-state.ts.
+ */
+async function storedToken(db: Db, key: string, envToken: string | undefined, refresh: (token: string) => Promise<string>): Promise<string | null> {
+  const [row] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, key));
+  let stored: TokenState | null = null;
   try {
-    stored = row ? (JSON.parse(row.value) as ThreadsState) : null;
+    stored = row ? (JSON.parse(row.value) as TokenState) : null;
   } catch {
     stored = null;
   }
-  let state = currentState(stored, process.env.THREADS_TOKEN);
+  let state = currentState(stored, envToken);
   if (!state) return null;
   if (!dry && needsRefresh(state)) {
     try {
-      state = { ...state, token: await refreshToken(state.token), refreshedAt: new Date().toISOString() };
-      console.log("🧵 Threads token refreshed (valid 60 more days).");
+      state = { ...state, token: await refresh(state.token), refreshedAt: new Date().toISOString() };
+      console.log(`🔑 ${key} token refreshed (valid 60 more days).`);
     } catch (err) {
-      console.error(`::warning::Threads token refresh failed: ${err instanceof Error ? err.message : err}`);
+      console.error(`::warning::${key} token refresh failed: ${err instanceof Error ? err.message : err}`);
     }
   }
   if (!dry && (!stored || stored.token !== state.token || stored.refreshedAt !== state.refreshedAt)) {
     const value = JSON.stringify(state);
-    await db.insert(appSettings).values({ key: THREADS_SETTINGS_KEY, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    await db.insert(appSettings).values({ key, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   }
   return state.token;
 }
@@ -171,13 +173,16 @@ async function main() {
   if (pageId && fbToken) platforms.push(facebook(pageId, fbToken));
   else if (dry) platforms.push(facebook("dry-run", ""));
   else console.log("📘 Facebook is off: set FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret), see docs/FACEBOOK.md.");
-  const thToken = await threadsToken(db);
+  const thToken = await storedToken(db, THREADS_SETTINGS_KEY, process.env.THREADS_TOKEN, (t) => refreshToken(t));
   if (thToken) platforms.push(threads(thToken));
   else console.log("🧵 Threads is off: set the THREADS_TOKEN secret, see docs/FACEBOOK.md.");
+  const igToken = await storedToken(db, INSTAGRAM_SETTINGS_KEY, process.env.INSTAGRAM_TOKEN, (t) => refreshInstagramToken(t));
+  if (igToken) platforms.push(instagram(igToken));
+  else console.log("📸 Instagram is off: set the INSTAGRAM_TOKEN secret, see docs/FACEBOOK.md.");
 
   const mode = values.mode === "digest" ? "digest" : "news";
   for (const p of platforms) {
-    // One platform failing (expired token, rate limit) never stops the other.
+    // One platform failing (expired token, rate limit) never stops the others.
     try {
       if (mode === "digest") await postDigest(db, p);
       else await postNews(db, p);
