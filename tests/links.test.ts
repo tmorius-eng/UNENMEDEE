@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { opendataItemToScraped, parseOpendataResponse } from "@/lib/scraper/adapters/opendata";
 import { parliamentArticleToScraped, parseParliamentPage } from "@/lib/scraper/adapters/parliament";
 import { classifyDomain, harvestGovernmentHosts, isGovernmentHost, siteName } from "@/lib/scraper/discover";
-import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, scoreLink, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "@/lib/scraper/links";
+import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isStaticPageUrl, isWordPress, parseFeed, sameSite, scoreLink, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "@/lib/scraper/links";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -170,5 +170,17 @@ describe("source discovery", () => {
     assert.equal(classifyDomain("masm.gov.mn"), "agency");
     assert.equal(siteName("<title>Нүүр хуудас | ТТХГ</title>", "x"), "ТТХГ");
     assert.equal(siteName("<title>Index of /</title>", "dundgovi.gov.mn"), "dundgovi.gov.mn");
+  });
+});
+
+describe("static CMS pages", () => {
+  it("recognises /page/<slug>, /pages/<id> and /p/<id> but not articles under /home or /news", () => {
+    assert.ok(isStaticPageUrl("https://mrpam.gov.mn/page/statistik-medee-2026-on"));
+    assert.ok(isStaticPageUrl("https://khovd.gov.mn/pages/ce0e70b0-9e28-48a9-a381-e276a2d98aec"));
+    assert.ok(isStaticPageUrl("https://mrt.gov.mn/p/70"));
+    assert.ok(!isStaticPageUrl("https://culture.gov.mn/index.php/home/nv/media/news/504"));
+    assert.ok(!isStaticPageUrl("https://dornogovi.gov.mn/home/385"));
+    assert.ok(!isStaticPageUrl("https://mcud.gov.mn/a/1759"));
+    assert.ok(!isStaticPageUrl("not a url"));
   });
 });

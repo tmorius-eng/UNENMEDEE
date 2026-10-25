@@ -11,6 +11,19 @@ const FILE_EXT = /\.(pdf|docx?|xlsx?|pptx?|zip|rar|7z|jpe?g|png|gif|webp|svg|mp4
 // "/posts" is a listing, but "/posts/<id>" is an article (mecc.gov.mn), so only the bare path counts.
 const NON_ARTICLE =
   /\/(c|p|tag|tags|category|categories|author|page|pages|search|login|signin|register|feed|rss|wp-admin|wp-content|wp-json|wp-login|cart|contact|about|sitemap|lang|language|static|download|files?|uploads?|gallery|video|photos?|home|instructions?)(\/|$|\?)|\/posts\/?($|\?)|[?&](lang|s|replytocom)=|page\.aspx/i;
+/**
+ * A CMS static page ("/page/<slug>", "/pages/<id>", "/p/<id>": mrpam.gov.mn's investor guides and
+ * reports). Link scoring already skips them, but a section hop or a sitemap can still hand one to
+ * the sink, which stores it unpublished.
+ */
+export function isStaticPageUrl(url: string): boolean {
+  try {
+    return /^\/(page|pages|p)\/[^/]+\/?$/i.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 /** "?p=123", "?id=45", "mn.php?page=40&news=1633": the article id lives in the query string. */
 const QUERY_ID = /[?&](id|p|news|post|item|news_id|post_id|nid|aid)=\d+/i;
 

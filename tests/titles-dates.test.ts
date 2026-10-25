@@ -154,6 +154,28 @@ describe("date parsing fixes", () => {
     assert.equal(extractPublishedDate(d as unknown as Document, "https://judcouncil.mn/site/news_full/1", "")?.toISOString(), `${year}-03-04T06:10:00.000Z`);
   });
 
+  it("reads a clock-icon stamp in the headline's container, even an old one (uvurkhangai.gov.mn)", () => {
+    const body = `<p>${"Сургалтыг зохион байгууллаа. ".repeat(20)}</p>`;
+    const page = (stamp: string) =>
+      doc(`<html><body><div class="main_colm"><div class="single_news">
+        <div class="single_news_header">Халдварт өвчний дэгдэлтийг хянах сургалт боллоо</div>
+        <div class="single_news_content">${body}<div style="float:left"> <i class="fa fa-clock-o"></i> ${stamp} </div></div>
+      </div></div><div class="related"><div><i class="fa fa-clock-o"></i> ${year}-01-02 10:00:00</div></div></body></html>`);
+    const headline = "Халдварт өвчний дэгдэлтийг хянах сургалт боллоо";
+    assert.equal(extractPublishedDate(page(`${year}-03-04 16:34:21`) as unknown as Document, "https://uvurkhangai.gov.mn/157/item/1", "", headline)?.toISOString(), `${year}-03-04T08:34:00.000Z`);
+    // A year-old stamp is still the article's own date (so the story stays off the feed).
+    assert.equal(extractPublishedDate(page("2024-09-13 16:34:21") as unknown as Document, "https://uvurkhangai.gov.mn/157/item/1", "", headline)?.toISOString().slice(0, 10), "2024-09-13");
+    // Without a stamp of its own, the related list's icons are not used.
+    const bare = doc(`<html><body><div class="single_news"><div class="single_news_header">${headline}</div><div>${body}</div></div>
+      <div class="related"><div><i class="fa fa-clock-o"></i> ${year}-01-02 10:00:00</div></div></body></html>`);
+    assert.equal(extractPublishedDate(bare as unknown as Document, "https://uvurkhangai.gov.mn/157/item/1", "", headline), null);
+  });
+
+  it("reads og:article:published_time (mcud.gov.mn)", () => {
+    const d = doc(`<html><head><meta property="og:article:published_time" content="${year}-03-04T08:56:12+0000"/></head><body><h1>Мэдээ гарлаа</h1></body></html>`);
+    assert.equal(extractPublishedDate(d as unknown as Document, "https://mcud.gov.mn/a/1", "")?.toISOString(), `${year}-03-04T08:56:12.000Z`);
+  });
+
   it("does not take a year-old date printed in the text as the publication date (mrpam.gov.mn)", () => {
     const text = "Эрдэс баялаг, газрын тосны газрын даргын 2009 оны 05 дугаар сарын 05-ны өдрийн тушаал. " + "Текст. ".repeat(40);
     const d = doc(`<html><body><article><h1>Тушаалын тухай</h1><p>${text}</p></article></body></html>`);
