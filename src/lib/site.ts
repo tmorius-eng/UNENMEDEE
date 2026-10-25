@@ -8,6 +8,8 @@ export const SITE_URL = (
 ).replace(/\/+$/, "");
 
 export const SITE_NAME = "ИЛ ТОД МЭДЭЭ";
+/** The production address, for links made outside Vercel (GitHub Actions posting to Facebook). */
+export const PRODUCTION_URL = "https://iltodmedee.mn";
 /** The public source code (MIT). Linked from the footer, /method and /transparency. */
 export const REPO_URL = "https://github.com/tmorius-eng/UNENMEDEE";
 /** Contact for readers, partners and press (forwarded by Porkbun to the owner's inbox). */

@@ -65,6 +65,7 @@ migrations in [`drizzle/`](../drizzle) (`IF NOT EXISTS` everywhere, so a rerun i
 | `open_datasets` | opendata.mn metadata and small computed highlights (never raw rows) |
 | `indicator_snapshots` | One JSON document per external source (`mongolbank`, `budget_nso`, `shilendans`, `soe_finance`, …) |
 | `push_subscriptions` | Web Push endpoints and followed MPs |
+| `social_posts` | What was posted to the Facebook page (one row per platform + digest/article, so nothing posts twice) |
 | `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account) |
 | `transparency_ledger` | Income and costs shown on `/transparency` |
 
@@ -247,6 +248,14 @@ pair stored in `app_settings`. After each pipeline run `push:send` sends at most
 (the top story + "+N"), because bursts were partly rejected by Apple. Readers who follow MPs get one
 alert when their MPs are named in the last 24 h. Subscriptions are public server actions with zod
 validation, a push-service host allowlist and per-IP / global rate limits.
+
+## Facebook page
+
+After the push steps, `social:post` ([`scripts/post-social.ts`](../scripts/post-social.ts)) posts each new
+digest edition and at most one important story per run (four per day, one per cluster) to the site's
+Facebook page through the Graph API (`POST /{page-id}/feed`, message + link; Facebook builds the card
+from our Open Graph image). A `social_posts` row is reserved before each call and removed if it fails.
+The never-expiring Page token is the `FB_PAGE_TOKEN` Actions secret ([setup](FACEBOOK.md)).
 
 ## Security model
 
