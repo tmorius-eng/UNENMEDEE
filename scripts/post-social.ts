@@ -1,5 +1,6 @@
 /**
- * Posts to the ИЛ ТОД МЭДЭЭ Facebook page, Threads, Instagram and Telegram channel (docs/FACEBOOK.md).
+ * Posts to the ИЛ ТОД МЭДЭЭ Facebook page, Threads, Instagram, Telegram channel and Discord
+ * announcement channel (docs/FACEBOOK.md).
  *
  *   npm run social:post -- --mode digest            # the newest digest edition (morning / evening)
  *   npm run social:post -- --mode news              # the most important new story, if any
@@ -9,7 +10,9 @@
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
  * (`threads`); a new THREADS_TOKEN secret replaces it. Instagram works the same way with
  * INSTAGRAM_TOKEN (`instagram`), posting our JPEG card from /ig-image. Telegram needs
- * TELEGRAM_BOT_TOKEN (secret) and TELEGRAM_CHAT_ID (variable, "@channel"). Each platform without credentials is
+ * TELEGRAM_BOT_TOKEN (secret) and TELEGRAM_CHAT_ID (variable, "@channel"). Discord needs DISCORD_BOT_TOKEN
+ * (secret) and DISCORD_CHANNEL_ID (variable); the message is crossposted to every server that follows
+ * the announcement channel. Each platform without credentials is
  * skipped. News: published in the last 24 h, dated, AI-summarized (not the no-AI fallback),
  * importance >= FB_IMPORTANCE_MIN (75) or a risk flag, one per cluster, FB_NEWS_PER_RUN (1) per run
  * and FB_NEWS_PER_DAY (4) per day and platform, so the feeds stay curated, not a firehose.
@@ -25,6 +28,7 @@ import { type ArticleForPost, articlePost, type DigestForPost, digestPost, Faceb
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
+import { discordArticlePost, discordDigestPost, type DiscordPost, publishDiscord } from "@/lib/social/discord";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
@@ -44,7 +48,7 @@ type Db = ReturnType<typeof getDb>;
 
 /** One destination: how a digest / story is worded there and how it is published. */
 interface Platform {
-  name: "facebook" | "threads" | "instagram" | "telegram";
+  name: "facebook" | "threads" | "instagram" | "telegram" | "discord";
   digest(d: DigestForPost): { preview: string; publish(): Promise<string> };
   article(a: ArticleForPost): { preview: string; publish(): Promise<string> };
 }
@@ -65,6 +69,14 @@ function threads(token: string): Platform {
 function telegram(token: string, chatId: string): Platform {
   const make = (post: TelegramPost) => ({ preview: `${post.link}\n${post.text}`, publish: () => publishTelegram({ token, chatId, post }) });
   return { name: "telegram", digest: (d) => make(telegramDigestPost(d)), article: (a) => make(telegramArticlePost(a)) };
+}
+
+function discord(token: string, channelId: string): Platform {
+  const make = (post: DiscordPost) => ({
+    preview: `${post.link}\n${post.text}`,
+    publish: () => publishDiscord({ token, channelId, post, onWarning: (m) => console.log(`::warning::${m}`) }),
+  });
+  return { name: "discord", digest: (d) => make(discordDigestPost(d)), article: (a) => make(discordArticlePost(a)) };
 }
 
 function instagram(token: string): Platform {
@@ -222,6 +234,11 @@ async function main() {
   if (tgToken && tgChat) platforms.push(telegram(tgToken, tgChat));
   else if (tgToken || tgChat) console.error("::error::Telegram needs both the TELEGRAM_BOT_TOKEN secret and the TELEGRAM_CHAT_ID variable (docs/FACEBOOK.md).");
   else console.log("✈️ Telegram is off: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, see docs/FACEBOOK.md.");
+  const dcToken = process.env.DISCORD_BOT_TOKEN?.trim();
+  const dcChannel = process.env.DISCORD_CHANNEL_ID?.trim();
+  if (dcToken && dcChannel) platforms.push(discord(dcToken, dcChannel));
+  else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and the DISCORD_CHANNEL_ID variable (docs/FACEBOOK.md).");
+  else console.log("🎮 Discord is off: set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID, see docs/FACEBOOK.md.");
 
   const mode = values.mode === "digest" ? "digest" : "news";
   for (const p of platforms) {

@@ -85,6 +85,8 @@ jobs:
       INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      DISCORD_CHANNEL_ID: ${{ vars.DISCORD_CHANNEL_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,6 +114,7 @@ jobs:
           THREADS_TOKEN: ""
           INSTAGRAM_TOKEN: ""
           TELEGRAM_BOT_TOKEN: ""
+          DISCORD_BOT_TOKEN: ""
         run: npm ci
 
       - name: Check required secrets
@@ -149,6 +152,7 @@ jobs:
           THREADS_TOKEN: ""
           INSTAGRAM_TOKEN: ""
           TELEGRAM_BOT_TOKEN: ""
+          DISCORD_BOT_TOKEN: ""
         run: npx playwright install --with-deps chromium
 
       - name: Scrape government sources
@@ -188,8 +192,8 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode news
 
-      - name: Post the most important new story to Facebook, Threads, Instagram and Telegram
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '') }}
+      - name: Post the most important new story to Facebook, Threads, Instagram, Telegram and Discord
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode news
 
@@ -205,7 +209,7 @@ jobs:
         continue-on-error: true
         run: npm run push:send -- --mode digest
 
-      - name: Post the new digest to Facebook, Threads, Instagram and Telegram
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '') }}
+      - name: Post the new digest to Facebook, Threads, Instagram, Telegram and Discord
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode digest

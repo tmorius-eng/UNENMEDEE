@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
+import { discordArticlePost, discordDigestPost, discordMessage, publishDiscord } from "@/lib/social/discord";
 
 const digest = {
   id: 9,
@@ -121,5 +122,45 @@ describe("telegram channel", () => {
   it("never echoes the token in an error", async () => {
     const f = (async () => new Response(JSON.stringify({ ok: false, description: "Unauthorized: bot123:SECRET" }), { status: 401 })) as unknown as typeof fetch;
     await assert.rejects(publishTelegram({ token: "123:SECRET", chatId: "@x", post: { text: "t", link: "l" }, fetchImpl: f }), (e: Error) => !e.message.includes("SECRET") && e.message.includes("401"));
+  });
+});
+
+describe("discord announcement channel", () => {
+  const story = { id: 1, slug: "a-b", title: "Гарчиг @everyone", tldr: "Нэг. Хоёр.", sourceName: "Сангийн яам", amounts: ["48.5 тэрбум ₮"], riskFlag: false, topic: "economy" };
+
+  it("drops the hashtag line, wraps our link so Discord adds no second preview, never pings anyone", () => {
+    const post = discordArticlePost(story);
+    assert.ok(!/#ИлТодМэдээ/.test(post.text));
+    assert.ok(post.text.includes("<https://iltodmedee.mn/article/a-b>"));
+    const body = discordMessage({ ...post, text: "ж".repeat(3000) });
+    assert.ok(body.content.length <= 2000);
+    assert.deepEqual(body.allowed_mentions, { parse: [] });
+    assert.equal(body.embeds[0].image.url, "https://iltodmedee.mn/ig-image?a=a-b");
+    assert.ok(discordDigestPost(digest).text.includes("<https://iltodmedee.mn/digest>"));
+  });
+
+  it("posts with the bot token in the header, then crossposts to following servers", async () => {
+    const calls: { url: string; auth: string | null }[] = [];
+    const f = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), auth: new Headers(init?.headers).get("authorization") });
+      return new Response(JSON.stringify({ id: "777" }));
+    }) as typeof fetch;
+    const id = await publishDiscord({ token: "SECRET", channelId: "123", post: discordArticlePost(story), fetchImpl: f });
+    assert.equal(id, "777");
+    assert.equal(calls[0].url, "https://discord.com/api/v10/channels/123/messages");
+    assert.equal(calls[1].url, "https://discord.com/api/v10/channels/123/messages/777/crosspost");
+    assert.equal(calls[0].auth, "Bot SECRET");
+    assert.ok(calls.every((c) => !c.url.includes("SECRET")));
+  });
+
+  it("a failed crosspost is a warning, a failed post an error without the token", async () => {
+    const warnings: string[] = [];
+    let n = 0;
+    const f = (async () => (n++ === 0 ? new Response(JSON.stringify({ id: "9" })) : new Response(JSON.stringify({ message: "Cannot crosspost SECRET" }), { status: 400 }))) as unknown as typeof fetch;
+    assert.equal(await publishDiscord({ token: "SECRET", channelId: "1", post: { text: "t", link: "l" }, fetchImpl: f, onWarning: (m) => warnings.push(m) }), "9");
+    assert.equal(warnings.length, 1);
+    assert.ok(!warnings[0].includes("SECRET"));
+    const bad = (async () => new Response(JSON.stringify({ message: "401: Unauthorized" }), { status: 401 })) as unknown as typeof fetch;
+    await assert.rejects(publishDiscord({ token: "SECRET", channelId: "1", post: { text: "t", link: "l" }, fetchImpl: bad }), (e: Error) => e.message.includes("401") && !e.message.includes("SECRET"));
   });
 });

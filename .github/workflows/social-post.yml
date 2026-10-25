@@ -1,5 +1,5 @@
 # Manual social posting: runs `npm run social:post` with the same secrets as the pipeline, so a
-# new digest or important story can be sent to Facebook, Threads, Instagram and Telegram right away (or a
+# new digest or important story can be sent to Facebook, Threads, Instagram, Telegram and Discord right away (or a
 # setup checked) without waiting for the 2-hourly pipeline. social_posts keeps it from posting
 # anything twice, whichever run gets there first.
 name: Social post (manual)
@@ -40,7 +40,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Post to Facebook, Threads, Instagram and Telegram
+      - name: Post to Facebook, Threads, Instagram, Telegram and Discord
         # Secrets only here: dependency install scripts never see them.
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -50,6 +50,8 @@ jobs:
           INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ vars.DISCORD_CHANNEL_ID }}
           IN_MODE: ${{ inputs.mode }}
           IN_DRY: ${{ inputs.dry_run }}
         run: |
