@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { getPoliticianIds, getSitemapSlugs } from "@/lib/queries";
 import { absoluteUrl } from "@/lib/site";
+import { PLACES } from "@/lib/places";
 import { TOPICS } from "@/lib/topics";
 
 /** Every public page and article. Builds without a database (static pages only). */
@@ -27,6 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/changes"), changeFrequency: "weekly", priority: 0.5 },
     { url: absoluteUrl("/method"), changeFrequency: "monthly", priority: 0.4 },
     ...TOPICS.map((t) => ({ url: absoluteUrl(`/topic/${t.key}`), changeFrequency: "hourly" as const, priority: 0.8 })),
+    ...PLACES.map((p) => ({ url: absoluteUrl(`/place/${p.slug}`), changeFrequency: "daily" as const, priority: 0.7 })),
   ];
   return [
     ...pages,

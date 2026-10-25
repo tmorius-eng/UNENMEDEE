@@ -96,6 +96,10 @@ We are building a 100% transparent, open-source investigative news and public da
 - First-visit intro (`intro-strip.tsx`, `/` only): three steps + "Яаж ажилладаг вэ" + "Ойлголоо" (`intro-dismiss.tsx` sets localStorage `iltod-intro` and `<html data-intro="seen">`). The root layout's inline `<head>` script sets the same attribute before paint and `globals.css` hides `.intro-strip`, so returning readers get no layout shift. Never render it from client state.
 - Headlines are real `<a href="/article/…">` links (crawlable, Cmd/Ctrl-click opens a tab); a plain tap expands in place.
 
+## 6h. Places ("Миний аймаг / дүүрэг")
+- `src/lib/places.ts`: 21 aimags, the capital and its 9 districts, each with its scraped domains and the exact parliament.mn constituency string (match the whole string: "Сүхбаатар" is an aimag and a district). The capital page covers the city's sites plus every district's.
+- `/place/<slug>` (prerendered for every place, `getPlaceFeed(domains)`: all published stories of those sites, no importance cut-off) shows the news, the constituency's MPs (links to /officials) and the official sites; `PlacePicker` (server markup) is on every place page and on `/topic/local`; sitemap lists all places. `tests/places.test.ts` pins the constituency strings and that every local source maps to a place.
+
 ## 6f. Search & push invite
 - `/search?q=` (🔍 in the header): `search()` in queries.ts, Postgres full-text with the `simple` config + prefix terms from `toPrefixQuery()` (`src/lib/search.ts`: words longer than 6 letters are cut to 5 because Mongolian suffixes change the stem). GIN index `articles_search_idx` (migration 0010) must use the same expression as `SEARCH_DOC`. MPs match by name (ILIKE). Result pages are `noindex, follow`.
 - `PushInvite` sits at the END of the home StoryList (below the fold: it appears after hydration, mid-list it would cause CLS); "Дараа" hides it via localStorage `iltod-push-invite`.

@@ -12,6 +12,7 @@ import { Empty } from "./empty";
 import { FollowTopicButton } from "./follow-topic";
 import { IntroStrip } from "./intro-strip";
 import { MacroStrip } from "./macro-strip";
+import { PlacePicker } from "./place-picker";
 import { StatusTicker } from "./status-ticker";
 import { StoryList } from "./story-list";
 import { TopicBar } from "./topic-bar";
@@ -118,6 +119,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       )}
       {filter === "all" && <IntroStrip sources={stats.activeSources} />}
       {filter === "all" && <MacroStrip compact />}
+      {filter === "local" && <PlacePicker />}
       <TopicBar active={filter} placement="inline" />
       {topic && (
         <div className="flex items-center justify-between gap-3 pt-6">
