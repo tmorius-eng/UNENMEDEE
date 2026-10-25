@@ -1,8 +1,9 @@
 /**
- * Facebook page posting (Graph API, `POST /{page-id}/feed` with `message` + `link`). Pure message
- * builders plus one small client, so the wording is unit-tested and the token never leaves here.
- * Facebook builds the preview card from the linked page's Open Graph tags (our OG images).
- * Facts only: the text is the AI summary and the official source, never a verdict.
+ * Facebook page posting (Graph API). Posts are photo posts with our "hook" card (/ig-image,
+ * `POST /{page-id}/photos` with `url` + `caption`, the link inside the text), falling back to a
+ * link post (`/feed`) when there is no image. Pure message builders plus one small client, so the
+ * wording is unit-tested and the token never leaves here. Hooks are facts only: the editor's
+ * headline, "why it matters" and the official source, never a verdict.
  */
 import { editionLabel } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
@@ -14,6 +15,8 @@ const HASHTAG = "#ИлТодМэдээ";
 export interface FacebookPost {
   message: string;
   link: string;
+  /** Our JPEG hook card; without it the post is a plain link post. */
+  imageUrl?: string;
 }
 
 export interface DigestForPost {
@@ -22,7 +25,7 @@ export interface DigestForPost {
   title: string;
   intro: string;
   periodEnd: Date | string;
-  items: { headline: string }[];
+  items: { headline: string; whyItMatters?: string }[];
 }
 
 export interface ArticleForPost {
@@ -35,21 +38,34 @@ export interface ArticleForPost {
   riskFlag: boolean;
 }
 
-/** "🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05" + title, intro, the first five headlines and the link. */
+/** Hook first: the top story and why it matters, then the next four headlines and the link. */
 export function digestPost(d: DigestForPost, site = PRODUCTION_URL): FacebookPost {
-  const top = d.items.slice(0, 5).map((it, i) => `${i + 1}. ${it.headline}`);
-  const more = d.items.length > top.length ? `\n…болон өөр ${d.items.length - top.length} мэдээ` : "";
-  const message = [`🗞 ${editionLabel(d)}`, d.title, "", d.intro, "", ...top].join("\n") + more + `\n\nБүтнээр нь уншаарай 👇\n\n${HASHTAG}`;
-  return { message, link: `${site}/digest` };
+  const link = `${site}/digest`;
+  const [top, ...rest] = d.items;
+  const lines = [`🗞 ${editionLabel(d)}`, ""];
+  if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
+  if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 4).map((it) => `• ${it.headline}`), "");
+  lines.push(`Бүх ${d.items.length} мэдээ, эх сурвалжтай нь 👉 ${link}`, "", HASHTAG);
+  return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
-/** One important story: headline, two summary sentences, the largest ₮ amount and the source. */
+/** One important story: the headline as the hook, two summary sentences, the largest ₮ amount, the source. */
 export function articlePost(a: ArticleForPost, site = PRODUCTION_URL): FacebookPost {
-  const lines = [`📰 ${a.title}`, "", ...tldrSentences(a.tldr, 2)];
+  const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
-  const facts = [amount ? `💰 ${amount}` : null, a.riskFlag ? "🚨 AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)" : null, `🏛 Эх сурвалж: ${a.sourceName}`].filter(Boolean);
-  const message = [...lines, "", ...facts].join("\n") + `\n\nДэлгэрэнгүй, эх баримтын холбоос 👇\n\n${HASHTAG}`;
-  return { message, link: `${site}/article/${a.slug}` };
+  const lines = [
+    `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
+    "",
+    `👉 ${tldrSentences(a.tldr, 2).join(" ")}`,
+    ...(amount ? [`💰 Дүн: ${amount}`] : []),
+    ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
+    `🏛 Эх сурвалж: ${a.sourceName}`,
+    "",
+    `Дэлгэрэнгүй, эх баримтын холбоос 👉 ${link}`,
+    "",
+    HASHTAG,
+  ];
+  return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }
 
 export class FacebookError extends Error {
@@ -73,15 +89,19 @@ export class FacebookError extends Error {
 
 /** Publishes one post and returns its id. The token goes in the POST body, never in a URL or a log. */
 export async function publishToPage(opts: { pageId: string; token: string; post: FacebookPost; fetchImpl?: typeof fetch; version?: string }): Promise<string> {
-  const body = new URLSearchParams({ message: opts.post.message, link: opts.post.link, access_token: opts.token });
-  const res = await (opts.fetchImpl ?? fetch)(`https://graph.facebook.com/${opts.version ?? GRAPH_VERSION}/${encodeURIComponent(opts.pageId)}/feed`, {
+  const { post } = opts;
+  const body = post.imageUrl
+    ? new URLSearchParams({ url: post.imageUrl, caption: post.message, access_token: opts.token })
+    : new URLSearchParams({ message: post.message, link: post.link, access_token: opts.token });
+  const edge = post.imageUrl ? "photos" : "feed";
+  const res = await (opts.fetchImpl ?? fetch)(`https://graph.facebook.com/${opts.version ?? GRAPH_VERSION}/${encodeURIComponent(opts.pageId)}/${edge}`, {
     method: "POST",
     body,
     signal: AbortSignal.timeout(30_000),
   });
-  const json = (await res.json().catch(() => ({}))) as { id?: string; error?: { message?: string; code?: number } };
+  const json = (await res.json().catch(() => ({}))) as { id?: string; post_id?: string; error?: { message?: string; code?: number } };
   if (!res.ok || !json.id) {
     throw new FacebookError(`Facebook ${res.status}: ${json.error?.message ?? "no post id returned"}`.slice(0, 300), res.status, json.error?.code);
   }
-  return json.id;
+  return json.post_id ?? json.id;
 }

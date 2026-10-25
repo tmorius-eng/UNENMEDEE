@@ -42,41 +42,76 @@ export async function ogImage({ eyebrow, title, footer }: { eyebrow: string; tit
   );
 }
 
-/** Instagram feed card (1080×1350, 4:5): label, headline and up to five numbered lines or a summary. */
+/** Social feed card (1080×1350, 4:5): the "hook" style shared by Instagram, Facebook and Threads. */
 export const FEED_SIZE = { width: 1080, height: 1350 };
 
-export async function feedCard({ eyebrow, title, lines, footer }: { eyebrow: string; title: string; lines: string[]; footer: string }) {
-  const [data, markSrc] = await Promise.all([loadFonts(), loadMark()]);
+const HOOK_FAMILY = "InterDisplay";
+let hookFont: Promise<Buffer> | undefined;
+function loadHookFont() {
+  // Inter Display Black Italic, subset like inter-700.woff (Latin, Cyrillic, Ө Ү, ₮).
+  hookFont ??= readFile(join(process.cwd(), "src/assets/fonts/inter-display-900i.woff"));
+  return hookFont;
+}
+
+const YELLOW = "#ffd60a";
+
+/**
+ * Bold typographic card: dark background, yellow frame, the label as a yellow pill, the headline in
+ * huge black italic capitals with its strongest fact in yellow (hookWords), an optional sub-line
+ * ("why it matters" / the first summary sentence) and up to three more headlines.
+ */
+export async function hookCard({ label, words, sub, more = [], footer }: { label: string; words: { word: string; hot: boolean }[]; sub?: string; more?: string[]; footer: string }) {
+  const [regular, black, markSrc] = await Promise.all([loadFonts(), loadHookFont(), loadMark()]);
   const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-  const size = lines.length > 0 ? (title.length > 70 ? 50 : 60) : title.length > 110 ? 64 : title.length > 60 ? 76 : 88;
+  const length = words.reduce((n, w) => n + w.word.length + 1, 0);
+  const size = length > 110 ? 62 : length > 80 ? 72 : length > 55 ? 86 : 100;
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 80px", background: "linear-gradient(180deg, #ffffff 0%, #e6fbfa 100%)", fontFamily: FONT_FAMILY }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> */}
-          <img src={markSrc} width={156} height={96} alt="" />
-          <div style={{ display: "flex", fontSize: 34, color: "#047c78", letterSpacing: 2 }}>{clip(eyebrow.toUpperCase(), 40)}</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
-          <div style={{ display: "flex", fontSize: size, lineHeight: 1.15, color: "#171043", letterSpacing: -1 }}>{clip(title, lines.length > 0 ? 110 : 170)}</div>
-          {lines.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {lines.slice(0, 5).map((line, i) => (
-                <div key={i} style={{ display: "flex", gap: 18, fontSize: 32, lineHeight: 1.25, color: "#344054" }}>
-                  <span style={{ color: "#05a39e", minWidth: 40 }}>{i + 1}.</span>
-                  <span style={{ display: "flex", flex: 1 }}>{clip(line, 120)}</span>
-                </div>
+      <div style={{ width: "100%", height: "100%", display: "flex", padding: 16, background: YELLOW, fontFamily: FONT_FAMILY }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px", background: "linear-gradient(160deg, #1d1856 0%, #0b0a24 70%)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <div style={{ display: "flex", background: "#ffffff", borderRadius: 18, padding: "10px 14px" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> */}
+                <img src={markSrc} width={104} height={64} alt="" />
+              </div>
+              <span style={{ fontSize: 30, color: "#ffffff", letterSpacing: 1 }}>ИЛ ТОД МЭДЭЭ</span>
+            </div>
+            <div style={{ display: "flex", background: YELLOW, color: "#0b0a24", fontSize: 26, padding: "10px 20px", borderRadius: 999 }}>{clip(label.toUpperCase(), 32)}</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", fontFamily: HOOK_FAMILY, fontSize: size, lineHeight: 1.04, letterSpacing: -1 }}>
+              {words.slice(0, 40).map((w, i) => (
+                <span key={i} style={{ color: w.hot ? YELLOW : "#ffffff", marginRight: size * 0.24 }}>
+                  {w.word.toUpperCase()}
+                </span>
               ))}
             </div>
-          )}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "6px solid #05beb8", paddingTop: 28, fontSize: 30, color: "#475467" }}>
-          <span>{clip(footer, 40)}</span>
-          <span style={{ color: "#171043" }}>iltodmedee.mn</span>
+            {sub && <div style={{ display: "flex", fontSize: 34, lineHeight: 1.3, color: "#d0d5dd" }}>→ {clip(sub, 170)}</div>}
+            {more.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, borderLeft: `6px solid ${YELLOW}`, paddingLeft: 22 }}>
+                {more.slice(0, 3).map((line, i) => (
+                  <span key={i} style={{ fontSize: 28, lineHeight: 1.25, color: "#e4e7ec" }}>
+                    + {clip(line, 80)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 28, color: "#98a2b3" }}>
+            <span>{clip(footer, 46)}</span>
+            <span style={{ color: YELLOW }}>iltodmedee.mn</span>
+          </div>
         </div>
       </div>
     ),
-    { ...FEED_SIZE, fonts: [{ name: FONT_FAMILY, data, weight: 700 as const, style: "normal" as const }] },
+    {
+      ...FEED_SIZE,
+      fonts: [
+        { name: FONT_FAMILY, data: regular, weight: 700 as const, style: "normal" as const },
+        { name: HOOK_FAMILY, data: black, weight: 700 as const, style: "normal" as const },
+      ],
+    },
   );
 }
 

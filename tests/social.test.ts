@@ -13,16 +13,19 @@ const digest = {
 };
 
 describe("facebook posts", () => {
-  it("digest: edition label, five headlines, the rest counted, link to /digest", () => {
-    const p = digestPost(digest);
-    assert.ok(p.message.startsWith("🗞 ОРОЙН ТОЙМ · 22:48\nТөсөв, эрчим хүч, хууль"));
-    assert.ok(p.message.includes("5. Мэдээ 5"));
-    assert.ok(!p.message.includes("Мэдээ 6"));
-    assert.ok(p.message.includes("өөр 2 мэдээ"));
-    assert.equal(p.link, "https://iltodmedee.mn/digest");
+  it("digest: hook first (top story + why it matters), four more, the link, our card", () => {
+    const p = digestPost({ ...digest, items: digest.items.map((it, i) => ({ ...it, whyItMatters: i === 0 ? "Учир нь чухал." : undefined })) });
+    const lines = p.message.split("\n");
+    assert.equal(lines[0], "🗞 ОРОЙН ТОЙМ · 22:48");
+    assert.equal(lines[2], "⚡ Мэдээ 1");
+    assert.equal(lines[3], "👉 Учир нь чухал.");
+    assert.ok(lines.includes("• Мэдээ 5"));
+    assert.ok(!lines.includes("• Мэдээ 6"));
+    assert.ok(lines.includes("Бүх 7 мэдээ, эх сурвалжтай нь 👉 https://iltodmedee.mn/digest"));
+    assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=9");
   });
 
-  it("article: two summary sentences, the largest amount, the source, never localhost", () => {
+  it("article: headline hook, two summary sentences, amount, source, link, card", () => {
     const p = articlePost({
       id: 1,
       slug: "tusuv-123",
@@ -32,12 +35,13 @@ describe("facebook posts", () => {
       amounts: ["5 сая ₮", "1.2 их наяд ₮"],
       riskFlag: false,
     });
-    assert.ok(p.message.includes("Хоёрдугаар өгүүлбэр."));
-    assert.ok(!p.message.includes("Гуравдугаар"));
-    assert.ok(p.message.includes("💰 1.2 их наяд ₮"));
-    assert.ok(p.message.includes("🏛 Эх сурвалж: Сангийн яам"));
-    assert.ok(!p.message.includes("🚨"));
-    assert.equal(p.link, "https://iltodmedee.mn/article/tusuv-123");
+    const lines = p.message.split("\n");
+    assert.equal(lines[0], "⚡ Төсвийн тодотгол");
+    assert.equal(lines[2], "👉 Нэгдүгээр өгүүлбэр. Хоёрдугаар өгүүлбэр.");
+    assert.equal(lines[3], "💰 Дүн: 1.2 их наяд ₮");
+    assert.equal(lines[4], "🏛 Эх сурвалж: Сангийн яам");
+    assert.ok(lines.includes("Дэлгэрэнгүй, эх баримтын холбоос 👉 https://iltodmedee.mn/article/tusuv-123"));
+    assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=tusuv-123");
   });
 
   it("publish: token only in the POST body; Graph errors keep their code", async () => {
@@ -49,8 +53,12 @@ describe("facebook posts", () => {
     const id = await publishToPage({ pageId: "123", token: "SECRET", post: { message: "x", link: "https://iltodmedee.mn/" }, fetchImpl: ok, version: "v26.0" });
     assert.equal(id, "123_456");
     assert.equal(seen?.url, "https://graph.facebook.com/v26.0/123/feed");
-    assert.ok(!seen?.url.includes("SECRET"));
-    assert.ok(seen?.body.includes("access_token=SECRET"));
+    await publishToPage({ pageId: "123", token: "SECRET", post: { message: "x", link: "l", imageUrl: "https://iltodmedee.mn/ig-image?d=1" }, fetchImpl: ok, version: "v26.0" });
+    const photo = seen as { url: string; body: string } | undefined;
+    assert.equal(photo?.url, "https://graph.facebook.com/v26.0/123/photos");
+    assert.equal(new URLSearchParams(photo?.body).get("caption"), "x");
+    assert.ok(!photo?.url.includes("SECRET"));
+    assert.ok(photo?.body.includes("access_token=SECRET"));
 
     const expired = (async () => new Response(JSON.stringify({ error: { message: "Session has expired", code: 190 } }), { status: 400 })) as unknown as typeof fetch;
     const err = await publishToPage({ pageId: "123", token: "SECRET", post: { message: "x", link: "y" }, fetchImpl: expired }).catch((e) => e);

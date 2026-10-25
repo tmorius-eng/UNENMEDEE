@@ -5,9 +5,9 @@ import { CAPTION_MAX, instagramArticlePost, instagramDigestPost, publishInstagra
 
 describe("instagram posts", () => {
   it("digest: our JPEG card, every headline and the bio hint in the caption", () => {
-    const p = instagramDigestPost({ id: 10, kind: "12h", title: "Тойм", intro: "Оршил", periodEnd: "2026-10-24T23:05:00Z", items: [{ headline: "Нэг" }, { headline: "Хоёр" }] });
+    const p = instagramDigestPost({ id: 10, kind: "12h", title: "Тойм", intro: "Оршил", periodEnd: "2026-10-24T23:05:00Z", items: [{ headline: "Нэг", whyItMatters: "Учир." }, { headline: "Хоёр" }] });
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=10");
-    assert.ok(p.caption.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\nТойм\n\nОршил\n\n1. Нэг\n2. Хоёр"));
+    assert.ok(p.caption.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\n\n⚡ Нэг\n👉 Учир.\n\nМөн өнөөдөр:\n• Хоёр"));
     assert.ok(p.caption.includes("холбоос bio-д"));
     assert.ok(p.caption.endsWith("#ИлТодМэдээ #Монгол #мэдээ #төр"));
   });
@@ -15,7 +15,7 @@ describe("instagram posts", () => {
   it("article: card by slug, summary, amount, source; caption capped", () => {
     const p = instagramArticlePost({ id: 1, slug: "a-b", title: "Т", tldr: "Нэг.\nХоёр.", sourceName: "Яам", amounts: ["3 сая ₮"], riskFlag: true });
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=a-b");
-    assert.ok(p.caption.includes("💰 3 сая ₮\n🚨"));
+    assert.ok(p.caption.startsWith("🚨 Т\n\n👉 Нэг. Хоёр.\n💰 Дүн: 3 сая ₮\n⚠️"));
     assert.ok(p.caption.includes("🏛 Эх сурвалж: Яам"));
     const long = instagramArticlePost({ id: 1, slug: "s", title: "ү".repeat(3000), tldr: "", sourceName: "Я", amounts: [], riskFlag: false });
     assert.equal(long.caption.length, CAPTION_MAX);

@@ -19,19 +19,18 @@ describe("threads posts", () => {
     assert.equal(threadsLength("🗞"), 4);
   });
 
-  it("digest fits 500 characters by dropping headlines, keeps the label and link", () => {
-    const p = threadsDigestPost(digest);
+  it("digest: hook within 500 characters, the link in the text, our card as the image", () => {
+    const p = threadsDigestPost({ ...digest, items: digest.items.map((it) => ({ ...it, whyItMatters: "ү".repeat(400) })) });
     assert.ok(threadsLength(p.text) <= THREADS_MAX);
-    assert.ok(p.text.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\nТөсөв, эрчим хүч"));
-    assert.ok(p.text.endsWith("#ИлТодМэдээ"));
-    assert.ok(!p.text.includes("Гарчиг 5"));
-    assert.equal(p.link, "https://iltodmedee.mn/digest");
+    assert.ok(p.text.startsWith("🗞 ӨГЛӨӨНИЙ ТОЙМ · 07:05\n\n⚡ Гарчиг 1"));
+    assert.ok(p.text.endsWith("Бүх 6 мэдээ 👉 https://iltodmedee.mn/digest\n#ИлТодМэдээ"));
+    assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=1");
   });
 
-  it("article: first summary sentence, largest amount, source", () => {
+  it("article: headline hook, first summary sentence, amount, source, link", () => {
     const p = threadsArticlePost({ id: 1, slug: "s", title: "Т", tldr: "Нэг.\nХоёр.", sourceName: "Яам", amounts: ["2 тэрбум ₮", "5 сая ₮"], riskFlag: false });
-    assert.equal(p.text, "📰 Т\n\nНэг.\n\n💰 2 тэрбум ₮\n🏛 Яам");
-    assert.equal(p.link, "https://iltodmedee.mn/article/s");
+    assert.equal(p.text, "⚡ Т\n\nНэг.\n\n💰 2 тэрбум ₮\n🏛 Яам\n\n👉 https://iltodmedee.mn/article/s");
+    assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=s");
   });
 
   it("a new THREADS_TOKEN secret replaces the stored token; refresh after 7 days", () => {
@@ -51,13 +50,15 @@ describe("threads posts", () => {
     const f = (async (url: string, init?: RequestInit) => {
       calls.push(`${init?.method ?? "GET"} ${url.split("?")[0]}`);
       if (url.endsWith("/me/threads")) {
-        assert.equal(new URLSearchParams(String(init?.body)).get("link_attachment"), "https://iltodmedee.mn/digest");
+        const body = new URLSearchParams(String(init?.body));
+        assert.equal(body.get("media_type"), "IMAGE");
+        assert.equal(body.get("image_url"), "https://iltodmedee.mn/ig-image?d=1");
         return Response.json({ id: "c1" });
       }
       if (url.includes("/c1?")) return Response.json({ status: ++polls < 2 ? "IN_PROGRESS" : "FINISHED" });
       return Response.json({ id: "p1" });
     }) as unknown as typeof fetch;
-    const id = await publishThreads({ token: "SECRET", post: { text: "x", link: "https://iltodmedee.mn/digest" }, fetchImpl: f, sleep: async () => {} });
+    const id = await publishThreads({ token: "SECRET", post: { text: "x", link: "https://iltodmedee.mn/digest", imageUrl: "https://iltodmedee.mn/ig-image?d=1" }, fetchImpl: f, sleep: async () => {} });
     assert.equal(id, "p1");
     assert.deepEqual(calls, [
       "POST https://graph.threads.com/v1.0/me/threads",
