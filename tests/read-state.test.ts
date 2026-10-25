@@ -22,6 +22,11 @@ describe("reading progress", () => {
     assert.deepEqual(bumpStreak(s, "2026-10-21"), s, "twice the same day");
     assert.deepEqual(bumpStreak(s, "2026-10-23"), { d: "2026-10-23", n: 1 }, "a missed day restarts");
     assert.deepEqual(bumpStreak({ d: "2026-02-28", n: 4 }, "2026-03-01"), { d: "2026-03-01", n: 5 }, "month boundary");
+    // The same edition, finished yesterday and open again today, is not a new day of reading.
+    const counted = bumpStreak({ d: "2026-10-20", n: 2, e: 9 }, "2026-10-21", 9);
+    assert.deepEqual(counted, { d: "2026-10-20", n: 2, e: 9 });
+    assert.deepEqual(bumpStreak({ d: "2026-10-20", n: 2, e: 9 }, "2026-10-21", 10), { d: "2026-10-21", n: 3, e: 10 });
+    assert.deepEqual(parseStreak('{"d":"2026-10-21","n":2,"e":7}'), { d: "2026-10-21", n: 2, e: 7 });
   });
 
   it("shows the streak only while it is alive", () => {

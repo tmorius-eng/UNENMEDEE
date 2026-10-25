@@ -18,7 +18,8 @@ function useToday(): string {
   return useSyncExternalStore(noop, () => ubDay(Date.now()), () => "");
 }
 
-function useDigestRead(ids: number[]) {
+/** `edition` given = this caller records the streak (DigestProgress only; links just mark stories read). */
+function useDigestRead(ids: number[], edition?: number) {
   const [raw, setRaw] = useLocalStorage(READ_KEY, "[]");
   const [streakRaw, setStreak] = useLocalStorage(STREAK_KEY, "");
   const read = parseIds(raw);
@@ -26,17 +27,17 @@ function useDigestRead(ids: number[]) {
   // The read list is shared with the home page: an edition finished there (or in another tab)
   // counts too. This writes localStorage, not React state, and only when the day is not recorded.
   useEffect(() => {
-    if (!complete) return;
+    if (!complete || edition === undefined) return;
     const today = ubDay(Date.now());
     const prev = parseStreak(streakRaw);
-    if (prev?.d !== today) setStreak(JSON.stringify(bumpStreak(prev, today)));
-  }, [complete, streakRaw, setStreak]);
+    if (prev?.d !== today && prev?.e !== edition) setStreak(JSON.stringify(bumpStreak(prev, today, edition)));
+  }, [complete, streakRaw, setStreak, edition]);
   const markRead = (more: number[]) => setRaw(addIds(raw, more));
   return { read, markRead, streakRaw };
 }
 
-export function DigestProgress({ ids }: { ids: number[] }) {
-  const { read, markRead, streakRaw } = useDigestRead(ids);
+export function DigestProgress({ ids, edition }: { ids: number[]; edition: number }) {
+  const { read, markRead, streakRaw } = useDigestRead(ids, edition);
   const today = useToday();
   const count = ids.filter((id) => read.has(id)).length;
   const streak = today ? currentStreak(parseStreak(streakRaw), today) : 0;

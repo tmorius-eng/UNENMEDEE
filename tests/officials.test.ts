@@ -118,3 +118,14 @@ describe("neutral declaration flags", () => {
     assert.deepEqual(parseHiddenYears(null), {});
   });
 });
+
+describe("declaration flags with editor-hidden years", () => {
+  const row = (year: number, total: number) => ({ year, totalAssets: total, incomeOwn: 100_000_000, incomeFamily: 0, loans: 0 });
+  it("never calls a hidden year a missing filing, and lists every year of a real gap", () => {
+    const rows = [row(2021, 400_000_000), row(2022, 410_000_000), row(2024, 420_000_000), row(2025, 430_000_000)];
+    const missing = (hidden: number[]) => declarationFlags(rows, hidden).filter((f) => f.kind === "missing_year").map((f) => f.year);
+    assert.deepEqual(missing([2023]), []);
+    assert.deepEqual(missing([]), [2023]);
+    assert.deepEqual(declarationFlags([row(2020, 4e8), row(2023, 4e8)]).filter((f) => f.kind === "missing_year").map((f) => f.year).sort(), [2021, 2022]);
+  });
+});

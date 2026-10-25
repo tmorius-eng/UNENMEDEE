@@ -26,7 +26,7 @@ export function DigestView({ digest, compact = false, track = false }: { digest:
           <h3 className="text-lg font-semibold text-balance text-primary md:text-xl">{digest.title}</h3>
           <p className="text-sm text-secondary">{digest.intro}</p>
         </div>
-        {track && <DigestProgress ids={ids} />}
+        {track && <DigestProgress ids={ids} edition={digest.id} />}
         <ol className="flex flex-col gap-3">
           {items.map((it, i) => (
             <li key={it.articleId} className="flex gap-3">

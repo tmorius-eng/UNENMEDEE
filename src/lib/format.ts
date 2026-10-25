@@ -83,14 +83,37 @@ export function formatMntShort(value: number): string {
 
 const AMOUNT_UNITS: Record<string, number> = { "их наяд": 1e12, тэрбум: 1e9, сая: 1e6, мянга: 1e3 };
 
-/** "12,5 тэрбум ₮" → 12 500 000 000 (best effort, null when unreadable). Mirrors amountToNumber in the scraper. */
+/** Foreign-currency amounts are never compared with tögrög ones ("250 мянган ам.доллар"). */
+const FOREIGN = /ам\.?\s*доллар|доллар|usd|\$|евро|eur|€|юань|cny|рубль|рубл/i;
+
+/**
+ * A number as written in Mongolian news: "4 500 000", "1,250.5", "12,5". With both separators the
+ * last one is the decimal point; a single one is a thousands separator only when exactly three
+ * digits follow it and no unit word does (with "тэрбум" etc. it is a decimal: "1,25 тэрбум").
+ */
+function parseAmountNumber(raw: string, hasUnit: boolean): number {
+  const s = raw.replace(/\s/g, "").replace(/[.,]+$/, "");
+  const commas = (s.match(/,/g) ?? []).length;
+  const dots = (s.match(/\./g) ?? []).length;
+  if (commas && dots) {
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    return Number(s.replace(decimal === "," ? /\./g : /,/g, "").replace(",", "."));
+  }
+  const sep = commas ? "," : dots ? "." : "";
+  if (!sep) return Number(s);
+  if (commas + dots > 1) return Number(s.split(sep).join("")); // 1.250.000
+  const tail = s.length - s.indexOf(sep) - 1;
+  return Number(!hasUnit && tail === 3 ? s.replace(sep, "") : s.replace(sep, "."));
+}
+
+/** "12,5 тэрбум ₮" → 12 500 000 000 (best effort, null when unreadable or not in ₮). Mirrors amountToNumber in the scraper. */
 export function amountValue(amount: string): number | null {
-  const m = amount.match(/([\d ,.]+)\s*(их наяд|тэрбум|сая|мянга)?/i);
+  if (FOREIGN.test(amount)) return null;
+  const m = amount.match(/(\d[\d\s,.]*)\s*(их наяд|тэрбум|сая|мянга)?/i);
   if (!m) return null;
-  const unit = AMOUNT_UNITS[m[2]?.toLowerCase() ?? ""] ?? 1;
-  const raw = unit > 1 ? m[1].trim().replace(/\s/g, "").replace(",", ".") : m[1].trim().replace(/[ ,.](?=\d{3}\b)/g, "").replace(",", ".");
-  const n = Number(raw);
-  return Number.isFinite(n) ? n * unit : null;
+  const unitWord = m[2]?.toLowerCase();
+  const n = parseAmountNumber(m[1], Boolean(unitWord));
+  return Number.isFinite(n) ? n * (AMOUNT_UNITS[unitWord ?? ""] ?? 1) : null;
 }
 
 /** The biggest of the extracted ₮ amounts (the chip on a story row), or the first when none parse. */
