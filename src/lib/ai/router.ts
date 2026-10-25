@@ -243,8 +243,13 @@ export const DEFAULT_CHAINS: Record<Tier, AIProvider[]> = {
   tier2: ["grok", "gemini", "mistral", "groq", "nvidia", "requesty", "openrouter", "zai", "deepseek", "ollama"],
 };
 
-/** Free providers that share the bulk work in turn (see spreadFree). */
-const SPREAD: AIProvider[] = ["groq", "mistral", "nvidia", "requesty", "openrouter", "zai"];
+/**
+ * Free providers that share the bulk work in turn (see spreadFree). Z.ai stays out: on the
+ * Mongolian sample (Oct 2026) GLM Flash misspelt words and rated an untendered 48.5 bn ₮ contract
+ * risk 55 where the others gave 85, so it only takes what the others cannot (free overflow before
+ * the billed Gemini).
+ */
+const SPREAD: AIProvider[] = ["groq", "mistral", "nvidia", "requesty", "openrouter"];
 
 /**
  * A billed Gemini key goes after the free providers (it is the paid overflow, inside the USD

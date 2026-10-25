@@ -115,7 +115,7 @@ GitHub Actions (every 2 h, free on public repos)
  │      → SHA-256 dedup → clean text only → articles
  └─ npm run ai:process
      ├─ Budget guard                            paid providers stop at $3/month, $0.30/day; Grok ≤ 5 calls/day
-     ├─ Tier 1  6 free providers in turn → Gemini → DeepSeek   free first; facts, spin, risk 0-100
+     ├─ Tier 1  5 free providers in turn → Z.ai → Gemini → DeepSeek   free first; facts, spin, risk 0-100
      ├─ Tier 2  Grok → Gemini → Groq → …        only when risk ≥ 65: investigative analysis
      ├─ Fallback                                first sentences if every provider fails for 24 h
      └─ ai_usage_logs                           exact tokens and USD for every call

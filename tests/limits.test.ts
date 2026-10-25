@@ -69,11 +69,11 @@ describe("budget limits", () => {
 
   it("spreads bulk calls over the free providers in turn, paid ones stay last", () => {
     const chain = chainFor("tier1", {});
-    const free = ["groq", "mistral", "nvidia", "requesty", "openrouter", "zai"];
-    assert.deepEqual(spreadFree(chain, 0).slice(0, 6), free);
-    assert.deepEqual(spreadFree(chain, 1).slice(0, 6), [...free.slice(1), "groq"]);
-    assert.deepEqual(spreadFree(chain, 5).slice(0, 6), ["zai", ...free.slice(0, 5)]);
-    assert.deepEqual(spreadFree(chain, 1).slice(6), ["gemini", "deepseek", "ollama"]);
+    const free = ["groq", "mistral", "nvidia", "requesty", "openrouter"];
+    assert.deepEqual(spreadFree(chain, 0).slice(0, 5), free);
+    assert.deepEqual(spreadFree(chain, 1).slice(0, 5), [...free.slice(1), "groq"]);
+    assert.deepEqual(spreadFree(chain, 4).slice(0, 5), ["openrouter", ...free.slice(0, 4)]);
+    assert.deepEqual(spreadFree(chain, 1).slice(5), ["zai", "gemini", "deepseek", "ollama"], "Z.ai is the free overflow, not in the rotation");
     assert.deepEqual(spreadFree(["grok", "groq"], 1), ["grok", "groq"], "a paid head is not rotated");
   });
 });
