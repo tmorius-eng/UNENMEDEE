@@ -84,10 +84,48 @@ export class FacebookError extends Error {
   /** 190 = the token expired or was revoked; 200/10 = a permission is missing. */
   get hint(): string {
     if (this.code === 190) return "FB_PAGE_TOKEN expired or revoked: make a new never-expiring Page token (docs/FACEBOOK.md).";
-    if (this.code === 200 || this.code === 10) return "The token lacks pages_manage_posts for this Page (docs/FACEBOOK.md).";
+    if (this.code === 200 || this.code === 10) return "The token lacks pages_manage_posts for this Page, or it is a user token (docs/FACEBOOK.md step 4).";
     if (this.code === 368) return "Facebook temporarily blocked posting from this Page (spam limit): wait and post less often.";
     return "";
   }
+}
+
+export interface FacebookPage {
+  pageId: string;
+  /** The Page's own access token (posts need it; a user token posts nowhere). */
+  token: string;
+  /** True when FB_PAGE_TOKEN was a user token and the Page token came from /me/accounts. */
+  fromUserToken: boolean;
+}
+
+/**
+ * Finds the Page to post as. A Page token's `/me` is the Page itself. A user token's `/me` is the
+ * person: posting there fails with "(#200) … publish_actions is deprecated"
+ * (Oct 2026: FB_PAGE_TOKEN held the user token from step 3 of docs/FACEBOOK.md), so its Page
+ * token is taken from `/me/accounts`: the Page named by FB_PAGE_ID, or the only one it manages.
+ * Tokens travel in headers only and are never logged.
+ */
+export async function resolveFacebookPage(opts: { token: string; pageId?: string; fetchImpl?: typeof fetch; version?: string }): Promise<FacebookPage | { error: string }> {
+  const f = opts.fetchImpl ?? fetch;
+  const base = `https://graph.facebook.com/${opts.version ?? GRAPH_VERSION}`;
+  const get = async <T>(path: string): Promise<T & { error?: { message?: string } }> => {
+    const res = await f(`${base}${path}`, { headers: { authorization: `Bearer ${opts.token}` }, signal: AbortSignal.timeout(15_000) });
+    return (await res.json().catch(() => ({}))) as T & { error?: { message?: string } };
+  };
+  // Only a user has the "accounts" edge (the Pages it manages); a Page token gets an error here.
+  const accounts = await get<{ data?: { id: string; access_token?: string }[] }>("/me/accounts?fields=id,access_token&limit=100");
+  if (!Array.isArray(accounts.data)) {
+    const me = await get<{ id?: string }>("/me?fields=id");
+    if (!me.id) return { error: `Facebook token check failed: ${me.error?.message ?? "no id"}` };
+    return { pageId: opts.pageId || me.id, token: opts.token, fromUserToken: false };
+  }
+  const pages = accounts.data.filter((p) => p.access_token);
+  const page = opts.pageId ? pages.find((p) => p.id === opts.pageId) : pages.length === 1 ? pages[0] : undefined;
+  if (!page?.access_token) {
+    const why = opts.pageId ? `it does not manage page ${opts.pageId}` : `it manages ${pages.length} pages: set FB_PAGE_ID`;
+    return { error: `FB_PAGE_TOKEN is a user token and no Page token was found (${why}). Use the Page token (docs/FACEBOOK.md step 4).` };
+  }
+  return { pageId: page.id, token: page.access_token, fromUserToken: true };
 }
 
 /** Publishes one post and returns its id. The token goes in the POST body, never in a URL or a log. */

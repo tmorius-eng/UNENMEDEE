@@ -20,7 +20,7 @@ import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { appSettings, articles, digests, socialPosts, sources } from "@/db/schema";
-import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, GRAPH_VERSION, publishToPage } from "@/lib/social/facebook";
+import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
@@ -185,20 +185,6 @@ async function postNews(db: Db, p: Platform) {
   }
 }
 
-/** The page a Page access token belongs to (`GET /me`), or undefined when the call fails. */
-async function pageIdOf(token: string): Promise<string | undefined> {
-  try {
-    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/me?fields=id`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
-    const json = (await res.json()) as { id?: string; error?: { message?: string } };
-    // FB_PAGE_TOKEN is set but unusable: an error, not a quiet skip.
-    if (!json.id) console.error(`::error::Facebook page id lookup failed: ${json.error?.message ?? res.status}`);
-    return json.id;
-  } catch (err) {
-    console.error(`::error::Facebook page id lookup failed: ${err instanceof Error ? err.message : err}`);
-    return undefined;
-  }
-}
-
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -208,10 +194,15 @@ async function main() {
   const db = getDb();
   const platforms: Platform[] = [];
   const fbToken = process.env.FB_PAGE_TOKEN?.trim();
-  // A Page token's /me is the page itself, so FB_PAGE_ID is optional.
-  const pageId = process.env.FB_PAGE_ID?.trim() || (fbToken ? await pageIdOf(fbToken) : undefined);
-  if (pageId && fbToken) platforms.push(facebook(pageId, fbToken));
-  else if (dry) platforms.push(facebook("dry-run", ""));
+  // A Page token's /me is the page itself, so FB_PAGE_ID is optional; a user token is swapped for
+  // the Page's own token (resolveFacebookPage).
+  const fbPage = fbToken ? await resolveFacebookPage({ token: fbToken, pageId: process.env.FB_PAGE_ID?.trim() }).catch((err: unknown) => ({ error: String(err) })) : undefined;
+  if (fbPage && "error" in fbPage) console.error(`::error::${fbPage.error}`);
+  else if (fbPage) {
+    if (fbPage.fromUserToken)
+      console.log("::warning::FB_PAGE_TOKEN is a user token (expires in about 60 days): posting with its Page token. Replace the secret with the never-expiring Page token, docs/FACEBOOK.md step 4.");
+    platforms.push(facebook(fbPage.pageId, fbPage.token));
+  } else if (dry) platforms.push(facebook("dry-run", ""));
   else console.log("📘 Facebook is off: set the FB_PAGE_TOKEN secret (FB_PAGE_ID is optional), see docs/FACEBOOK.md.");
   const thToken = await storedToken(db, THREADS_SETTINGS_KEY, process.env.THREADS_TOKEN, (t) => refreshToken(t));
   if (thToken) platforms.push(threads(thToken));
