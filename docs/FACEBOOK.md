@@ -32,6 +32,8 @@ IMAGE пост, Instagram-д зураг + тайлбар. Текст нь hook-�
 4. Graph API Explorer-т урт хугацааны токеноо тавиад `GET me/accounts?fields=id,name,access_token`
    ажиллуулна. Хуудасныхаа мөрнөөс:
    - `access_token` → **FB_PAGE_TOKEN**. Debugger-т шалгахад **Expires: Never** гэж гарна.
+     3-р алхмын хэрэглэгчийн токеныг хадгалсан бол скрипт `/me/accounts`-оос хуудасны токеныг авч
+     нийтэлнэ, гэхдээ лог-д `::warning::` гарна: тэр токен ~60 хоногт дуусна, хуудасны токеноор солино.
    - `id` → **FB_PAGE_ID** (заавал биш: хоосон бол скрипт хуудасны токеноор `GET /me`-ээс олно).
 5. GitHub → репо → **Settings → Secrets and variables → Actions**:
    - **Secrets** таб → `FB_PAGE_TOKEN` (хуудасны токен);

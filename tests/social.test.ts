@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { articlePost, digestPost, FacebookError, publishToPage } from "@/lib/social/facebook";
+import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 
 const digest = {
   id: 9,
@@ -66,5 +66,36 @@ describe("facebook posts", () => {
     assert.equal(err.code, 190);
     assert.ok(err.hint.includes("expired"));
     assert.ok(!err.message.includes("SECRET"));
+  });
+});
+
+describe("facebook page token", () => {
+  const graph = (routes: Record<string, unknown>, seen: string[] = []) =>
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url);
+      seen.push(`${u} ${JSON.stringify(init?.headers ?? {})}`);
+      const key = Object.keys(routes).find((k) => u.includes(k));
+      return new Response(JSON.stringify(key ? routes[key] : { error: { message: "unknown" } }), { status: 200 });
+    }) as typeof fetch;
+
+  it("a Page token is used as is (no accounts edge on a Page)", async () => {
+    const f = graph({ "/me/accounts": { error: { message: "(#100) Tried accessing nonexisting field (accounts)" } }, "/me?fields=id": { id: "PAGE1" } });
+    assert.deepEqual(await resolveFacebookPage({ token: "PT", fetchImpl: f }), { pageId: "PAGE1", token: "PT", fromUserToken: false });
+  });
+
+  it("a user token is swapped for the Page token of its only Page, or the one FB_PAGE_ID names", async () => {
+    const seen: string[] = [];
+    const one = graph({ "/me/accounts": { data: [{ id: "P9", access_token: "PAGE-TOKEN" }] } }, seen);
+    assert.deepEqual(await resolveFacebookPage({ token: "USER", fetchImpl: one }), { pageId: "P9", token: "PAGE-TOKEN", fromUserToken: true });
+    assert.ok(seen.every((s) => !s.split(" ")[0].includes("USER")), "the token never goes in a URL");
+    const two = graph({ "/me/accounts": { data: [{ id: "A", access_token: "TA" }, { id: "B", access_token: "TB" }] } });
+    assert.deepEqual(await resolveFacebookPage({ token: "USER", pageId: "B", fetchImpl: two }), { pageId: "B", token: "TB", fromUserToken: true });
+    const r = await resolveFacebookPage({ token: "USER", fetchImpl: two });
+    assert.ok("error" in r && r.error.includes("set FB_PAGE_ID"));
+  });
+
+  it("a user token without Pages is an error, not a post to the person's profile", async () => {
+    const r = await resolveFacebookPage({ token: "USER", fetchImpl: graph({ "/me/accounts": { data: [] } }) });
+    assert.ok("error" in r && r.error.includes("user token"));
   });
 });
