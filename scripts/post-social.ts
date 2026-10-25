@@ -6,6 +6,7 @@
  *   npm run social:post -- --mode news              # the most important new story, if any
  *   npm run social:post -- --mode news --dry-run    # print, post nothing
  *   npm run social:post -- --mode quiz              # the daily Discord quiz poll (once a day)
+ *   npm run social:post -- --mode weekly            # "7 хоногийн ТОП" on Mondays (--any-day to test)
  *
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
@@ -24,14 +25,17 @@ import { parseArgs } from "node:util";
 import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
-import { appSettings, articles, digests, socialPosts, sources } from "@/db/schema";
+import { appSettings, articles, clusters, digests, politicians, socialPosts, sources } from "@/db/schema";
 import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
 import { discordArticlePost, discordDigestPost, type DiscordPost, discordQuizPost, publishDiscord } from "@/lib/social/discord";
 import { makeQuiz, type Quiz } from "@/lib/social/quiz";
+import { biggestAmount, isWeeklyDue, mostNamed, previousWeek, type WeeklyTop, weeklyShortText, weeklyText } from "@/lib/social/weekly";
+import { sharedShortNames } from "@/lib/officials/flags";
 import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
+import { PRODUCTION_URL } from "@/lib/site";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
 
@@ -39,6 +43,7 @@ const { values } = parseArgs({
   options: {
     mode: { type: "string", default: "news" },
     "dry-run": { type: "boolean", default: false },
+    "any-day": { type: "boolean", default: false },
   },
 });
 const dry = values["dry-run"];
@@ -55,6 +60,8 @@ interface Platform {
   article(a: ArticleForPost): { preview: string; publish(): Promise<string> };
   /** Only platforms with native polls (Discord). */
   quiz?(q: Quiz): { preview: string; publish(): Promise<string> };
+  /** Text-only platforms (not Instagram, which needs an image). */
+  weekly?(w: WeeklyTop): { preview: string; publish(): Promise<string> };
 }
 
 function facebook(pageId: string, token: string): Platform {
@@ -62,17 +69,32 @@ function facebook(pageId: string, token: string): Platform {
     preview: `${post.link}\n${post.message}`,
     publish: () => publishToPage({ pageId, token, post }),
   });
-  return { name: "facebook", digest: (d) => make(digestPost(d)), article: (a) => make(articlePost(a)) };
+  return {
+    name: "facebook",
+    digest: (d) => make(digestPost(d)),
+    article: (a) => make(articlePost(a)),
+    weekly: (w) => make({ message: weeklyText(w, "plain"), link: `${PRODUCTION_URL}/digest` }),
+  };
 }
 
 function threads(token: string): Platform {
   const make = (post: { text: string; link: string }) => ({ preview: `${post.link}\n${post.text}`, publish: () => publishThreads({ token, post }) });
-  return { name: "threads", digest: (d) => make(threadsDigestPost(d)), article: (a) => make(threadsArticlePost(a)) };
+  return {
+    name: "threads",
+    digest: (d) => make(threadsDigestPost(d)),
+    article: (a) => make(threadsArticlePost(a)),
+    weekly: (w) => make({ text: weeklyShortText(w), link: `${PRODUCTION_URL}/digest` }),
+  };
 }
 
 function telegram(token: string, chatId: string): Platform {
   const make = (post: TelegramPost) => ({ preview: `${post.link}\n${post.text}`, publish: () => publishTelegram({ token, chatId, post }) });
-  return { name: "telegram", digest: (d) => make(telegramDigestPost(d)), article: (a) => make(telegramArticlePost(a)) };
+  return {
+    name: "telegram",
+    digest: (d) => make(telegramDigestPost(d)),
+    article: (a) => make(telegramArticlePost(a)),
+    weekly: (w) => make({ text: weeklyText(w, "plain"), link: `${PRODUCTION_URL}/digest` }),
+  };
 }
 
 function discord(token: string, channelId: string): Platform {
@@ -80,7 +102,13 @@ function discord(token: string, channelId: string): Platform {
     preview: `${post.link}\n${post.text}`,
     publish: () => publishDiscord({ token, channelId, post, onWarning: (m) => console.log(`::warning::${m}`) }),
   });
-  return { name: "discord", digest: (d) => make(discordDigestPost(d)), article: (a) => make(discordArticlePost(a)), quiz: (q) => make(discordQuizPost(q)) };
+  return {
+    name: "discord",
+    digest: (d) => make(discordDigestPost(d)),
+    article: (a) => make(discordArticlePost(a)),
+    quiz: (q) => make(discordQuizPost(q)),
+    weekly: (w) => make({ text: weeklyText(w, "discord"), link: `${PRODUCTION_URL}/digest` }),
+  };
 }
 
 function instagram(token: string): Platform {
@@ -125,7 +153,7 @@ const notPosted = (platform: string, kind: string, ref: unknown) =>
  * next run. Once it may have gone out (published but the DB update failed, or the answer was lost
  * to a timeout) the reservation stays, marked for a manual check: a repost would be a duplicate.
  */
-async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz", refId: number, item: { preview: string; publish(): Promise<string> }) {
+async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz" | "weekly", refId: number, item: { preview: string; publish(): Promise<string> }) {
   console.log(`  → ${p.name} ${kind} #${refId}: ${item.preview.replace(/\n/g, "\n    ")}`);
   if (dry) return;
   const [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
@@ -246,6 +274,54 @@ async function postQuiz(db: Db, p: Platform) {
   console.log(`🧠 ${p.name}: no recent story with an amount for a quiz.`);
 }
 
+/** Last week's numbers, read once and posted to every text platform. */
+async function loadWeekly(db: Db): Promise<WeeklyTop | null> {
+  const { week, label, from, to } = previousWeek(new Date());
+  const inWeek = and(eq(articles.isPublished, true), gte(articles.publishedAt, from), sql`${articles.publishedAt} < ${to}`);
+  const rows = await db
+    .select({
+      id: articles.id,
+      slug: articles.slug,
+      title: articles.title,
+      entities: articles.extractedEntities,
+      riskFlag: articles.riskFlag,
+      sourceId: articles.sourceId,
+      clusterId: articles.clusterId,
+      domain: sources.domain,
+    })
+    .from(articles)
+    .innerJoin(sources, eq(articles.sourceId, sources.id))
+    .where(inWeek);
+  if (rows.length === 0) return null;
+  const biggest = biggestAmount(rows.map((r) => ({ title: r.title, slug: r.slug, amounts: r.entities?.amounts_mnt ?? [] })));
+  // The story the most different sites reported: the cluster with the most distinct sources.
+  const bySources = new Map<number, Set<number>>();
+  for (const r of rows) if (r.clusterId !== null) bySources.set(r.clusterId, (bySources.get(r.clusterId) ?? new Set()).add(r.sourceId));
+  const [topCluster] = [...bySources.entries()].sort((a, b) => b[1].size - a[1].size);
+  const [cluster] = topCluster && topCluster[1].size >= 2 ? await db.select({ id: clusters.id, title: clusters.title }).from(clusters).where(eq(clusters.id, topCluster[0])) : [];
+  const people = await db.select({ id: politicians.id, shortName: politicians.shortName }).from(politicians).where(eq(politicians.isActive, true));
+  return {
+    week,
+    label,
+    biggest: biggest ? { title: biggest.title, slug: biggest.slug, amount: biggest.amount, amounts: biggest.amounts } : undefined,
+    hottest: cluster && topCluster ? { title: cluster.title, clusterId: cluster.id, sources: topCluster[1].size } : undefined,
+    mostNamed: mostNamed(
+      rows.map((r) => r.entities?.people ?? []),
+      people,
+      sharedShortNames(people),
+    ),
+    legalActs: rows.filter((r) => r.domain === "legalinfo.mn").length,
+    articles: rows.length,
+    sources: new Set(rows.map((r) => r.sourceId)).size,
+    risky: rows.filter((r) => r.riskFlag).length,
+  };
+}
+
+async function postWeekly(db: Db, p: Platform, w: WeeklyTop) {
+  if (!p.weekly) return;
+  await post(db, p, "weekly", w.week, p.weekly(w));
+}
+
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -282,12 +358,19 @@ async function main() {
   else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and the DISCORD_CHANNEL_ID variable (docs/FACEBOOK.md).");
   else console.log("🎮 Discord is off: set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID, see docs/FACEBOOK.md.");
 
-  const mode = values.mode === "digest" || values.mode === "quiz" ? values.mode : "news";
+  const mode = values.mode === "digest" || values.mode === "quiz" || values.mode === "weekly" ? values.mode : "news";
+  let weekly: WeeklyTop | null = null;
+  if (mode === "weekly") {
+    if (!isWeeklyDue(new Date()) && !values["any-day"] && !dry) return console.log("📊 The weekly list goes out on Mondays (Ulaanbaatar); --any-day to post now.");
+    weekly = await loadWeekly(db);
+    if (!weekly) return console.log("📊 No published stories last week: nothing to post.");
+  }
   for (const p of platforms) {
     // One platform failing (expired token, rate limit) never stops the others.
     try {
       if (mode === "digest") await postDigest(db, p);
       else if (mode === "quiz") await postQuiz(db, p);
+      else if (mode === "weekly" && weekly) await postWeekly(db, p, weekly);
       else await postNews(db, p);
     } catch (err) {
       const hint = err instanceof FacebookError && err.hint ? ` ${err.hint}` : "";
