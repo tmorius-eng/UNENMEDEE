@@ -73,7 +73,14 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
           </a>
           {teaser && !isOpen && <p className={cx("mt-1.5 text-sm text-tertiary", lead ? "line-clamp-3 md:text-md" : "line-clamp-2")}>{teaser}</p>}
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-quaternary">
-            {s.dateUnknown ? <span title="Эх хуудсанд огноо байхгүй">Огноо тодорхойгүй</span> : <TimeAgo date={s.publishedAt} />}
+            {s.dateUnknown ? (
+                // The page printed no date: say when we found it, so the row still tells the reader how fresh it is.
+                <span title="Эх хуудсанд нийтэлсэн огноо байхгүй: бидний олсон цаг">
+                  Огноо тодорхойгүй · <TimeAgo date={s.publishedAt} /> олдсон
+                </span>
+              ) : (
+                <TimeAgo date={s.publishedAt} />
+              )}
             <span aria-hidden>·</span>
             <span className="max-w-full truncate">{s.sourceName}</span>
             {s.amounts.length > 0 && (

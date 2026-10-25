@@ -167,8 +167,24 @@ function jsonLdDate(doc: Document): Date | null {
   return null;
 }
 
-/** Finds a publication date in meta tags, JSON-LD, <time>, the URL, the headline area or the text. */
-export function extractPublishedDate(doc: Document, url: string, text: string, headline?: string): Date | null {
+/**
+ * A date inside the page's own data blob: Next.js `__NEXT_DATA__`, Nuxt `__NUXT__` or any
+ * `application/json` script (mofa.gov.mn prints no date in the markup but ships
+ * `"createdDate":"2026-10-23T11:38:26"`). Only keys that name a publication date count, and the
+ * first one in the main data object wins (related items come later in the blob).
+ */
+export function jsonBlobDate(html: string): Date | null {
+  const blobs = [...html.matchAll(/<script[^>]*(?:id="__NEXT_DATA__"|type="application\/json"|>\s*window\.__NUXT__)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+  for (const blob of blobs) {
+    const m = blob.match(/"(?:date|createdDate|created_at|createdAt|publishedAt|published_at|publishDate|pubDate|datePublished|news_date|post_date)"\s*:\s*"(20\d{2}-\d{2}-\d{2}[^"]{0,30})"/);
+    const d = m ? parseDateValue(m[1]) : null;
+    if (d) return d;
+  }
+  return null;
+}
+
+/** Finds a publication date in meta tags, JSON-LD, a data blob, <time>, the URL, the headline area or the text. */
+export function extractPublishedDate(doc: Document, url: string, text: string, headline?: string, blobDate: Date | null = null): Date | null {
   const metaSelectors = [
     'meta[property="article:published_time"]',
     'meta[name="pubdate"]',
@@ -182,6 +198,7 @@ export function extractPublishedDate(doc: Document, url: string, text: string, h
   }
   const ld = jsonLdDate(doc);
   if (ld) return ld;
+  if (blobDate) return blobDate;
   const time = timeElementDate(doc, headline);
   if (time) return time;
   const fromUrl = decodeURIComponent(url).match(/\/(20\d{2})\/(\d{1,2})\/(\d{1,2})\//);
@@ -197,6 +214,7 @@ export function extractPublishedDate(doc: Document, url: string, text: string, h
 
 /** Turns an HTML page into clean article text with Readability. Never stores HTML. */
 export function extractArticle(html: string, url: string): ExtractedArticle | null {
+  const blobDate = jsonBlobDate(html); // before the scripts are stripped
   const dom = new JSDOM(stripHeavyTags(html), { url, virtualConsole: silentConsole });
   const doc = dom.window.document;
   const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute("content");
@@ -215,7 +233,7 @@ export function extractArticle(html: string, url: string): ExtractedArticle | nu
     text,
     excerpt: normalizeText(parsed?.excerpt ?? "") || text.slice(0, 280),
     hash: contentHash(text),
-    publishedAt: extractPublishedDate(doc, url, text, title),
+    publishedAt: extractPublishedDate(doc, url, text, title, blobDate),
   };
   dom.window.close();
   return result;

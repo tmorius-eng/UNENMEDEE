@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { isTimelessPage, looksOld, newestYearMentioned, publishDecision } from "@/lib/scraper/dates";
 import { JSDOM } from "jsdom";
 
-import { dateFromText, extractArticle, extractPublishedDate, parseDateValue } from "@/lib/scraper/extractor";
+import { dateFromText, extractArticle, extractPublishedDate, jsonBlobDate, parseDateValue } from "@/lib/scraper/extractor";
 import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
@@ -172,5 +172,15 @@ describe("publishing undated pages", () => {
   });
   it("still trusts a dated item inside the window", () => {
     assert.equal(publishDecision(new Date(now.getTime() - 3 * 86_400_000), "Текст.", now), null);
+  });
+});
+
+describe("dates in page data blobs", () => {
+  it("reads createdDate from __NEXT_DATA__ (mofa.gov.mn) as Ulaanbaatar time", () => {
+    const y = new Date().getUTCFullYear() - 1;
+    const html = `<html><body><div>text</div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"data":{"id":"6ad","createdDate":"${y}-10-23T11:38:26.907","modifiedDate":"${y}-10-23T14:37:57.885","related":[{"date":"${y}-01-01T00:00:00"}]}}}}</script></body></html>`;
+    assert.equal(jsonBlobDate(html)?.toISOString(), `${y}-10-23T03:38:26.907Z`);
+    assert.equal(jsonBlobDate("<html><script>var x = 1;</script></html>"), null);
+    assert.equal(jsonBlobDate(`<script type="application/json">{"viewCount":184,"key":"abc"}</script>`), null);
   });
 });
