@@ -21,6 +21,14 @@ export const SOCIAL = {
   threads: "https://www.threads.com/@iltodmedee.mn",
   messenger: "https://m.me/61595785044734",
 } as const;
+/**
+ * Discord (public links, src/app/discord/page.tsx): the server invite to our announcement channel
+ * and the app's install link for the slash commands. null = not set yet; the page then says so.
+ */
+export const DISCORD: { invite: string | null; install: string | null } = {
+  invite: "https://discord.gg/zSW5FbWRrZ",
+  install: "https://discord.com/oauth2/authorize?client_id=1563927031438245888",
+};
 /** A file or folder in the repository on the main branch. */
 export const repoFile = (path: string) => `${REPO_URL}/blob/main/${path}`;
 // The Latin spelling is in the title: Google did not know "iltodmedee" yet (Oct 2026, it suggested "altamed").
