@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { looksOld, newestYearMentioned } from "@/lib/scraper/dates";
+import { isTimelessPage, looksOld, newestYearMentioned, publishDecision } from "@/lib/scraper/dates";
 import { JSDOM } from "jsdom";
 
 import { dateFromText, extractArticle, extractPublishedDate, parseDateValue } from "@/lib/scraper/extractor";
@@ -157,5 +157,20 @@ describe("date parsing fixes", () => {
     // A recent date in the same place is still trusted.
     const recent = doc(`<html><body><article><h1>Тушаалын тухай</h1><p>${year}-01-15. ${"Текст. ".repeat(40)}</p></article></body></html>`);
     assert.equal(extractPublishedDate(recent as unknown as Document, "https://mrpam.gov.mn/article/100", `${year}-01-15. Текст.`)?.toISOString().slice(0, 10), `${year}-01-15`);
+  });
+});
+
+describe("publishing undated pages", () => {
+  const now = new Date(`${new Date().getUTCFullYear()}-10-24T00:00:00Z`);
+  const y = now.getUTCFullYear();
+  it("keeps undated news that names a current year, hides timeless and old pages", () => {
+    assert.equal(publishDecision(null, `Өнөөдөр ${y} оны 10 дугаар сарын 24-нд яамны сайд ажлын хэсэг байгуулав.`, now), null);
+    assert.equal(publishDecision(null, `${y - 1} онд эхэлсэн төслийн үргэлжлэл болох уулзалт боллоо.`, now), null);
+    assert.equal(publishDecision(null, "Хууль эрх зүйн хэлтэс нь яамны хууль тогтоомжийн хэрэгжилтийг хангах чиг үүрэгтэй. Хэлтсийн дарга, мэргэжилтнүүд.", now), false, "department page");
+    assert.equal(publishDecision(null, "Монгол Улсын Засгийн газрын 2020-2024 оны үйл ажиллагааны хөтөлбөрийн хүрээнд авто зам, төмөр зам.", now), false, "old programme");
+    assert.ok(isTimelessPage("Есөн гайхамшиг: Буйр нуур, Халхын гол, Хэрлэн мөрөн.", now));
+  });
+  it("still trusts a dated item inside the window", () => {
+    assert.equal(publishDecision(new Date(now.getTime() - 3 * 86_400_000), "Текст.", now), null);
   });
 });

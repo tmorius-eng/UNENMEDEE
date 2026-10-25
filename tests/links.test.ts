@@ -56,6 +56,16 @@ describe("harvestArticleLinks", () => {
     assert.deepEqual(urls.sort(), ["https://mod.gov.mn/?p=10849", "https://mod.gov.mn/mn.php?page=40&news=1633"]);
   });
 
+  it("skips static pages: /p/23 departments, /home, instructions, page.aspx", () => {
+    const html = `<main>
+      <a href="/p/23">Хууль эрх зүйн хэлтсийн танилцуулга ба чиг үүрэг</a>
+      <a href="/home">Нүүр хуудас руу буцах холбоос энд</a>
+      <a href="/website/page.aspx?mm_id=30&id=42">Хүний нөөцийн ил тод байдлын мэдээлэл</a>
+      <a href="/instructions">Тусгай зөвшөөрлийн цахим систем ашиглах заавар</a>
+      <a href="/n/3380">Төрийн албан хаагчдын гүйцэтгэлийн тайланг хэлэлцлээ</a></main>`;
+    assert.deepEqual(harvestArticleLinks(html, "https://dornod.gov.mn/", "dornod.gov.mn").map((l) => l.url), ["https://dornod.gov.mn/n/3380"]);
+  });
+
   it("harvests links on any element with an href (JavaScript-rendered cards)", () => {
     const html = `<div data-x><area href="/news/4411" alt="Орон нутгийн төсвийн хэлэлцүүлэг амжилттай боллоо"></area>
       <link rel="stylesheet" href="/news/1"><a href="/news/4412">Эрүүл мэндийн даатгалын шинэ журам хэрэгжиж эхэллээ</a></div>`;
