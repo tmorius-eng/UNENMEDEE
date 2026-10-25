@@ -65,7 +65,8 @@ export const ALL_SOCIAL: SocialKey[] = ["facebook", "instagram", "threads", "mes
 export function SocialLinks({ only = ALL_SOCIAL, size = "md", labels = false, className }: { only?: SocialKey[]; size?: "xs" | "sm" | "md" | "lg"; labels?: boolean; className?: string }) {
   const box = size === "xs" ? "size-6" : size === "sm" ? "size-7" : size === "md" ? "size-8" : "size-10";
   return (
-    <ul className={cx("flex items-center", labels ? "flex-wrap gap-3" : size === "xs" ? "gap-1" : "gap-1.5", className)}>
+    // Labelled buttons sit in a grid so the columns line up (flex-wrap left "Threads" and "Messenger" ragged).
+    <ul className={cx(labels ? "grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center" : "flex items-center", !labels && (size === "xs" ? "gap-1" : "gap-1.5"), className)}>
       {only.map((key) => {
         const it = ITEMS[key];
         const external = key !== "rss";

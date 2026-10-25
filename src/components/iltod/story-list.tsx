@@ -40,7 +40,12 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
   const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
   return (
     <li key={s.id} className={cx(lead ? "relative rounded-2xl bg-primary p-5 shadow-xs ring-1 ring-secondary ring-inset md:p-6" : "py-5")}>
-      {lead && <span aria-hidden className={cx("absolute inset-x-0 top-0 h-1 rounded-t-2xl", dot)} />}
+      {/* The bar sits in a clip box with the card's radius, so it follows the rounded corners. */}
+      {lead && (
+        <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+          <span className={cx("block h-1", dot)} />
+        </span>
+      )}
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -72,7 +77,8 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
             {s.title}
           </a>
           {teaser && !isOpen && <p className={cx("mt-1.5 text-sm text-tertiary", lead ? "line-clamp-3 md:text-md" : "line-clamp-2")}>{teaser}</p>}
-          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-quaternary">
+          {/* No "·" between the time and the source: on phones the row wraps and a separator was left dangling at the line end. */}
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-quaternary">
             {s.dateUnknown ? (
                 // The page printed no date: say when we found it, so the row still tells the reader how fresh it is.
                 <span title="Эх хуудсанд нийтэлсэн огноо байхгүй: бидний олсон цаг">
@@ -81,8 +87,7 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
               ) : (
                 <TimeAgo date={s.publishedAt} />
               )}
-            <span aria-hidden>·</span>
-            <span className="max-w-full truncate">{s.sourceName}</span>
+            <span className="max-w-full truncate font-medium text-tertiary">{s.sourceName}</span>
             {s.amounts.length > 0 && (
               <Badge type="pill-color" color="warning" size="sm">
                 {largestAmount(s.amounts)}

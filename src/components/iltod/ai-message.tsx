@@ -24,7 +24,8 @@ export function AIMessage({
         <p className="text-xs font-semibold tracking-wide text-tertiary uppercase">{title}</p>
         {children}
       </MessageContent>
-      {!compact && <MessageAvatar src={tier === "tier2" ? "/avatars/ai-tier2.svg" : "/avatars/ai-tier1.svg"} name="AI" />}
+      {/* Phones get the full width for the text: the avatar column took 40 px from every AI block. */}
+      {!compact && <MessageAvatar className="max-sm:hidden" src={tier === "tier2" ? "/avatars/ai-tier2.svg" : "/avatars/ai-tier1.svg"} name="AI" />}
     </Message>
   );
 }

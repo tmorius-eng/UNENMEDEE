@@ -7,7 +7,7 @@ import { sourceError } from "@/lib/scraper/crawl";
 import { JSDOM } from "jsdom";
 
 import { cleanTitle, dateFromText, extractArticle, extractPublishedDate, jsonBlobDate, parseDateValue } from "@/lib/scraper/extractor";
-import { chooseTitle, firstSentenceTitle, isGenericTitle, looksLikeNavigation, looksLikeUnitPage, unshoutTitle } from "@/lib/scraper/titles";
+import { chooseTitle, firstSentenceTitle, isGenericTitle, isTransliteratedTitle, looksLikeNavigation, looksLikeUnitPage, unshoutTitle } from "@/lib/scraper/titles";
 
 const page = (name: string) => readFileSync(new URL(`./fixtures/dates/${name}.html`, import.meta.url), "utf8");
 
@@ -35,6 +35,15 @@ describe("generic titles", () => {
     assert.equal(firstSentenceTitle("Тоон гарын үсгийг олгож эхэллээ 2022-05-111847 уншсанЗасгийн газрын"), "Тоон гарын үсгийг олгож эхэллээ");
     const long = firstSentenceTitle(`${"Монгол Улсын Засгийн газрын ээлжит хуралдаанаар олон чухал асуудлыг хэлэлцэн шийдвэрлэж, тогтоол гаргалаа ".repeat(2)}.`);
     assert.ok(long.length <= 111 && long.endsWith("…"));
+  });
+
+  it("skips a transliterated Latin slug over a Mongolian text, keeps a Latin name the text repeats", () => {
+    const text = "Байгаль орчин, аялал жуулчлалын салбарт гадаадын буцалтгүй тусламж, зээлээр хэрэгжиж байгаа төслийн мэдээлэл. ".repeat(3);
+    assert.ok(isTransliteratedTitle("Heregzhizh Bajgaa T Sl Dijn Talaarh Medeelel | MECC", text));
+    assert.equal(chooseTitle(["Heregzhizh Bajgaa T Sl Dijn Talaarh Medeelel | MECC", "Хэрэгжиж буй төслийн мэдээлэл"], text), "Хэрэгжиж буй төслийн мэдээлэл");
+    const festival = `“Youth for Water Festival – 2026” арга хэмжээг зохион байгуулна. ${"Усны үнэ цэнийг олон нийтэд хүргэнэ. ".repeat(5)}`;
+    assert.ok(!isTransliteratedTitle("YOUTH FOR WATER FESTIVAL 2026", festival));
+    assert.ok(!isTransliteratedTitle("IAAC annual report", "Short English text only."));
   });
 
   it("chooses the first candidate that is a real headline", () => {
