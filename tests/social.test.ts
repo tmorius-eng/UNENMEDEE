@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import { articlePost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
 import { publishTelegram, telegramArticlePost } from "@/lib/social/telegram";
-import { discordArticlePost, discordDigestPost, discordMessage, publishDiscord } from "@/lib/social/discord";
+import { discordArticlePost, discordDigestPost, discordMessage, meter, publishDiscord } from "@/lib/social/discord";
+import { formatShare, perPersonLine, perPersonShare } from "@/lib/per-person";
 
 const digest = {
   id: 9,
@@ -27,7 +28,7 @@ describe("facebook posts", () => {
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?d=9");
   });
 
-  it("article: headline hook, two summary sentences, amount, source, link, card", () => {
+  it("article: headline hook, two summary sentences, amount, per-person share, source, link, card", () => {
     const p = articlePost({
       id: 1,
       slug: "tusuv-123",
@@ -41,7 +42,8 @@ describe("facebook posts", () => {
     assert.equal(lines[0], "⚡ Төсвийн тодотгол");
     assert.equal(lines[2], "👉 Нэгдүгээр өгүүлбэр. Хоёрдугаар өгүүлбэр.");
     assert.equal(lines[3], "💰 Дүн: 1.2 их наяд ₮");
-    assert.equal(lines[4], "🏛 Эх сурвалж: Сангийн яам");
+    assert.equal(lines[4], "👤 3.43 сая хүнд хуваавал ≈ 350 300₮ / хүн");
+    assert.equal(lines[5], "🏛 Эх сурвалж: Сангийн яам");
     assert.ok(lines.includes("Дэлгэрэнгүй, эх баримтын холбоос 👉 https://iltodmedee.mn/article/tusuv-123"));
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=tusuv-123");
   });
@@ -139,6 +141,19 @@ describe("discord announcement channel", () => {
     assert.ok(discordDigestPost(digest).text.includes("<https://iltodmedee.mn/digest>"));
   });
 
+  it("short card: bold headline, quoted summary, amount with per-person share, AI meters", () => {
+    const lines = discordArticlePost({ ...story, riskScore: 70, neutrality: 40 }).text.split("\n");
+    assert.equal(lines[0], "⚡ **Гарчиг @everyone**");
+    assert.deepEqual(lines.slice(1, 3), ["> Нэг.", "> Хоёр."]);
+    assert.equal(lines[3], "💰 **48.5 тэрбум ₮** · 👤 3.43 сая хүнд хуваавал **≈ 14 200₮** / хүн");
+    assert.equal(lines[4], "📊 Баримт 🟩🟩⬜⬜⬜  ·  ⚠️ Эрсдэл 🟧🟧🟧🟧⬜  _(AI-ийн үнэлгээ, буруутгал биш)_");
+    assert.ok(!discordArticlePost({ ...story, title: "**оргосон** гарчиг" }).text.startsWith("⚡ ****"));
+    const digestLines = discordDigestPost({ ...digest, items: digest.items.map((it, i) => ({ ...it, whyItMatters: i === 0 ? "Учир нь." : undefined })) }).text.split("\n");
+    assert.equal(digestLines[0], "🗞 **ОРОЙН ТОЙМ · 22:48**");
+    assert.equal(digestLines[2], "> Учир нь.");
+    assert.ok(digestLines.includes("`7` Мэдээ 7"));
+  });
+
   it("posts with the bot token in the header, then crossposts to following servers", async () => {
     const calls: { url: string; auth: string | null }[] = [];
     const f = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -162,5 +177,21 @@ describe("discord announcement channel", () => {
     assert.ok(!warnings[0].includes("SECRET"));
     const bad = (async () => new Response(JSON.stringify({ message: "401: Unauthorized" }), { status: 401 })) as unknown as typeof fetch;
     await assert.rejects(publishDiscord({ token: "SECRET", channelId: "1", post: { text: "t", link: "l" }, fetchImpl: bad }), (e: Error) => e.message.includes("401") && !e.message.includes("SECRET"));
+  });
+});
+
+describe("per-person share", () => {
+  it("divides the largest ₮ amount (≥ 1 тэрбум) by the population and rounds it plainly", () => {
+    assert.equal(perPersonShare(["5 сая ₮"]), null);
+    assert.equal(perPersonShare(["1,000 ам.доллар"]), null);
+    assert.equal(formatShare(perPersonShare(["48.5 тэрбум ₮", "5 сая ₮"]) ?? 0), "≈ 14 200₮");
+    assert.equal(formatShare(perPersonShare(["1 тэрбум ₮"]) ?? 0), "≈ 290₮");
+    assert.equal(formatShare(perPersonShare(["5 их наяд ₮"]) ?? 0), "≈ 1.5 сая ₮");
+    assert.equal(perPersonLine(["48.5 тэрбум ₮"]), "👤 3.43 сая хүнд хуваавал ≈ 14 200₮ / хүн");
+  });
+  it("meters clamp a score to 0–5 blocks", () => {
+    assert.equal(meter(0, "🟩"), "⬜⬜⬜⬜⬜");
+    assert.equal(meter(100, "🟩"), "🟩🟩🟩🟩🟩");
+    assert.equal(meter(140, "🟩"), "🟩🟩🟩🟩🟩");
   });
 });

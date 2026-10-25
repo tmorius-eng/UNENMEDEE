@@ -1,11 +1,16 @@
 /**
- * Discord announcement channel (free, no bot hosting): our bot posts the same digests and stories
- * as Facebook to the ИЛ ТОД МЭДЭЭ server's announcement channel through the REST API, then
- * publishes ("crossposts") the message, so every server that pressed "Follow" on the channel gets
+ * Discord announcement channel (free, no bot hosting): our bot posts the digests and stories (a
+ * shorter card than Facebook's, see below) to the ИЛ ТОД МЭДЭЭ server's announcement channel
+ * through the REST API, then publishes ("crossposts") the message, so every server that pressed "Follow" on the channel gets
  * it too. Only REST calls from GitHub Actions: the bot never connects to the gateway, so nothing
  * has to stay online. The token goes in the Authorization header only and errors never echo it.
  */
-import { articlePost, digestPost, type ArticleForPost, type DigestForPost } from "./facebook";
+import { editionLabel } from "@/lib/edition";
+import { largestAmount, tldrSentences } from "@/lib/format";
+import { formatShare, perPersonShare, POPULATION_LABEL } from "@/lib/per-person";
+import { PRODUCTION_URL } from "@/lib/site";
+
+import type { ArticleForPost, DigestForPost } from "./facebook";
 import { cut } from "./threads";
 
 export const DISCORD_API = "https://discord.com/api/v10";
@@ -20,27 +25,47 @@ export interface DiscordPost {
   imageUrl?: string;
 }
 
+/** Five blocks for a 0–100 score: "🟩🟩🟩⬜⬜". */
+export function meter(score: number, full: string): string {
+  const n = Math.max(0, Math.min(5, Math.round(score / 20)));
+  return full.repeat(n) + "⬜".repeat(5 - n);
+}
+
+/** Discord bold without letting scraped text break out of it. */
+const bold = (s: string) => `**${s.replace(/\*/g, "")}**`;
+
 /**
- * The Facebook text without its hashtag line (they are not links on Discord). Our own link is
- * wrapped in <…> so Discord does not add a second preview under the card embed.
+ * A short card for Discord's younger readers: bold headline, two summary lines as a quote, the
+ * amount and its per-person share in bold, the AI's fact and risk estimates as meters (labelled as
+ * AI estimates), the source and our link in <…> so only the card embed shows. No hashtags.
  */
-function discordText(message: string, link: string): string {
-  return message
-    .split("\n")
-    .filter((line) => !/^\s*(#\S+\s*)+$/u.test(line))
-    .join("\n")
-    .trim()
-    .replaceAll(link, `<${link}>`);
+export function discordArticlePost(a: ArticleForPost, site = PRODUCTION_URL): DiscordPost {
+  const link = `${site}/article/${a.slug}`;
+  const amount = largestAmount(a.amounts);
+  const share = perPersonShare(a.amounts);
+  const meters = [
+    ...(typeof a.neutrality === "number" ? [`📊 Баримт ${meter(a.neutrality, "🟩")}`] : []),
+    ...(typeof a.riskScore === "number" ? [`⚠️ Эрсдэл ${meter(a.riskScore, "🟧")}`] : []),
+  ];
+  const lines = [
+    `${a.riskFlag ? "🚨" : "⚡"} ${bold(a.title)}`,
+    ...tldrSentences(a.tldr, 2).map((t) => `> ${t}`),
+    ...(amount ? [`💰 ${bold(amount)}${share !== null ? ` · 👤 ${POPULATION_LABEL} хүнд хуваавал ${bold(formatShare(share))} / хүн` : ""}`] : []),
+    ...(meters.length ? [`${meters.join("  ·  ")}  _(AI-ийн үнэлгээ, буруутгал биш)_`] : []),
+    `🏛 ${a.sourceName} · 👉 <${link}>`,
+  ];
+  return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }
 
-export function discordDigestPost(d: DigestForPost): DiscordPost {
-  const p = digestPost(d);
-  return { text: discordText(p.message, p.link), link: p.link, imageUrl: p.imageUrl };
-}
-
-export function discordArticlePost(a: ArticleForPost): DiscordPost {
-  const p = articlePost(a);
-  return { text: discordText(p.message, p.link), link: p.link, imageUrl: p.imageUrl };
+/** The edition: the top story and why it matters, then numbered headlines and the link. */
+export function discordDigestPost(d: DigestForPost, site = PRODUCTION_URL): DiscordPost {
+  const link = `${site}/digest`;
+  const [top, ...rest] = d.items;
+  const lines = [`🗞 ${bold(editionLabel(d))}`];
+  if (top) lines.push(`⚡ ${bold(top.headline)}`, ...(top.whyItMatters ? [`> ${top.whyItMatters}`] : []));
+  if (rest.length) lines.push("", ...rest.slice(0, 6).map((it, i) => `\`${i + 2}\` ${it.headline}`));
+  lines.push("", `👉 Бүх ${d.items.length} мэдээ, эх сурвалжтай нь: <${link}>`);
+  return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
 /** The message body: scraped text can contain "@everyone", so no mention is ever resolved. */
