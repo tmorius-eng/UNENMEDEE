@@ -42,6 +42,8 @@ interface RowProps {
 /** One story. Memoised with stable handlers, so marking or opening one story re-renders one row, not 40. */
 const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onToggleRead }: RowProps) {
   const { tag, color, dot } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName, s.topic);
+  // The ✓ pops only on a tap (a class on rows restored from localStorage would pop on every load).
+  const [pop, setPop] = useState(false);
   const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
   const amount = largestAmount(s.amounts);
   const share = lead ? null : perPersonLine(s.amounts);
@@ -77,7 +79,8 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
               className={cx(
                 "mt-2 block w-full cursor-pointer text-left transition-colors",
                 lead ? "headline text-[1.75rem] md:text-[2.5rem]" : "story-headline text-balance",
-                isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary",
+                // Mouse hover: a 2 px brand underline (Tailwind's hover: variant is gated on (hover: hover)).
+                isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary hover:underline hover:decoration-[var(--color-bg-brand-solid)] hover:decoration-2 hover:underline-offset-4",
               )}
             >
               {s.title}
@@ -103,12 +106,17 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
         </div>
         <button
           type="button"
-          onClick={() => onToggleRead(s.id)}
+          onClick={() => {
+            setPop(!isRead);
+            onToggleRead(s.id);
+          }}
+          onAnimationEnd={() => setPop(false)}
           aria-pressed={isRead}
           aria-label={isRead ? "Уншаагүй болгох" : "Уншсан гэж тэмдэглэх"}
           className={cx(
             "mt-5 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition",
             isRead ? "bg-brand-solid text-primary_on-brand" : "text-fg-quaternary ring-1 ring-line ring-inset hover:ring-brand",
+            pop && isRead && "check-pop",
           )}
         >
           <Check className="size-4" strokeWidth={2.5} />

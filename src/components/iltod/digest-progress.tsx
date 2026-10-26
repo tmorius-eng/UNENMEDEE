@@ -49,7 +49,15 @@ export function DigestProgress({ ids, edition }: { ids: number[]; edition: numbe
         <span className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-line-soft" role="progressbar" aria-valuemin={0} aria-valuemax={ids.length} aria-valuenow={count} aria-label="Уншсан мэдээ">
           <span className="block h-full rounded-full bg-brand-solid transition-all" style={{ width: `${(count / Math.max(1, ids.length)) * 100}%` }} />
         </span>
-        {streak > 0 && <span className="text-primary">🔥 {streak} өдөр дараалан</span>}
+        {streak > 0 && (
+          // Finishing the edition lights the pill: the flame pops once (CSS keyframe, none for reduced motion).
+          <span className={cx("flex items-center gap-1.5 rounded-full px-2.5 py-1 ring-1 ring-inset", done ? "bg-signal-soft text-primary ring-signal" : "text-primary ring-line")}>
+            <span aria-hidden className={cx("inline-block", done && "flame-pop")}>
+              🔥
+            </span>
+            {streak} өдөр дараалан
+          </span>
+        )}
       </div>
       {!done && (
         <button type="button" onClick={() => markRead(ids)} className="w-fit text-xs font-semibold text-tertiary hover:text-secondary">
