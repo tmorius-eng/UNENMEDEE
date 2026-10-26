@@ -715,6 +715,8 @@ export interface PoliticianSummary {
   previousAssets: number | null;
   /** True when a filing year was left out of the comparison (suspected unit error or editor-hidden). */
   comparisonLimited: boolean;
+  /** The latest filing itself is the suspected unit error (thousand ₮ filed as ₮ or the reverse). */
+  latestSuspect: boolean;
 }
 
 /** Declaration years an editor took out of the comparison (see src/lib/officials/hidden.ts). */
@@ -761,6 +763,7 @@ export async function getPoliticians(): Promise<PoliticianSummary[]> {
         previousYear: previous?.year ?? null,
         previousAssets: previous?.totalAssets ?? null,
         comparisonLimited: suspect.size > 0 || hiddenYears.length > 0,
+        latestSuspect: latest !== undefined && suspect.has(latest.year),
       };
     });
   });

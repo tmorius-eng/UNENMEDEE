@@ -22,7 +22,18 @@ function change(p: PoliticianSummary): number | null {
   return p.latestAssets !== null && p.previousAssets ? p.latestAssets / p.previousAssets - 1 : null;
 }
 
-/** Filter by party and sort by the declared figures; everything links to the profile. */
+/** "▲ 18%" / "▼ 4%" / "= 0": a number, never a verdict (neutral colour on purpose). */
+function changeLabel(c: number | null, p: PoliticianSummary): string {
+  if (c === null) return p.comparisonLimited ? "харьцуулахгүй" : "—";
+  if (Math.abs(c) < 0.005) return "= 0";
+  return `${c > 0 ? "▲" : "▼"} ${formatPercent(Math.abs(c))}`;
+}
+
+/**
+ * The members as a ledger: one hairline row each with the latest declared assets (a bar against the
+ * largest figure in the current list), income and the change to the newest comparable year, all
+ * linking to the profile with the original filings. Filter by party, sort by the declared figures.
+ */
 export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
   const parties = useMemo(() => [...new Set(people.map((p) => p.party ?? "Бусад"))].sort(), [people]);
   const [party, setParty] = useState<string>("all");
@@ -33,9 +44,14 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
     const key = (p: PoliticianSummary) => (sort === "assets" ? p.latestAssets : sort === "income" ? p.latestIncome : sort === "change" ? change(p) : null) ?? -Infinity;
     return sort === "name" ? [...list].sort((a, b) => a.fullName.localeCompare(b.fullName, "mn")) : [...list].sort((a, b) => key(b) - key(a));
   }, [people, party, sort]);
+  const max = useMemo(() => Math.max(0, ...rows.map((p) => p.latestAssets ?? 0)), [rows]);
+  const years = useMemo(() => {
+    const latest = Math.max(0, ...rows.map((p) => p.latestYear ?? 0));
+    return latest ? { latest, previous: latest - 1 } : null;
+  }, [rows]);
 
   const chip = (active: boolean) =>
-    cx("shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset transition", active ? "bg-brand-solid text-primary_on-brand ring-transparent" : "text-secondary ring-primary hover:bg-primary_hover");
+    cx("label-mono shrink-0 cursor-pointer rounded-full px-3 py-1.5 ring-1 ring-inset transition", active ? "bg-ink text-bg-primary ring-transparent" : "text-secondary ring-line hover:bg-primary_hover");
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,48 +65,76 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
           </button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-tertiary">
-        Эрэмбэлэх:
+      <div className="label-mono flex flex-wrap items-center gap-2 text-tertiary">
+        Эрэмбэ:
         {SORTS.map((s) => (
           <button key={s.key} type="button" className={chip(sort === s.key)} onClick={() => setSort(s.key)}>
             {s.label}
           </button>
         ))}
       </div>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((p) => {
-          const c = change(p);
-          return (
-            <li key={p.id} className="min-w-0">
-              <Link href={`/officials/${p.id}`} className="flex h-full min-w-0 gap-3 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset transition hover:ring-brand">
-                {/* eslint-disable-next-line @next/next/no-img-element -- portraits come from parliament.mn */}
-                {p.photoUrl ? <img src={p.photoUrl} alt="" loading="lazy" className="size-14 shrink-0 rounded-full bg-secondary object-cover" /> : <span className="size-14 shrink-0 rounded-full bg-secondary" />}
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate font-semibold text-primary">{p.fullName}</span>
-                  <span className="truncate text-xs text-tertiary">
-                    {p.party ?? "—"}
-                    {p.constituency ? ` · ${p.constituency}` : ""}
-                  </span>
-                  {p.latestYear ? (
-                    <span className="text-sm text-secondary">
-                      {p.latestYear}: хөрөнгө <b className="tabular-nums">{formatMntShort(p.latestAssets ?? 0)}</b>, орлого <span className="tabular-nums">{formatMntShort(p.latestIncome ?? 0)}</span>
-                      {c !== null && Math.abs(c) >= 0.01 && (
-                        // Neutral colour on purpose: a change is a number, not a verdict.
-                        <span className="ml-1 text-xs font-semibold text-tertiary tabular-nums" title={`${p.previousYear}→${p.latestYear}`}>
-                          {c > 0 ? "▲" : "▼"} {formatPercent(c)} <span className="font-normal">({p.previousYear}→{p.latestYear})</span>
+
+      <div className="border-y border-line">
+        {/* Column heads on wide screens; phones read the labels from the row itself. */}
+        <div className="label-mono hidden grid-cols-[40px_1.6fr_1fr_1fr_0.8fr] gap-x-3 border-b border-line py-2 text-tertiary xl:grid">
+          <span />
+          <span>Гишүүн</span>
+          <span className="text-right">Хөрөнгө{years ? ` ${years.latest}` : ""}</span>
+          <span className="text-right">Орлого{years ? ` ${years.latest}` : ""}</span>
+          <span className="text-right">Өөрчлөлт{years ? ` ${years.previous}→${years.latest}` : ""}</span>
+        </div>
+        <ul className="divide-y divide-line-soft">
+          {rows.map((p) => {
+            const c = change(p);
+            const width = max > 0 && p.latestAssets ? `${Math.max(1, (p.latestAssets / max) * 100)}%` : "0%";
+            return (
+              <li key={p.id}>
+                <Link
+                  href={`/officials/${p.id}`}
+                  className="grid grid-cols-[40px_1fr_auto] items-center gap-x-3 gap-y-1 py-3 transition hover:bg-primary_hover xl:grid-cols-[40px_1.6fr_1fr_1fr_0.8fr] xl:py-2.5"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- portraits come from parliament.mn */}
+                  {p.photoUrl ? <img src={p.photoUrl} alt="" loading="lazy" className="row-span-2 size-10 rounded-full bg-secondary object-cover xl:row-span-1" /> : <span className="row-span-2 size-10 rounded-full bg-secondary xl:row-span-1" />}
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-semibold text-primary">{p.fullName}</span>
+                    <span className="label-mono flex flex-wrap items-center gap-x-1.5 truncate text-tertiary">
+                      {p.party ?? "—"}
+                      {p.constituency ? ` · ${p.constituency}` : ""}
+                      {p.latestSuspect && p.latestYear && (
+                        <span className="rounded px-1 normal-case ring-1 ring-line ring-inset" title="Мэдүүлгийн нэгж (мянган ₮ / ₮) зөрсөн байж болзошгүй: харьцуулалтад оруулаагүй">
+                          нэгжийн зөрүү {p.latestYear}
                         </span>
                       )}
-                      {c === null && p.comparisonLimited && <span className="ml-1 text-xs text-quaternary">харьцуулах боломжгүй</span>}
                     </span>
+                  </span>
+                  {p.latestYear ? (
+                    <>
+                      <span className="flex min-w-[6.5rem] flex-col items-end gap-1">
+                        <span className="num-mono text-md text-primary">
+                          {formatMntShort(p.latestAssets ?? 0)}
+                        </span>
+                        <span className="block h-[3px] w-full bg-line-soft" aria-hidden>
+                          <span className={cx("block h-full", p.latestSuspect ? "bg-fg-quaternary/50" : "bg-brand-solid/75")} style={{ width }} />
+                        </span>
+                      </span>
+                      <span className="label-mono col-start-2 text-right normal-case text-secondary xl:col-start-auto">
+                        <span className="xl:hidden">орлого </span>
+                        <span className="num-mono text-sm">{formatMntShort(p.latestIncome ?? 0)}</span>
+                      </span>
+                      <span className="label-mono text-right normal-case text-tertiary" title={p.previousYear ? `${p.previousYear}→${p.latestYear}` : undefined}>
+                        {changeLabel(c, p)}
+                      </span>
+                    </>
                   ) : (
-                    <span className="text-sm text-quaternary">Мэдүүлэг олдоогүй</span>
+                    <span className="label-mono col-span-3 text-right normal-case text-quaternary xl:col-span-3">Мэдүүлэг олдоогүй</span>
                   )}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <p className="label-mono normal-case text-tertiary">Мөрийн урт = энэ жагсаалтын хамгийн их хөрөнгөтэй харьцуулсан хувь · ▲▼ тоо, үнэлгээ биш · мэдүүлэг бүр ХАСХОМ-ын эх холбоостой (хувийн хуудсанд)</p>
     </div>
   );
 }
