@@ -39,8 +39,8 @@ const isActive = (href: string, pathname: string | null) => pathname !== null &&
 
 const linkClass = (active: boolean) =>
   cx(
-    "rounded-lg px-2 py-2 text-sm font-semibold whitespace-nowrap transition",
-    active ? "bg-active text-secondary" : "text-quaternary hover:bg-primary_hover hover:text-secondary",
+    "rounded-md px-2.5 py-2 text-sm font-semibold whitespace-nowrap transition",
+    active ? "bg-secondary text-primary" : "text-tertiary hover:bg-primary_hover hover:text-primary",
   );
 
 interface NavProps {
@@ -81,7 +81,7 @@ function NavList({ className, onNavigate, pathname, skipHome, more }: NavProps &
         <NavMore pathname={pathname} />
       ) : (
         <>
-          <p className="mt-3 px-2 pb-1 text-xs font-semibold text-quaternary">Бусад</p>
+          <p className="label-mono mt-3 px-2.5 pb-1 text-tertiary">Бусад</p>
           {NAV_MORE.map(link)}
         </>
       )}
@@ -180,7 +180,7 @@ function NavMore({ pathname }: { pathname: string | null }) {
           role="menu"
           aria-label="Бусад хуудас"
           onKeyDown={onMenuKey}
-          className="absolute top-full right-0 z-50 mt-1 w-56 origin-top-right rounded-lg bg-primary py-1 shadow-lg ring-1 ring-secondary_alt duration-150 ease-out animate-in fade-in slide-in-from-top-0.5"
+          className="absolute top-full right-0 z-50 mt-1 w-56 origin-top-right rounded-xl bg-primary py-1 shadow-lg ring-1 ring-line duration-150 ease-out animate-in fade-in slide-in-from-top-0.5"
         >
           {NAV_MORE.map((item) => {
             const active = isActive(item.href, pathname);
@@ -196,7 +196,7 @@ function NavMore({ pathname }: { pathname: string | null }) {
                 <span
                   className={cx(
                     "flex items-center rounded-md px-2.5 py-2 text-sm font-semibold text-secondary outline-focus-ring transition duration-100 ease-linear group-hover:bg-primary_hover group-focus-visible:bg-primary_hover group-focus-visible:outline-2 group-focus-visible:-outline-offset-2",
-                    active && "bg-active",
+                    active && "bg-secondary text-primary",
                   )}
                 >
                   <span className="grow">{item.label}</span>

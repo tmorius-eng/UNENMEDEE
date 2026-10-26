@@ -18,9 +18,9 @@ export async function DonateChip({ className }: { className?: string }) {
         💙 <span className="hidden lg:inline">Ил тод мэдээг </span>
         <span className="lg:lowercase">Дэмжих</span>
       </Link>
-      <span className="hidden min-w-0 truncate text-tertiary md:inline">
+      <span className="label-mono hidden min-w-0 truncate text-tertiary md:inline">
         <span className="hidden lg:inline">{d.bank} · </span>
-        <span className="font-mono text-secondary">{groupAccount(d.account)}</span>
+        <span className="text-secondary">{groupAccount(d.account)}</span>
       </span>
       <CopyText text={d.account} className="hidden md:inline-flex" />
     </div>
@@ -31,14 +31,14 @@ export async function DonateChip({ className }: { className?: string }) {
 export async function DonateCard({ className }: { className?: string }) {
   const d = await getDonation();
   return (
-    <div className={cx("flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset", className)}>
-      <p className="text-xs text-tertiary">
+    <div className={cx("flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset", className)}>
+      <p className="label-mono text-tertiary">
         {d.bank}
         {d.holder ? ` · ${d.holder}` : ""}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono text-md font-semibold break-all text-primary">{groupAccount(d.account)}</span>
-        <CopyText text={d.account} label="Данс хуулах" className="ring-1 ring-primary ring-inset" />
+        <span className="num-mono text-md break-all text-primary">{groupAccount(d.account)}</span>
+        <CopyText text={d.account} label="Данс хуулах" className="ring-1 ring-line ring-inset" />
       </div>
     </div>
   );

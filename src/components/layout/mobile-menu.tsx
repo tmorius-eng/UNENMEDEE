@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 
 import { NavLinks, NavLinksFallback } from "./nav-links";
+import { HEADER_ICON_BUTTON } from "./header-styles";
 import { SocialLinks } from "./social-links";
 import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
@@ -13,31 +14,25 @@ export function MobileMenu() {
   const [open, setOpen] = useState(false);
   return (
     <div className="xl:hidden">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={open ? "Цэс хаах" : "Цэс нээх"}
-        onClick={() => setOpen((v) => !v)}
-        className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-fg-secondary hover:bg-primary_hover"
-      >
-        {open ? <XClose className="size-5" /> : <Menu02 className="size-5" />}
+      <button type="button" aria-expanded={open} aria-label={open ? "Цэс хаах" : "Цэс нээх"} onClick={() => setOpen((v) => !v)} className={HEADER_ICON_BUTTON}>
+        {open ? <XClose className="size-[18px]" /> : <Menu02 className="size-[18px]" />}
       </button>
       {open && (
-        <div className="absolute inset-x-0 top-full animate-in border-b border-secondary bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl duration-200 fade-in slide-in-from-top-2">
-          <Suspense fallback={<NavLinksFallback className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />}>
-            <NavLinks className="flex flex-col gap-1" onNavigate={() => setOpen(false)} />
+        <div className="absolute inset-x-0 top-full animate-in border-b border-line bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl duration-200 fade-in slide-in-from-top-2">
+          <Suspense fallback={<NavLinksFallback className="flex flex-col gap-0.5" onNavigate={() => setOpen(false)} />}>
+            <NavLinks className="flex flex-col gap-0.5" onNavigate={() => setOpen(false)} />
           </Suspense>
-          <Link href="/support" onClick={() => setOpen(false)} className="mt-2 block rounded-lg border-t border-secondary px-3 pt-3 pb-1 text-sm font-semibold text-brand-secondary">
+          <Link href="/support" onClick={() => setOpen(false)} className="mt-2 block border-t border-line-soft px-3 pt-3 pb-1 text-sm font-semibold text-brand-secondary">
             💙 Ил тод мэдээг дэмжих (хандив)
           </Link>
-          <div className="mt-2 flex items-center gap-3 border-t border-secondary px-3 pt-3 pb-1 text-sm text-tertiary">
-            <span>Биднийг дагаарай</span>
+          <div className="mt-2 flex items-center gap-3 border-t border-line-soft px-3 pt-3 pb-1">
+            <span className="label-mono text-tertiary">Биднийг дагаарай</span>
             <SocialLinks size="md" className="ml-auto" />
           </div>
-          <div className="mt-2 flex items-center gap-1 border-t border-secondary px-1 pt-2 text-sm text-tertiary sm:hidden">
-            <span className="px-2">Үсгийн хэмжээ</span>
+          <div className="mt-2 flex items-center gap-1 border-t border-line-soft px-1 pt-2 sm:hidden">
+            <span className="label-mono px-2 text-tertiary">Үсгийн хэмжээ</span>
             <TextSizeToggle />
-            <span className="ml-auto px-2">Өнгө</span>
+            <span className="label-mono ml-auto px-2 text-tertiary">Өнгө</span>
             <ThemeToggle />
           </div>
         </div>

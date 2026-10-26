@@ -7,7 +7,7 @@ import { Providers } from "@/components/providers";
 import { InstallBanner } from "@/components/pwa/pwa-controls";
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register";
 import { isDemoDatabase } from "@/db";
-import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL, CONTACT_EMAIL, SOCIAL } from "@/lib/site";
+import { jsonLd, REPO_URL, SITE_ALTERNATE_NAMES, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL, CONTACT_EMAIL, SOCIAL, THEME_COLOR } from "@/lib/site";
 
 import "./globals.css";
 
@@ -15,6 +15,10 @@ import "./globals.css";
 // 56 KB, preloaded) replaces Google's three files (175 KB, the 83 KB cyrillic-ext one not preloaded
 // although Ө and Ү live there). Rebuild with pyftsubset from the Inter release (CLAUDE.md §6c).
 const inter = localFont({ src: "../assets/fonts/inter-var.woff2", weight: "100 900", variable: "--font-inter", display: "swap", preload: true });
+// Headlines: Inter Display (the opsz=32 instance, weights 650–850, 40 KB). Numbers and labels:
+// JetBrains Mono 500 (34 KB). Both subset to the same characters as the body font.
+const interDisplay = localFont({ src: "../assets/fonts/inter-display-var.woff2", weight: "650 850", variable: "--font-inter-display", display: "swap", preload: true });
+const mono = localFont({ src: "../assets/fonts/jetbrains-mono-500.woff2", weight: "500", variable: "--font-jb-mono", display: "swap", preload: true });
 
 const verification: Metadata["verification"] = {
   google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
@@ -62,19 +66,19 @@ export const viewport: Viewport = {
   // Content can reach the notch area; header/footer pad with env(safe-area-inset-*).
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c111d" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="mn" className={`${inter.variable} h-full scroll-smooth antialiased`} suppressHydrationWarning>
+    <html lang="mn" className={`${inter.variable} ${interDisplay.variable} ${mono.variable} h-full scroll-smooth antialiased`} suppressHydrationWarning>
       <head>
         {/* Before the first paint: hide the first-visit intro for readers who dismissed it (no layout shift). */}
         <script dangerouslySetInnerHTML={{ __html: "try{localStorage.getItem('iltod-intro')&&(document.documentElement.dataset.intro='seen')}catch(e){}" }} />
       </head>
-      <body className="flex min-h-full flex-col bg-secondary_alt text-primary">
+      <body className="flex min-h-full flex-col bg-primary text-primary">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
         <Providers>
           {isDemoDatabase() && (

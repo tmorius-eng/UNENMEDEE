@@ -79,7 +79,7 @@ export function SocialLinks({ only = ALL_SOCIAL, size = "md", labels = false, cl
               title={it.label}
               className={cx("group flex items-center gap-2 rounded-full outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2", labels && "pr-3 text-sm font-semibold text-secondary hover:text-primary")}
             >
-              <span className={cx(box, it.bg, "flex shrink-0 items-center justify-center rounded-full shadow-xs transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md")}>
+              <span className={cx(box, it.bg, "flex shrink-0 items-center justify-center rounded-full transition duration-150 group-hover:-translate-y-0.5")}>
                 <svg viewBox="0 0 24 24" aria-hidden className="size-[70%]">
                   {it.icon}
                 </svg>

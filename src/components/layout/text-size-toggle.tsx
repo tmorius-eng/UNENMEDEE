@@ -5,6 +5,8 @@ import { useEffect } from "react";
 
 import { useLocalStorage } from "@/lib/local-store";
 
+import { HEADER_ICON_BUTTON } from "./header-styles";
+
 const SIZES = ["md", "lg", "xl"] as const;
 type Size = (typeof SIZES)[number];
 const LABEL: Record<Size, string> = { md: "Дунд", lg: "Том", xl: "Маш том" };
@@ -25,9 +27,9 @@ export function TextSizeToggle() {
       onClick={() => setRaw(SIZES[(SIZES.indexOf(size) + 1) % SIZES.length])}
       aria-label={`Үсгийн хэмжээ: ${LABEL[size]}`}
       title={`Үсгийн хэмжээ: ${LABEL[size]}`}
-      className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-fg-quaternary transition hover:bg-primary_hover hover:text-fg-secondary"
+      className={HEADER_ICON_BUTTON}
     >
-      <Type01 className="size-5" />
+      <Type01 className="size-[18px]" />
     </button>
   );
 }

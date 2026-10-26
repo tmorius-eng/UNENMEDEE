@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { THEME_COLOR } from "@/lib/site";
+
 /** Installable app (PWA): Android/desktop install prompt, iOS "Add to Home Screen". */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -12,8 +14,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#ffffff",
-    theme_color: "#171043",
+    background_color: THEME_COLOR.light,
+    theme_color: THEME_COLOR.brand,
     categories: ["news", "politics", "finance"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

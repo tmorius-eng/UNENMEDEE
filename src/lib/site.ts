@@ -12,6 +12,11 @@ export const SITE_NAME = "ИЛ ТОД МЭДЭЭ";
 export const PRODUCTION_URL = "https://iltodmedee.mn";
 /** The public source code (MIT). Linked from the footer, /method and /transparency. */
 export const REPO_URL = "https://github.com/tmorius-eng/UNENMEDEE";
+/**
+ * The page background per mode (viewport theme-color, manifest) and the brand teal (manifest
+ * theme_color, the logo). Must match --color-bg-primary / --color-brand-600 in src/styles/theme.css.
+ */
+export const THEME_COLOR = { light: "#fbfbf9", dark: "#0f1012", brand: "#047c78" } as const;
 /** Contact for readers, partners and press (forwarded by Porkbun to the owner's inbox). */
 export const CONTACT_EMAIL = "info@iltodmedee.mn";
 /** The site's own social accounts (header, footer, mobile menu, JSON-LD sameAs). */

@@ -1,19 +1,12 @@
 /*
- * Chart series colors: validated categorical slots (blue, orange, aqua, yellow) for each mode.
- * Light vs #ffffff and dark vs #0c111d both pass CVD (ΔE ≥ 9) and normal-vision (ΔE ≥ 26) checks.
- * Aqua and yellow are < 3:1 on white, so every chart is paired with a data table.
+ * Chart series colours: brand teal, signal amber, blue, red, one set per mode (the dark values are
+ * brighter). Every chart is paired with a data table, so colour alone never carries the meaning.
  */
 :root {
-    --series-1: #2a78d6; /* DeepSeek / expenses */
-    --series-2: #eb6834; /* Grok / income */
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-    --chart-grid: var(--color-border-secondary);
+    --series-1: light-dark(#047c78, #2dd4bf); /* brand / expenses */
+    --series-2: light-dark(#c98500, #ffd166); /* signal / income */
+    --series-3: light-dark(#2a78d6, #5aa0ef);
+    --series-4: light-dark(#d92d20, #f97066);
+    --chart-grid: var(--color-line-soft);
     --chart-surface: var(--color-bg-primary);
-}
-.dark-mode {
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
 }

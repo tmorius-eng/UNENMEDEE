@@ -7,22 +7,24 @@ import { DonateCard } from "./donate";
 import { Logo } from "./logo";
 import { SocialLinks } from "./social-links";
 
+const footerLink = "text-tertiary transition hover:text-primary";
+
 export function SiteFooter() {
   return (
-    <footer className="mt-24 border-t border-secondary bg-secondary_alt pb-[env(safe-area-inset-bottom)]">
+    <footer className="mt-24 border-t border-line bg-secondary pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-3 md:px-8">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <Logo withDomain />
           <p className="text-sm text-tertiary">
             Төрийн албан ёсны мэдээг баримт, пи-ар гэж ялгаж, эрсдэлтэй тендер, төсвийг AI-аар шүүдэг нээлттэй эхийн платформ.
           </p>
-          <span className="w-fit rounded-full bg-success-secondary px-3 py-1 text-xs font-semibold text-utility-green-700">🟢 0₮ дэд бүтэц</span>
-          <div className="mt-2 flex flex-col gap-3 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
-            <p className="text-sm font-semibold text-primary">Биднийг дагаарай: өдөр бүр тойм, чухал мэдээ</p>
+          <span className="label-mono w-fit rounded-md px-2 py-1 text-brand-secondary ring-1 ring-brand-soft ring-inset">● 0₮ дэд бүтэц · нээлттэй эх</span>
+          <div className="flex flex-col gap-3 border-t border-line-soft pt-4">
+            <p className="label-mono text-tertiary">Биднийг дагаарай</p>
             <SocialLinks size="lg" labels />
           </div>
-          <div className="mt-2 flex flex-col gap-1 text-sm">
-            <p className="font-semibold text-primary">Холбоо барих</p>
+          <div className="flex flex-col gap-1 border-t border-line-soft pt-4 text-sm">
+            <p className="label-mono text-tertiary">Холбоо барих</p>
             <p className="text-tertiary">Санал хүсэлт, алдаа, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар бичээрэй:</p>
             <a className="w-fit font-semibold text-brand-secondary hover:underline" href={`mailto:${CONTACT_EMAIL}`}>
               {CONTACT_EMAIL}
@@ -30,26 +32,26 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="flex flex-col gap-2 text-sm">
-          <p className="font-semibold text-primary">Шалгах боломжтой</p>
-          <Link className="text-tertiary hover:text-secondary" href="/transparency">
+          <p className="label-mono mb-1 text-tertiary">Шалгах боломжтой</p>
+          <Link className={footerLink} href="/transparency">
             Зардлын тайлан (AI токен бүрээр)
           </Link>
-          <Link className="text-tertiary hover:text-secondary" href="/changes">
+          <Link className={footerLink} href="/changes">
             Төрийн сайтын засвар, устгалт
           </Link>
-          <Link className="text-tertiary hover:text-secondary" href="/clusters">
+          <Link className={footerLink} href="/clusters">
             Олон эх сурвалжид гарсан сэдвүүд
           </Link>
-          <Link className="text-tertiary hover:text-secondary" href="/sources">
+          <Link className={footerLink} href="/sources">
             Хянаж буй бүх эх сурвалж
           </Link>
-          <Link className="text-tertiary hover:text-secondary" href="/method">
+          <Link className={footerLink} href="/method">
             Арга зүй: AI яаж ажилладаг вэ
           </Link>
-          <Link className="text-tertiary hover:text-secondary" href="/privacy">
+          <Link className={footerLink} href="/privacy">
             Нууцлалын бодлого
           </Link>
-          <a className="text-tertiary hover:text-secondary" href={REPO_URL} target="_blank" rel="noreferrer">
+          <a className={footerLink} href={REPO_URL} target="_blank" rel="noreferrer">
             Эх код (GitHub, нээлттэй) ↗
           </a>
           <Link className="mt-3 font-semibold text-brand-secondary hover:underline" href="/support">
@@ -60,7 +62,7 @@ export function SiteFooter() {
           </Suspense>
         </div>
         <div className="flex flex-col gap-2 text-sm text-tertiary">
-          <p className="font-semibold text-primary">Анхааруулга</p>
+          <p className="label-mono mb-1 text-tertiary">Анхааруулга</p>
           <p>
             AI шинжилгээ нь алдаа гаргаж болно. Нийтлэл бүр эх .gov.mn холбоос болон SHA-256 хэштэй тул анхны тексттэй шууд тулгаж шалгана уу.
             Эрсдэлийн оноо нь AI-ийн үнэлгээ, буруутгал биш, анхаарах дохио юм.
