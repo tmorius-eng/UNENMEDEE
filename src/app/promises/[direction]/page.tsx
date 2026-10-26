@@ -50,13 +50,13 @@ function Goals({ goals }: { goals: ProgrammeGoal[] }) {
       {goals.map((g, i) => (
         <li key={g.id} className="flex flex-col gap-2">
           {g.group && g.group !== goals[i - 1]?.group && (
-            <h4 className="pt-2 text-xs font-semibold tracking-wider text-tertiary uppercase">
+            <h4 className="pt-2 label-mono text-tertiary">
               {g.group}
             </h4>
           )}
           <div
             id={g.id}
-            className="flex scroll-mt-24 gap-3 rounded-xl bg-primary p-3 ring-1 ring-secondary ring-inset"
+            className="flex scroll-mt-24 gap-3 rounded-xl bg-primary p-3 ring-1 ring-line ring-inset"
           >
             <a
               href={`#${g.id}`}
@@ -131,7 +131,7 @@ async function DirectionView({
           </Link>{" "}
           · {policy.n}. {policy.title}
         </p>
-        <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">
+        <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">
           <span className="text-tertiary tabular-nums">{direction.id}</span>{" "}
           {direction.title}
         </h1>
@@ -163,7 +163,7 @@ async function DirectionView({
 
       <nav
         aria-label="Бусад чиглэл"
-        className="flex flex-wrap justify-between gap-3 border-t border-secondary pt-4 text-sm font-semibold"
+        className="flex flex-wrap justify-between gap-3 border-t border-line pt-4 text-sm font-semibold"
       >
         {prev ? (
           <Link

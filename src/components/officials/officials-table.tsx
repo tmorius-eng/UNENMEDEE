@@ -62,7 +62,7 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
           const c = change(p);
           return (
             <li key={p.id} className="min-w-0">
-              <Link href={`/officials/${p.id}`} className="flex h-full min-w-0 gap-3 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset transition hover:ring-brand">
+              <Link href={`/officials/${p.id}`} className="flex h-full min-w-0 gap-3 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset transition hover:ring-brand">
                 {/* eslint-disable-next-line @next/next/no-img-element -- portraits come from parliament.mn */}
                 {p.photoUrl ? <img src={p.photoUrl} alt="" loading="lazy" className="size-14 shrink-0 rounded-full bg-secondary object-cover" /> : <span className="size-14 shrink-0 rounded-full bg-secondary" />}
                 <span className="flex min-w-0 flex-col gap-1">

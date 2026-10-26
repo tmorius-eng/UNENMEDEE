@@ -10,7 +10,7 @@ function MoneyTooltip({ active, payload, label }: Partial<TooltipContentProps<nu
   if (!active || !payload?.length) return null;
   const total = payload.reduce((s, p) => s + Number(p.value ?? 0), 0);
   return (
-    <div className="rounded-lg bg-primary px-3 py-2 text-xs shadow-lg ring-1 ring-secondary ring-inset">
+    <div className="rounded-lg bg-primary px-3 py-2 text-xs shadow-lg ring-1 ring-line ring-inset">
       <p className="mb-1 font-semibold text-primary">{label}</p>
       {payload.map((p) => (
         <p key={String(p.dataKey)} className="flex items-center gap-2 text-secondary">
@@ -18,7 +18,7 @@ function MoneyTooltip({ active, payload, label }: Partial<TooltipContentProps<nu
           {p.name}: <span className="font-semibold text-primary tabular-nums">{formatUsd(Number(p.value ?? 0), 4)}</span>
         </p>
       ))}
-      {payload.length > 1 && <p className="mt-1 border-t border-secondary pt-1 text-tertiary">Нийт: {formatUsd(total, 4)}</p>}
+      {payload.length > 1 && <p className="mt-1 border-t border-line pt-1 text-tertiary">Нийт: {formatUsd(total, 4)}</p>}
     </div>
   );
 }
@@ -79,7 +79,7 @@ export function SeriesLineChart({ data, name, unit, ariaLabel }: { data: { label
           <YAxis tick={AXIS} tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} tickFormatter={fmt} />
           <Tooltip
             formatter={(v) => [`${fmt(Number(v))} ${unit}`, name]}
-            contentStyle={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, fontSize: 12 }}
+            contentStyle={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-border-line)", borderRadius: 8, fontSize: 12 }}
             labelStyle={{ color: "var(--color-text-primary)", fontWeight: 600 }}
           />
           <Line type="monotone" dataKey="value" name={name} stroke="var(--series-1)" strokeWidth={2} dot={false} />
@@ -90,7 +90,7 @@ export function SeriesLineChart({ data, name, unit, ariaLabel }: { data: { label
 }
 
 const TOOLTIP_STYLE = {
-  contentStyle: { background: "var(--color-bg-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, fontSize: 12 },
+  contentStyle: { background: "var(--color-bg-primary)", border: "1px solid var(--color-border-line)", borderRadius: 8, fontSize: 12 },
   labelStyle: { color: "var(--color-text-primary)", fontWeight: 600 },
 };
 

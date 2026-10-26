@@ -109,7 +109,7 @@ export function MyFeed() {
   const keys = [...follows, ...places.map((slug) => `place:${slug}`)];
   if (keys.length === 0) {
     return (
-      <div className="flex flex-col gap-4 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+      <div className="flex flex-col gap-4 rounded-2xl bg-primary p-5 ring-1 ring-line ring-inset">
         <p className="text-md font-semibold text-primary">Сонирхсон сэдэв, аймаг дүүргээ ⭐ дагаарай</p>
         <p className="text-sm text-tertiary">Сонгосон сэдэв, газруудын шинэ мэдээ энд нэг урсгалд цуглана. Сонголт зөвхөн энэ төхөөрөмжид хадгалагдана.</p>
         <TopicPicker follows={follows} />
@@ -120,7 +120,7 @@ export function MyFeed() {
   const names = [...follows.map((k) => TOPICS.find((t) => t.key === k)?.label), ...places.map((slug) => PLACES.find((p) => p.slug === slug)?.name)];
   return (
     <div className="flex flex-col gap-6">
-      <details className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+      <details className="rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
         <summary className="cursor-pointer text-sm font-semibold text-secondary">
           Дагаж буй: {names.join(", ")} · засах
         </summary>

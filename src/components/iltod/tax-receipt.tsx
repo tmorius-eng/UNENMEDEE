@@ -12,7 +12,7 @@ function MoneyInput({ id, label, hint, value, onChange }: { id: string; label: s
   return (
     <label htmlFor={id} className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold text-primary">{label}</span>
-      <span className="flex items-center rounded-lg bg-primary ring-1 ring-primary ring-inset focus-within:ring-2 focus-within:ring-brand">
+      <span className="flex items-center rounded-lg bg-primary ring-1 ring-line-strong ring-inset focus-within:ring-2 focus-within:ring-brand">
         <input
           id={id}
           inputMode="numeric"
@@ -42,7 +42,7 @@ export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; 
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-5 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:grid-cols-2 md:p-6">
+      <div className="grid gap-5 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset md:grid-cols-2 md:p-6">
         <div className="flex flex-col gap-3">
           <MoneyInput
             id="salary"
@@ -64,7 +64,7 @@ export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; 
             <div className="mt-2 flex flex-col gap-2">
               <MoneyInput id="exact" label="Суутгагдсан ХХОАТ + НДШ (татварын дүн)" hint="Цалингийн хуудас эсвэл e-barimt-аас харна. Оруулбал дээрх тооцооллын оронд үүнийг ашиглана." value={exact} onChange={setExact} />
               {suspicious && (
-                <p role="status" className="rounded-lg bg-warning-primary px-3 py-2 text-xs text-warning-primary">
+                <p role="status" className="rounded-lg bg-signal-soft px-3 py-2 text-xs text-primary">
                   Энэ дүн цалингийн 40%-иас их байна. Цалингаа энд биш, дээрх &quot;Сарын цалин&quot; талбарт оруулсан уу? Ихэнх хүний суутгал цалингийн ~20% байдаг.
                 </p>
               )}
@@ -75,10 +75,10 @@ export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; 
       </div>
 
       {r.total > 0 && (
-        <section aria-live="polite" className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:p-6">
+        <section aria-live="polite" className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset md:p-6">
           <header className="flex flex-col gap-1">
             <p className="text-sm text-tertiary">Таны жилд төлдөг татвар (ойролцоо)</p>
-            <p className="text-display-xs font-semibold text-primary tabular-nums">{formatNumber(r.total)} ₮</p>
+            <p className="num-mono text-2xl text-primary">{formatNumber(r.total)} ₮</p>
             <p className="text-xs text-tertiary">
               {payroll.source === "estimate"
                 ? `НДШ ${formatMntShort(parts.si * 12)} · ХХОАТ ${formatMntShort(parts.pit * 12)} (цалингаас тооцоолсон)`

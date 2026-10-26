@@ -29,7 +29,7 @@ export default async function OfficialsPage() {
         }
       >
         <div className="flex flex-wrap gap-2">
-          <Link href="/officials/companies" className="rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover">
+          <Link href="/officials/companies" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-bg-primary transition hover:opacity-90">
             🏢 Төрийн өмчит компаниуд
           </Link>
           <ShareButton path="/officials" title="УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг" />

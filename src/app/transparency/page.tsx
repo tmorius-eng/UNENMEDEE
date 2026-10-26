@@ -20,11 +20,11 @@ export const metadata: Metadata = {
 
 function Tile({ icon: Icon, label, value, hint }: { icon: typeof Server03; label: string; value: string; hint: string }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
-      <div className="flex items-center gap-2 text-sm font-medium text-tertiary">
-        <Icon className="size-5 text-fg-brand-primary" /> {label}
+    <div className="flex flex-col gap-2 border-t border-line-soft py-3">
+      <div className="label-mono flex items-center gap-2 text-tertiary">
+        <Icon className="size-4 text-fg-brand-primary" /> {label}
       </div>
-      <p className="text-display-xs font-semibold text-primary tabular-nums">{value}</p>
+      <p className="num-mono text-2xl text-primary">{value}</p>
       <p className="text-xs text-tertiary">{hint}</p>
     </div>
   );
@@ -32,10 +32,10 @@ function Tile({ icon: Icon, label, value, hint }: { icon: typeof Server03; label
 
 function Panel({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-3xl bg-primary p-6 ring-1 ring-secondary ring-inset">
+    <section className="flex flex-col gap-4 border-t border-line pt-4">
       <div>
-        <h2 className="text-lg font-semibold text-primary">{title}</h2>
-        {description && <p className="text-sm text-tertiary">{description}</p>}
+        <h2 className="label-mono text-tertiary">{title}</h2>
+        {description && <p className="mt-1 text-sm text-secondary">{description}</p>}
       </div>
       {children}
     </section>
@@ -89,7 +89,7 @@ async function Dashboard() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <caption className="sr-only">AI үйлчилгээ үзүүлэгчээр задалсан зардал</caption>
-            <thead className="border-b border-secondary text-xs text-tertiary">
+            <thead className="border-b border-line text-xs text-tertiary">
               <tr>
                 <th className="py-2 pr-4 font-semibold">Үйлчилгээ</th>
                 <th className="py-2 pr-4 text-right font-semibold">Дуудлага</th>
@@ -99,7 +99,7 @@ async function Dashboard() {
                 <th className="py-2 text-right font-semibold">Зардал</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-secondary">
+            <tbody className="divide-y divide-line-soft">
               {data.byProvider.map((p) => {
                 const price = getPrice(p.provider as AIProvider);
                 return (
@@ -132,7 +132,7 @@ async function Dashboard() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <caption className="sr-only">Сар бүрийн санхүүгийн бүртгэл</caption>
-            <thead className="border-b border-secondary text-xs text-tertiary">
+            <thead className="border-b border-line text-xs text-tertiary">
               <tr>
                 <th className="py-2 pr-4 font-semibold">Сар</th>
                 <th className="py-2 pr-4 text-right font-semibold">Сервер</th>
@@ -142,7 +142,7 @@ async function Dashboard() {
                 <th className="py-2 font-semibold">Тайлбар</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-secondary">
+            <tbody className="divide-y divide-line-soft">
               {data.ledger.map((l) => (
                 <tr key={l.month}>
                   <td className="py-2 pr-4 font-medium text-primary">{l.month}</td>
@@ -187,7 +187,7 @@ export default function TransparencyPage() {
         title="Ил тод байдлын тайлан"
         description="Бид хэр их мөнгө зарцуулж, хаанаас орлого олж байгаагаа токен бүрийн нарийвчлалтай нийтэлдэг. Бүх тоо мэдээллийн сангаас шууд гарна."
       />
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
+      <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-line ring-inset" />}>
         <Dashboard />
       </Suspense>
     </>

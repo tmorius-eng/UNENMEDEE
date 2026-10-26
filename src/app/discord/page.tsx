@@ -92,7 +92,7 @@ export default function DiscordPage() {
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {POSTS.map((p) => (
-              <li key={p.title} className="flex gap-3 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+              <li key={p.title} className="flex gap-3 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
                 <span aria-hidden className="text-2xl">
                   {p.icon}
                 </span>
@@ -129,7 +129,7 @@ export default function DiscordPage() {
           </h2>
           <ul className="flex flex-col gap-2">
             {COMMANDS.map((c) => (
-              <li key={c.cmd} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+              <li key={c.cmd} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
                 <code className="w-fit rounded-md bg-secondary px-2 py-0.5 font-mono text-sm font-semibold text-brand-secondary">{c.example}</code>
                 <p className="text-sm text-tertiary">{c.text}</p>
               </li>
@@ -143,7 +143,7 @@ export default function DiscordPage() {
           </h2>
           <dl className="flex flex-col gap-3">
             {FAQ.map((f) => (
-              <div key={f.q} className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+              <div key={f.q} className="rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
                 <dt className="font-semibold text-primary">{f.q}</dt>
                 <dd className="mt-1 text-sm text-tertiary">{f.a}</dd>
               </div>

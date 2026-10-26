@@ -42,7 +42,7 @@ export default function TaxPage() {
       >
         <ShareButton path="/tax" title="Миний татвар хаашаа явдаг вэ? 1 минутад тооцоол" className="w-fit" />
       </PageHeader>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
+      <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-primary ring-1 ring-line ring-inset" />}>
         <Calculator />
       </Suspense>
     </>
