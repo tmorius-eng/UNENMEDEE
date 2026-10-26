@@ -7,7 +7,8 @@ import { ImageResponse } from "next/og";
 export const OG_SIZE = { width: 1200, height: 630 };
 
 // Satori reads WOFF (not WOFF2). One Inter 700 subset covers Latin, Mongolian Cyrillic (Ө, Ү) and ₮
-// (U+20AE), built from the Inter release with pyftsubset (see CLAUDE.md §6c).
+// (U+20AE), built from the Inter release with pyftsubset (see CLAUDE.md §6c); the brand row and
+// the story image use it.
 const FONT_FAMILY = "Inter";
 let fonts: Promise<Buffer> | undefined;
 function loadFonts() {
@@ -20,25 +21,89 @@ function loadMark() {
   return mark;
 }
 
-export async function ogImage({ eyebrow, title, footer }: { eyebrow: string; title: string; footer: string }) {
-  const [data, markSrc] = await Promise.all([loadFonts(), loadMark()]);
-  const size = title.length > 90 ? 52 : title.length > 50 ? 62 : 76;
+// The share card's own faces: Inter Display 750 for the headline and JetBrains Mono 500 for the
+// labels (the site's display and mono fonts, same subset, WOFF because Satori reads no WOFF2).
+const DISPLAY_FAMILY = "InterDisplay";
+const MONO_FAMILY = "JetBrainsMono";
+let displayFont: Promise<Buffer> | undefined;
+let monoFont: Promise<Buffer> | undefined;
+function loadCardFonts() {
+  displayFont ??= readFile(join(process.cwd(), "src/assets/fonts/inter-display-750.woff"));
+  monoFont ??= readFile(join(process.cwd(), "src/assets/fonts/jetbrains-mono-500.woff"));
+  return Promise.all([displayFont, monoFont]);
+}
+
+/** The site's paper and ink; the dark card is for risk-flagged stories. */
+const CARD = {
+  light: { bg: "#fbfbf9", ink: "#121314", muted: "#4a4b4f", line: "rgba(0,0,0,0.14)", brand: "#047c78" },
+  dark: { bg: "#0f1012", ink: "#ecebe6", muted: "#b4b3ad", line: "rgba(255,255,255,0.16)", brand: "#2dd4bf" },
+} as const;
+const SIGNAL = "#ffd400";
+const SIGNAL_INK = "#1a1500";
+
+/**
+ * Social preview card in the site's «Тунгалаг дэвтэр» look: brand row and a mono eyebrow with the
+ * topic's square, the headline in Inter Display, hairlines, and below them the story's largest ₮
+ * amount on the signal chip with its share per resident. `tone: "dark"` for risk-flagged stories.
+ */
+export async function ogImage({
+  eyebrow,
+  title,
+  footer,
+  amount,
+  share,
+  tone = "light",
+  dot,
+}: {
+  eyebrow: string;
+  title: string;
+  footer: string;
+  /** The largest ₮ amount ("186.2 тэрбум ₮"), shown on the signal chip. */
+  amount?: string;
+  /** Its share per resident ("≈ 54 400₮"). */
+  share?: string | null;
+  tone?: "light" | "dark";
+  /** The topic's colour for the eyebrow square. */
+  dot?: string;
+}) {
+  const [data, [display, mono], markSrc] = await Promise.all([loadFonts(), loadCardFonts(), loadMark()]);
+  const c = CARD[tone];
+  const size = title.length > 90 ? 50 : title.length > 50 ? 60 : 70;
+  const mono20 = { fontFamily: MONO_FAMILY, fontSize: 20, letterSpacing: 1.6, textTransform: "uppercase" as const, color: c.muted };
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 72px", background: "#ffffff", fontFamily: FONT_FAMILY }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> */}
-          <img src={markSrc} width={128} height={79} alt="" />
-          <div style={{ display: "flex", fontSize: 30, color: "#05a39e", letterSpacing: 2 }}>{eyebrow.toUpperCase()}</div>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "52px 64px", background: c.bg, color: c.ink, fontFamily: FONT_FAMILY }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${c.line}`, paddingBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 26, letterSpacing: -0.5 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders plain <img> */}
+            <img src={markSrc} width={72} height={44} alt="" />
+            <span>ИЛ ТОД</span>
+            <span style={{ color: c.brand }}>МЭДЭЭ</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, ...mono20 }}>
+            {dot && <div style={{ display: "flex", width: 14, height: 14, borderRadius: 3, background: dot }} />}
+            <span>{eyebrow.length > 44 ? `${eyebrow.slice(0, 43)}…` : eyebrow}</span>
+          </div>
         </div>
-        <div style={{ display: "flex", fontSize: size, lineHeight: 1.15, color: "#171043", letterSpacing: -1 }}>{title.length > 140 ? `${title.slice(0, 137)}…` : title}</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "4px solid #05beb8", paddingTop: 24, fontSize: 26, color: "#475467" }}>
-          <span>ИЛ ТОД МЭДЭЭ · iltodmedee.mn</span>
-          <span>{footer}</span>
+        <div style={{ display: "flex", fontFamily: DISPLAY_FAMILY, fontSize: size, lineHeight: 1.04, letterSpacing: -2 }}>{title.length > 140 ? `${title.slice(0, 137)}…` : title}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${c.line}`, paddingTop: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {amount && <div style={{ display: "flex", background: SIGNAL, color: SIGNAL_INK, fontFamily: MONO_FAMILY, fontSize: 22, padding: "8px 14px", borderRadius: 6 }}>{amount}</div>}
+            {amount && share && <span style={{ fontFamily: MONO_FAMILY, fontSize: 20, color: c.muted }}>1 хүнд {share}</span>}
+            {!amount && <span style={{ fontFamily: MONO_FAMILY, fontSize: 20, color: c.muted }}>{footer}</span>}
+          </div>
+          <span style={mono20}>{amount ? `iltodmedee.mn · ${footer}` : "iltodmedee.mn"}</span>
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts: [{ name: FONT_FAMILY, data, weight: 700 as const, style: "normal" as const }] },
+    {
+      ...OG_SIZE,
+      fonts: [
+        { name: FONT_FAMILY, data, weight: 700 as const, style: "normal" as const },
+        { name: DISPLAY_FAMILY, data: display, weight: 700 as const, style: "normal" as const },
+        { name: MONO_FAMILY, data: mono, weight: 500 as const, style: "normal" as const },
+      ],
+    },
   );
 }
 
