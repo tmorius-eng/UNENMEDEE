@@ -32,7 +32,9 @@ async function LiveStatus() {
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-primary/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <header className="scroll-shadow-host sticky top-0 z-40 border-b border-line bg-primary/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      {/* A soft shadow once the bar is stuck (CSS scroll-state query; browsers without it keep the hairline). */}
+      <span aria-hidden className="scroll-shadow" />
       {/* Status strip: desktop only; phones keep the screen for headlines. */}
       <div className="hidden border-b border-line-soft sm:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-1.5 md:px-8">

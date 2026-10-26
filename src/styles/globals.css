@@ -150,6 +150,70 @@
 }
 
 /*
+ * Micro-interactions (CLAUDE.md §2): the ✓ pops once on a tap, the digest streak's flame pops once
+ * when the edition is finished. The only keyframes besides the scroll-driven ones: they are
+ * feedback on a completed action, not enter animations. None for readers who asked for no motion.
+ */
+@utility check-pop {
+    animation: check-pop 180ms ease-out;
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+@keyframes check-pop {
+    0% {
+        scale: 0.85;
+    }
+    60% {
+        scale: 1.15;
+    }
+    100% {
+        scale: 1;
+    }
+}
+@utility flame-pop {
+    animation: flame-pop 600ms ease-out;
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+@keyframes flame-pop {
+    0% {
+        scale: 0.6;
+        rotate: -10deg;
+    }
+    60% {
+        scale: 1.3;
+        rotate: 6deg;
+    }
+    100% {
+        scale: 1;
+        rotate: 0deg;
+    }
+}
+
+/*
+ * The sticky header casts a soft shadow once it is stuck (scroll-state container query, Chrome
+ * 133+); elsewhere the hairline alone separates it, as before. The host is the sticky element,
+ * the shadow a positioned child, because a container cannot style itself.
+ */
+@utility scroll-shadow-host {
+    container-type: scroll-state;
+}
+@utility scroll-shadow {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 1px;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: 0 6px 16px -8px rgb(0 0 0 / 0.28);
+    transition: opacity 200ms ease-out;
+    @container scroll-state(stuck: top) {
+        opacity: 1;
+    }
+}
+
+/*
  * Reading progress on the article page: a 2 px brand line across the top that fills as the
  * reader scrolls, driven by the scroll timeline (no JavaScript). Browsers without scroll-driven
  * animations show nothing.
