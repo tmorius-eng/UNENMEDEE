@@ -6,7 +6,8 @@ import { editionLabel } from "@/lib/edition";
 import { formatUsd } from "@/lib/format";
 import { type ArticleListItem, type DigestView, type FeedFilter, getDigests, getFeed, getSiteStats, type SiteStats } from "@/lib/queries";
 import { type TopicSeo, topicSeo } from "@/lib/topic-seo";
-import { findTopic } from "@/lib/topics";
+import { findTopic, type Topic } from "@/lib/topics";
+import { cx } from "@/utils/cx";
 
 import { Empty } from "./empty";
 import { FollowTopicButton } from "./follow-topic";
@@ -53,14 +54,28 @@ function pickLead(stories: ArticleListItem[]): number | undefined {
 }
 
 
-async function Masthead({ stats, digest, seo }: { stats: SiteStats; digest: DigestView | undefined; seo?: TopicSeo }) {
+async function Masthead({ stats, digest, seo, topic }: { stats: SiteStats; digest: DigestView | undefined; seo?: TopicSeo; topic?: Topic }) {
+  const tint = seo && topic ? topic : undefined;
   return (
-    // The paper grain is only here: the masthead is the one "printed" surface of the page.
-    <header className="grain -mx-4 flex flex-col gap-4 border-b border-line px-4 pt-1 pb-4 md:mx-0 md:px-0">
+    // The paper grain is only here: the masthead is the one "printed" surface of the page. A topic
+    // page tints it with the topic's hue (7 % into the paper, 45 % into the rule): CSS only.
+    <header
+      style={tint ? ({ "--tint": tint.hex } as React.CSSProperties) : undefined}
+      className={cx(
+        "grain -mx-4 flex flex-col gap-4 border-b border-line px-4 pt-1 pb-4 md:mx-0 md:px-0",
+        tint && "border-b-[color-mix(in_oklab,var(--tint)_45%,var(--color-line))] bg-[color-mix(in_oklab,var(--tint)_7%,var(--color-bg-primary))] md:-mx-4 md:px-4",
+      )}
+    >
       <div>
         {seo ? (
           // A topic page is about one subject: its visible heading is the phrase people search for.
           <>
+            {tint && (
+              <p className="label-mono mb-2 flex items-center gap-2 text-[color-mix(in_oklab,var(--tint)_70%,var(--color-text-primary))]">
+                <span aria-hidden className="size-2 rounded-[2px] bg-[var(--tint)]" />
+                Сэдэв · {tint.label}
+              </p>
+            )}
             <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{seo.heading}</h1>
             <p className="label-mono mt-2 text-tertiary">{await todayMn()}</p>
           </>
@@ -108,7 +123,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
   return (
     // Narrow reading column like Kagi News; extra bottom space for the phone topic bar.
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-20 md:pb-0">
-      <Masthead stats={stats} digest={edition ?? review} seo={seo} />
+      <Masthead stats={stats} digest={edition ?? review} seo={seo} topic={topic} />
       {seo && (
         <div className="flex flex-col gap-1 text-sm text-secondary">
           <p>{seo.intro}</p>

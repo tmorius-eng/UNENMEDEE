@@ -1,8 +1,9 @@
 import { ArrowRight } from "@untitledui/icons";
 import Link from "next/link";
 
-import type { MacroSnapshot } from "@/lib/mongolbank/client";
+import type { MacroSnapshot, Point } from "@/lib/mongolbank/client";
 import { getIndicator } from "@/lib/queries";
+import { SPARK_H, SPARK_W, sparkDelta, sparkPath } from "@/lib/spark";
 import { cx } from "@/utils/cx";
 
 /** Bank of Mongolia's announced inflation target (shown on its homepage as 6% ± 2). */
@@ -19,6 +20,19 @@ interface Cell {
   tone?: "up" | "down";
   /** The whole cell links there (the digest page's week numbers). */
   href?: string;
+  /** The series behind the number (oldest first): a sparkline is drawn from its newest points. */
+  series?: number[];
+  /** "▲ 0.4" next to the sparkline (sparkDelta). */
+  delta?: string | null;
+  /** The first shown point's label, for the delta's title ("2024-03-15-аас хойш"). */
+  since?: string;
+}
+
+/** The newest points of a Mongolbank series as a cell's `series` / `delta` / `since`. */
+function trend(history: Point[] | undefined, pct: boolean, digits = 1): Pick<Cell, "series" | "delta" | "since"> {
+  if (!history || history.length < 2) return {};
+  const values = history.map((p) => p.value);
+  return { series: values, delta: sparkDelta(values, pct, digits), since: history.at(-Math.min(history.length, 30))?.label };
 }
 
 /**
@@ -31,6 +45,7 @@ export function Ledger({ cells, className, wide = 4 }: { cells: Cell[]; classNam
     <div className={cx("@container", className)}>
       <div className={cx("grid grid-cols-2 border-b border-line", five ? "@2xl:grid-cols-5" : "@2xl:grid-cols-4")}>
         {cells.map((c, i) => {
+          const spark = c.series ? sparkPath(c.series) : null;
           const body = (
             <>
               <p className="label-mono truncate text-tertiary">{c.label}</p>
@@ -38,6 +53,20 @@ export function Ledger({ cells, className, wide = 4 }: { cells: Cell[]; classNam
                 {c.value}
                 {c.unit && <span className="ml-1 text-xs font-medium text-tertiary">{c.unit}</span>}
               </p>
+              {spark && (
+                // The trend: server-rendered inline SVG (no chart library), a fixed 22 px row so nothing shifts.
+                <div className={cx("mt-1.5 flex items-end gap-2", c.tone === "down" ? "text-risk" : "text-fg-brand-primary")}>
+                  <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} preserveAspectRatio="none" aria-hidden className="h-[22px] min-w-0 flex-1 overflow-visible">
+                    <path d={spark.area} fill="currentColor" opacity={0.08} />
+                    <polyline points={spark.line} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                  </svg>
+                  {c.delta && (
+                    <span className={cx("label-mono shrink-0 normal-case", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-tertiary")} title={c.since ? `${c.since}-аас хойш` : undefined}>
+                      {c.delta}
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="mt-0.5 truncate text-xs text-tertiary">{c.note}</p>
             </>
           );
@@ -76,20 +105,24 @@ export async function MacroStrip({ compact = false }: { compact?: boolean }) {
   const aboveTarget = (v: number | null) => (v !== null && v > 8 ? "down" : undefined);
 
   const cells: (Cell | false | null | undefined)[] = [
-    policyRate && { label: "Бодлогын хүү", value: num(policyRate.value, 1), unit: "%", note: `Монголбанк · ${policyRate.since}` },
-    inflation && { label: compact ? "Инфляц · УБ" : "Инфляц · Улаанбаатар", value: inflation.ub === null ? "—" : num(inflation.ub, 1), unit: "%", note: `Зорилт ${INFLATION_TARGET}`, tone: aboveTarget(inflation.ub) },
+    policyRate && { label: "Бодлогын хүү", value: num(policyRate.value, 1), unit: "%", note: `Монголбанк · ${policyRate.since}`, ...trend(policyRate.history, false) },
+    // The compact strip shows the national rate (the stored series, so its trend matches the number);
+    // /data lists Ulaanbaatar, core and national.
+    compact && inflation && { label: "Инфляц · улс", value: inflation.national === null ? "—" : num(inflation.national, 1), unit: "%", note: `Зорилт ${INFLATION_TARGET}`, tone: aboveTarget(inflation.national), ...trend(inflation.history, false) },
+    !compact && inflation && { label: "Инфляц · Улаанбаатар", value: inflation.ub === null ? "—" : num(inflation.ub, 1), unit: "%", note: `Зорилт ${INFLATION_TARGET}`, tone: aboveTarget(inflation.ub) },
     !compact && inflation && { label: "Инфляц · суурь", value: inflation.core === null ? "—" : num(inflation.core, 1), unit: "%", note: `${inflation.month} сар` },
-    !compact && inflation && { label: "Инфляц · улс", value: inflation.national === null ? "—" : num(inflation.national, 1), unit: "%", note: `${inflation.month} сар`, tone: aboveTarget(inflation.national) },
-    usd && fx && { label: "1 USD", value: num(usd.rate), unit: "₮", note: fx.date },
+    !compact && inflation && { label: "Инфляц · улс", value: inflation.national === null ? "—" : num(inflation.national, 1), unit: "%", note: `${inflation.month} сар`, tone: aboveTarget(inflation.national), ...trend(inflation.history, false) },
+    // Daily rates move by hundredths of a percent: two decimals, or every week reads "= 0".
+    usd && fx && { label: "1 USD", value: num(usd.rate), unit: "₮", note: fx.date, ...trend(fx.usdHistory, true, 2) },
     !compact && gold && { label: "Алт (авах, гр)", value: num(gold.buy, 0), unit: "₮", note: gold.date },
-    reserves && { label: "ГВУН", value: num(reserves.value, 0), unit: "сая $", note: `${reserves.month} сар` },
+    reserves && { label: "ГВУН", value: num(reserves.value, 0), unit: "сая $", note: `${reserves.month} сар`, ...trend(reserves.history, true) },
   ];
 
   return (
     <section aria-label="Монголбанкны үзүүлэлт" className="flex flex-col gap-2">
       <Ledger cells={cells.filter((c): c is Cell => Boolean(c))} />
       <p className="flex items-center justify-between text-xs text-tertiary">
-        <span>Эх сурвалж: Монголбанк (mongolbank.mn)</span>
+        <span>Эх сурвалж: Монголбанк (mongolbank.mn) · муруй = сүүлийн үеийн хандлага</span>
         {compact && (
           // No prefetch: /data pulls the chart library, which would load on every home visit.
           <Link href="/data" prefetch={false} className="flex items-center gap-1 font-semibold text-brand-secondary hover:underline">
