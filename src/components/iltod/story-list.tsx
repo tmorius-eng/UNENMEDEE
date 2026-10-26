@@ -46,9 +46,7 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
   const amount = largestAmount(s.amounts);
   const share = lead ? null : perPersonLine(s.amounts);
   return (
-    <li key={s.id} className={cx("relative", lead ? "pt-6 pb-6" : "py-5")}>
-      {/* The lead's signal rule: a short yellow bar on the hairline above it. */}
-      {lead && <span aria-hidden className="absolute top-0 left-0 h-[3px] w-14 bg-signal" />}
+    <li key={s.id} className={lead ? "pt-6 pb-6" : "py-5"}>
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <p className="label-mono flex flex-wrap items-center gap-x-2 gap-y-1 text-tertiary">
@@ -56,7 +54,8 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
               <span aria-hidden className={cx("size-2 rounded-[2px]", dot)} />
               {lead ? (
                 <>
-                  <span className="text-primary">Гол мэдээ</span> · {tag}
+                  {/* The lead's marker: a signal chip that says what it is (a bare yellow rule read as a mystery). */}
+                  <Chip tone="mnt">Гол мэдээ</Chip> · {tag}
                 </>
               ) : (
                 tag
