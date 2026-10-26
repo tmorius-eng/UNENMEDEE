@@ -1,6 +1,6 @@
 export function CardSkeleton() {
   return (
-    <div className="flex animate-pulse flex-col gap-4 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+    <div className="flex animate-pulse flex-col gap-4 rounded-2xl bg-primary p-5 ring-1 ring-line ring-inset">
       <div className="flex gap-2">
         <div className="h-5 w-24 rounded-full bg-tertiary" />
         <div className="h-5 w-16 rounded-full bg-secondary" />

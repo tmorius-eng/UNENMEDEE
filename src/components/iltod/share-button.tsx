@@ -89,13 +89,13 @@ export function ShareButton({ path, title, text, className, label = "Хуваа�
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={menu !== null}
-        className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover"
+        className="flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-secondary ring-1 ring-line ring-inset transition hover:bg-primary_hover hover:text-primary"
       >
         <Share07 className="size-4" aria-hidden />
         {label}
       </button>
       {menu && (
-        <div role="menu" className="absolute top-full left-0 z-30 mt-1 w-60 animate-in rounded-xl bg-primary p-1 shadow-lg ring-1 ring-secondary fade-in zoom-in-95">
+        <div role="menu" className="absolute top-full left-0 z-30 mt-1 w-60 animate-in rounded-xl bg-primary p-1 shadow-lg ring-1 ring-line fade-in zoom-in-95">
           {native && (
             <button role="menuitem" type="button" className={item} onClick={() => shareNative(menu)}>
               <Share07 className="size-5" aria-hidden />

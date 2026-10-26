@@ -43,15 +43,13 @@ export function DigestProgress({ ids, edition }: { ids: number[]; edition: numbe
   const streak = today ? currentStreak(parseStreak(streakRaw), today) : 0;
   const done = count === ids.length;
   return (
-    <div className="flex flex-col gap-2 rounded-2xl bg-secondary p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className={cx("font-semibold", done ? "text-success-primary" : "text-primary")}>
-          {done ? "✓ Энэ тоймыг уншиж дууслаа" : `${count}/${ids.length} уншсан`}
+    <div className="flex flex-col gap-2 border-y border-line-soft py-3">
+      <div className="label-mono flex flex-wrap items-center gap-3 text-tertiary">
+        <span className={cx(done ? "text-brand-secondary" : "text-primary")}>{done ? "✓ Энэ тоймыг уншиж дууслаа" : `${count}/${ids.length} уншсан`}</span>
+        <span className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-line-soft" role="progressbar" aria-valuemin={0} aria-valuemax={ids.length} aria-valuenow={count} aria-label="Уншсан мэдээ">
+          <span className="block h-full rounded-full bg-brand-solid transition-all" style={{ width: `${(count / Math.max(1, ids.length)) * 100}%` }} />
         </span>
-        {streak > 0 && <span className="font-semibold text-warning-primary">🔥 {streak} өдөр дараалан</span>}
-      </div>
-      <div className="h-2 rounded-full bg-primary" role="progressbar" aria-valuemin={0} aria-valuemax={ids.length} aria-valuenow={count} aria-label="Уншсан мэдээ">
-        <div className="h-2 rounded-full bg-brand-solid transition-all" style={{ width: `${(count / Math.max(1, ids.length)) * 100}%` }} />
+        {streak > 0 && <span className="text-primary">🔥 {streak} өдөр дараалан</span>}
       </div>
       {!done && (
         <button type="button" onClick={() => markRead(ids)} className="w-fit text-xs font-semibold text-tertiary hover:text-secondary">
@@ -66,8 +64,8 @@ export function TrackedNumber({ id, n }: { id: number; n: number }) {
   const [raw] = useLocalStorage(READ_KEY, "[]");
   const read = parseIds(raw).has(id);
   return (
-    <span aria-hidden className={cx("mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold", read ? "bg-success-solid text-white" : "bg-brand-solid text-primary_on-brand")}>
-      {read ? <Check className="size-3.5" /> : n}
+    <span aria-hidden className={cx("num-mono mt-0.5 w-7 shrink-0 text-lg leading-none", read ? "text-brand-secondary" : "text-tertiary")}>
+      {read ? <Check className="size-4" strokeWidth={2.5} /> : String(n).padStart(2, "0")}
     </span>
   );
 }
@@ -75,7 +73,7 @@ export function TrackedNumber({ id, n }: { id: number; n: number }) {
 export function TrackedLink({ id, ids, href, children }: { id: number; ids: number[]; href: string; children: React.ReactNode }) {
   const { read, markRead } = useDigestRead(ids);
   return (
-    <Link href={href} onClick={() => markRead([id])} className={cx("font-semibold hover:text-brand-secondary hover:underline", read.has(id) ? "text-tertiary" : "text-primary")}>
+    <Link href={href} onClick={() => markRead([id])} className={cx("font-display text-md font-bold tracking-[-0.02em] hover:text-brand-secondary hover:underline", read.has(id) ? "text-tertiary" : "text-primary")}>
       {children}
     </Link>
   );

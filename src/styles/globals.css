@@ -102,6 +102,36 @@
     }
 }
 
+/*
+ * Reading progress on the article page: a 2 px brand line across the top that fills as the
+ * reader scrolls, driven by the scroll timeline (no JavaScript). Browsers without scroll-driven
+ * animations show nothing.
+ */
+@utility reading-progress {
+    display: none;
+    @supports (animation-timeline: scroll()) {
+        display: block;
+        position: fixed;
+        inset: 0 0 auto 0;
+        z-index: 50;
+        height: 2px;
+        background: var(--color-bg-brand-solid);
+        transform-origin: left;
+        animation: reading-progress linear both;
+        animation-timeline: scroll(root);
+        pointer-events: none;
+    }
+}
+
+@keyframes reading-progress {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
 @utility grain {
     position: relative;
     isolation: isolate;
@@ -215,4 +245,21 @@ html[data-text-size="xl"] {
 /* First-visit intro (src/components/iltod/intro-strip.tsx): hidden before paint once dismissed. */
 html[data-intro="seen"] .intro-strip {
     display: none;
+}
+
+/*
+ * View transitions (React 19.3 <ViewTransition>, no Next config): a story's headline morphs from
+ * the list into the article's <h1> (the shared "hl-<slug>" name), the rest cross-fades. Nothing
+ * animates for readers who asked for reduced motion or in browsers without the API.
+ */
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 180ms;
 }

@@ -17,33 +17,47 @@ interface Cell {
   note: string;
   /** Up = brand, down = risk (inflation above the target). */
   tone?: "up" | "down";
+  /** The whole cell links there (the digest page's week numbers). */
+  href?: string;
 }
 
 /**
  * A ledger: a hairline grid of mono numbers, 2 columns on phones and 4 where the container is
  * wide enough (@container, so the same markup serves the home column and /data).
  */
-export function Ledger({ cells, className }: { cells: Cell[]; className?: string }) {
+export function Ledger({ cells, className, wide = 4 }: { cells: Cell[]; className?: string; /** Columns once the container is wide (4 or 5). */ wide?: 4 | 5 }) {
+  const five = wide === 5;
   return (
     <dl className={cx("@container", className)}>
-      <div className="grid grid-cols-2 border-b border-line @2xl:grid-cols-4">
-        {cells.map((c, i) => (
-          <div
-            key={c.label}
-            className={cx(
-              "flex min-w-0 flex-col border-t border-line-soft py-3",
-              i % 2 === 0 ? "border-r pr-3" : "pl-3",
-              "@2xl:border-r @2xl:px-3.5 @2xl:first:pl-0 @2xl:last:border-r-0 @2xl:[&:nth-child(4n)]:border-r-0",
-            )}
-          >
-            <dt className="label-mono truncate text-tertiary">{c.label}</dt>
-            <dd className={cx("num-mono mt-1 text-xl", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-primary")}>
-              {c.value}
-              {c.unit && <span className="ml-1 text-xs font-medium text-tertiary">{c.unit}</span>}
-            </dd>
-            <dd className="mt-0.5 truncate text-xs text-tertiary">{c.note}</dd>
-          </div>
-        ))}
+      <div className={cx("grid grid-cols-2 border-b border-line", five ? "@2xl:grid-cols-5" : "@2xl:grid-cols-4")}>
+        {cells.map((c, i) => {
+          const body = (
+            <>
+              <dt className="label-mono truncate text-tertiary">{c.label}</dt>
+              <dd className={cx("num-mono mt-1 text-xl", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-primary")}>
+                {c.value}
+                {c.unit && <span className="ml-1 text-xs font-medium text-tertiary">{c.unit}</span>}
+              </dd>
+              <dd className="mt-0.5 truncate text-xs text-tertiary">{c.note}</dd>
+            </>
+          );
+          const cell = cx(
+            "flex min-w-0 flex-col border-t border-line-soft py-3",
+            i % 2 === 0 ? "border-r pr-3" : "pl-3",
+            "@2xl:border-r @2xl:px-3.5 @2xl:first:pl-0 @2xl:last:border-r-0",
+            five ? "@2xl:[&:nth-child(5n)]:border-r-0 @2xl:[&:nth-child(5n+1)]:pl-0" : "@2xl:[&:nth-child(4n)]:border-r-0 @2xl:[&:nth-child(4n+1)]:pl-0",
+            c.href && "transition hover:bg-primary_hover",
+          );
+          return c.href ? (
+            <Link key={c.label} href={c.href} prefetch={false} className={cell}>
+              {body}
+            </Link>
+          ) : (
+            <div key={c.label} className={cell}>
+              {body}
+            </div>
+          );
+        })}
       </div>
     </dl>
   );

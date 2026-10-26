@@ -5,7 +5,7 @@ import { SocialLinks } from "@/components/layout/social-links";
 /** End-of-story invitation to follow (server markup, no client JS): where the reader already is. */
 export function FollowCard() {
   return (
-    <aside className="flex flex-col gap-3 rounded-2xl bg-secondary p-4 ring-1 ring-secondary ring-inset">
+    <aside className="flex flex-col gap-3 rounded-2xl bg-secondary p-4 ring-1 ring-line-soft ring-inset">
       <div>
         <p className="text-md font-semibold text-primary">Төрийн хамгийн чухал мэдээг өдөр бүр авах уу?</p>
         <p className="text-sm text-tertiary">

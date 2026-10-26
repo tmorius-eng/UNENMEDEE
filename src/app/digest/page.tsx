@@ -6,8 +6,8 @@ import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
-import Link from "next/link";
 
+import { Ledger } from "@/components/iltod/macro-strip";
 import { formatNumber } from "@/lib/format";
 import { getDigests, getWeekNumbers } from "@/lib/queries";
 
@@ -21,29 +21,19 @@ export const metadata: Metadata = {
 async function WeekNumbers() {
   const w = await getWeekNumbers();
   if (!w) return null;
-  const tiles = [
-    { n: w.articles, label: "төрийн мэдээ", href: "/" },
-    { n: w.sources, label: "эх сурвалжаас", href: "/sources" },
-    { n: w.legalActs, label: "шинэ хууль, тогтоол", href: "/laws" },
-    { n: w.withAmounts, label: "мэдээнд ₮ дүн дурдсан", href: "/topic/budget" },
-    { n: w.risky, label: "өндөр эрсдэлтэй", href: "/topic/risk" },
+  const cells = [
+    { label: "Мэдээ", value: formatNumber(w.articles), note: "энэ 7 хоногт", href: "/" },
+    { label: "Эх сурвалж", value: formatNumber(w.sources), note: "мэдээлсэн", href: "/sources" },
+    { label: "Хууль, тогтоол", value: formatNumber(w.legalActs), note: "legalinfo.mn", href: "/laws" },
+    { label: "₮ дүн дурдсан", value: formatNumber(w.withAmounts), note: "мэдээ", href: "/topic/budget" },
+    { label: "Өндөр эрсдэл", value: formatNumber(w.risky), note: "AI-ийн үнэлгээ", href: "/topic/risk", tone: w.risky > 0 ? ("down" as const) : undefined },
   ];
   return (
     <section aria-labelledby="week" className="flex flex-col gap-3 pb-10">
-      <h2 id="week" className="text-lg font-semibold text-primary">
+      <h2 id="week" className="label-mono text-tertiary">
         📊 Энэ 7 хоногт
       </h2>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {tiles.map((t) => (
-          // Five tiles in two columns: the last one spans the row on phones instead of standing alone.
-          <li key={t.label} className="last:odd:col-span-2 sm:last:odd:col-span-1">
-            <Link href={t.href} prefetch={false} className="flex h-full flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset hover:bg-primary_hover">
-              <span className="text-display-xs font-semibold text-primary tabular-nums">{formatNumber(t.n)}</span>
-              <span className="text-xs text-tertiary">{t.label}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <Ledger cells={cells} wide={5} />
     </section>
   );
 }
@@ -57,7 +47,7 @@ async function Digests() {
     <div className="flex flex-col gap-12">
       {editions.length > 0 && (
         <section aria-labelledby="editions" className="flex flex-col gap-6">
-          <h2 id="editions" className="text-lg font-semibold text-primary">
+          <h2 id="editions" className="label-mono text-tertiary">
             🕗 12 цагийн тойм
           </h2>
           {editions.map((d, i) => (
@@ -67,7 +57,7 @@ async function Digests() {
       )}
       {reviews.length > 0 && (
         <section aria-labelledby="month" className="flex flex-col gap-6">
-          <h2 id="month" className="text-lg font-semibold text-primary">
+          <h2 id="month" className="label-mono text-tertiary">
             🗓 Сүүлийн 30 хоногийн онцлох мэдээ
           </h2>
           {reviews.map((d) => (
@@ -81,9 +71,9 @@ async function Digests() {
 
 export default function DigestPage() {
   return (
-    <>
+    <div className="mx-auto flex max-w-3xl flex-col">
       <PageHeader
-        eyebrow="📰 AI редакторын тойм"
+        eyebrow="AI редакторын тойм · өдөрт 2 удаа"
         title="Онцлох тойм"
         description="Өглөө 08:00, орой 20:00 цагт AI редактор сүүлийн 12 цагийн бүх төрийн мэдээнээс иргэдийн амьдрал, төсөв, хууль, эрүүл мэнд, авлигад хамгийн их нөлөөлөх мэдээг сонгож, пи-аргүйгээр тоймлоно."
       >
@@ -95,6 +85,6 @@ export default function DigestPage() {
       <Suspense fallback={<FeedSkeleton />}>
         <Digests />
       </Suspense>
-    </>
+    </div>
   );
 }

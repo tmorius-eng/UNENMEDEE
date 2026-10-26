@@ -19,12 +19,12 @@ export function HashBadge({ hash }: { hash: string }) {
         }
       }}
       title="SHA-256 хэшийг хуулах"
-      className="group inline-flex max-w-full cursor-pointer items-center gap-2 rounded-lg bg-secondary px-3 py-2 font-mono text-xs text-secondary ring-1 ring-secondary transition ring-inset hover:bg-secondary_hover"
+      className="group label-mono inline-flex max-w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 normal-case text-secondary ring-1 ring-line transition ring-inset hover:bg-primary_hover"
     >
-      <ShieldTick className="size-4 shrink-0 text-fg-success-primary" />
-      <span className="shrink-0 font-sans font-semibold">SHA-256</span>
+      <ShieldTick className="size-4 shrink-0 text-fg-brand-primary" />
+      <span className="shrink-0 font-semibold uppercase">SHA-256</span>
       <span className="truncate">{hash}</span>
-      {copied ? <Check className="size-4 shrink-0 text-fg-success-primary" /> : <Copy01 className="size-4 shrink-0 text-fg-quaternary group-hover:text-fg-secondary" />}
+      {copied ? <Check className="size-4 shrink-0 text-fg-brand-primary" /> : <Copy01 className="size-4 shrink-0 text-fg-quaternary group-hover:text-fg-secondary" />}
     </button>
   );
 }
