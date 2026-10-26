@@ -162,7 +162,7 @@ async function Dashboard() {
         <ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-secondary">
           <li>AI дуудлага бүр (амжилттай эсвэл алдаатай) токены тоо, үнийн хамт <code>ai_usage_logs</code> хүснэгтэд бичигдэнэ.</li>
           <li>Зардлыг үйлчилгээ үзүүлэгч бүрийн албан ёсны үнээр (1 сая токен тутамд) тооцно; үнэгүй квотоор хийсэн дуудлага $0.</li>
-          <li>Скрапер, AI pipeline 2 цаг тутам автоматаар ажиллаж, ажил бүрийн бүртгэл GitHub Actions дээр нээлттэй хадгалагдана.</li>
+          <li>Скрапер, AI pipeline цаг тутам автоматаар ажиллаж (GitHub Actions-ийн үнэгүй хуваарь ачааллаас болж заримдаа хойшилдог), ажил бүрийн бүртгэл GitHub Actions дээр нээлттэй хадгалагдана.</li>
           <li>
             Бүх код, AI-д өгдөг заавар нээлттэй:{" "}
             <a className="font-semibold text-brand-secondary hover:underline" href={REPO_URL} target="_blank" rel="noreferrer">

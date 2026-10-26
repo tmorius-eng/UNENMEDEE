@@ -75,7 +75,7 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 
 **`DATABASE_URL`:** Supabase төсөл → **Connect** → **Transaction pooler** (порт 6543). Migration-д **Session pooler** (порт 5432)-ийг `DATABASE_URL_DIRECT` нэрээр нэмж болно.
 
-**Автоматжуулалт:** репо → Settings → Secrets and variables → Actions хэсэгт `DATABASE_URL` болон дор хаяж нэг AI түлхүүр нэмэхэд мэдээ 2 цаг тутам шинэчлэгдэнэ. Vercel дээр мөн адил (нэмээд `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт).
+**Автоматжуулалт:** репо → Settings → Secrets and variables → Actions хэсэгт `DATABASE_URL` болон дор хаяж нэг AI түлхүүр нэмэхэд мэдээ цаг тутам шинэчлэгдэнэ. Vercel дээр мөн адил (нэмээд `ADMIN_SECRET_PASSWORD`, 12+ тэмдэгт).
 
 ## Хувь нэмэр оруулах
 
@@ -107,7 +107,7 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 The full technical write-up, with diagrams, the data model, algorithms and design trade-offs, is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. A short version:
 
 ```
-GitHub Actions (every 2 h, free on public repos)
+GitHub Actions (hourly, free on public repos)
  ├─ npm run scrape          95+ seeded sources, least-recently-scraped first, 30-min budget
  │   ├─ JSON APIs / feeds   opendata.gov.mn, parliament.mn, legalinfo.mn, police.gov.mn, mongolia.gov.mn RSS
  │   ├─ HTTP pass (Crawlee) WordPress REST API → RSS → scored link harvesting → Readability
@@ -152,7 +152,7 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 
 ### Honest limits
 
-- Free GitHub Actions minutes require a public repository; a 2-hourly pipeline needs far more than a private repo's free quota.
+- Free GitHub Actions minutes require a public repository; an hourly pipeline needs far more than a private repo's free quota.
 - Some sites block cloud IPs or sit behind a Cloudflare browser challenge (tender.gov.mn, president.mn). They fail gracefully and back off; we never try to get around Cloudflare.
 - AI output can be wrong. Summaries name the model that wrote them, and every page links the official source.
 

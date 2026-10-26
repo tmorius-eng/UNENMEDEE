@@ -1,6 +1,6 @@
 # Data syncs twice a day (opendata.mn, Mongolbank, budget, retention pruning) plus the AI news
 # digest ("Онцлох тойм") when it is due. GitHub starts this schedule ~4.5 h late (12:30 and 01:00
-# Ulaanbaatar), so the 12h edition is normally written by the 2-hourly pipeline inside the
+# Ulaanbaatar), so the 12h edition is normally written by the hourly pipeline inside the
 # morning/evening window (`npm run digest -- --due`); a manual run with force=true still writes
 # one at once. It has its own concurrency group because GitHub cancels a pending run when
 # another one queues in the same group.

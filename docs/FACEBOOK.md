@@ -1,6 +1,6 @@
 # Facebook, Threads, Instagram-д автоматаар нийтлэх
 
-Pipeline (`autonomous-news-pipeline.yml`, 2 цаг тутам), `news-digest.yml` болон гараар ажиллуулах
+Pipeline (`autonomous-news-pipeline.yml`, цаг тутам), `news-digest.yml` болон гараар ажиллуулах
 `social-post.yml` дараах хоёрыг ИЛ ТОД МЭДЭЭ-ийн Facebook хуудас, Threads, Instagram-д нийтэлнэ
 (`npm run social:post`, `scripts/post-social.ts`):
 

@@ -1,6 +1,6 @@
 # Manual social posting: runs `npm run social:post` with the same secrets as the pipeline, so a
 # new digest or important story can be sent to Facebook, Threads, Instagram, Telegram and Discord right away (or a
-# setup checked) without waiting for the 2-hourly pipeline. social_posts keeps it from posting
+# setup checked) without waiting for the hourly pipeline. social_posts keeps it from posting
 # anything twice, whichever run gets there first.
 name: Social post (manual)
 

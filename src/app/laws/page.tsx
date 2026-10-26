@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 async function Acts() {
   const acts = await getLegalActs();
-  if (acts.length === 0) return <Empty title="Шинэ акт хараахан татагдаагүй" description="legalinfo.mn-ээс 2 цаг тутам шинэчилнэ." />;
+  if (acts.length === 0) return <Empty title="Шинэ акт хараахан татагдаагүй" description="legalinfo.mn-ээс цаг тутам шинэчилнэ." />;
   const byDay = new Map<string, typeof acts>();
   for (const a of acts) {
     const day = formatDateMn(a.publishedAt);

@@ -5,16 +5,22 @@
 
 const HOUR = 3_600_000;
 
-/** Minute past the hour the pipeline's cron fires at ("17 *\/2 * * *": off the congested minute 0). */
+/** Minute past the hour the pipeline's crons fire at: :17 on even UTC hours, :47 on odd ones. */
 export const PIPELINE_MINUTE = 17;
+export const PIPELINE_MINUTE_ODD = 47;
 
-/** The next pipeline run: every 2 hours at even UTC hours, PIPELINE_MINUTE past. */
+/**
+ * The next scheduled pipeline attempt ("17 *\/2 * * *" and "47 1-23/2 * * *": one an hour, off the
+ * congested minute 0). GitHub may still skip an attempt under load, so this is the earliest time.
+ */
 export function nextRunAt(now: number): number {
   const d = new Date(now);
-  const h = d.getUTCHours();
-  const evenHour = h - (h % 2);
-  d.setUTCHours(evenHour, PIPELINE_MINUTE, 0, 0);
-  if (d.getTime() <= now) d.setUTCHours(evenHour + 2, PIPELINE_MINUTE, 0, 0);
+  for (let i = 0; i < 4; i++) {
+    const h = d.getUTCHours();
+    d.setUTCHours(h, h % 2 === 0 ? PIPELINE_MINUTE : PIPELINE_MINUTE_ODD, 0, 0);
+    if (d.getTime() > now) return d.getTime();
+    d.setUTCHours(h + 1, 0, 0, 0);
+  }
   return d.getTime();
 }
 

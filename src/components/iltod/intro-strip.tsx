@@ -12,7 +12,7 @@ export const INTRO_KEY = "iltod-intro";
  */
 export function IntroStrip({ sources }: { sources: number }) {
   const steps = [
-    { n: "01", text: `${sources || 95} төрийн сайтыг 2 цаг тутам уншина` },
+    { n: "01", text: `${sources || 95} төрийн сайтыг цаг тутам уншина` },
     { n: "02", text: "AI баримтыг пи-араас салгана" },
     { n: "03", text: "Та эх сурвалжаас нь шалгана" },
   ];
