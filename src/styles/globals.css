@@ -85,6 +85,23 @@
     text-wrap: balance;
 }
 
+/*
+ * Enter animation for panels that mount on a tap (the opened story's summary): @starting-style
+ * replaces the tailwindcss-animate keyframes, with no motion for readers who asked for none.
+ */
+@utility panel-enter {
+    transition:
+        opacity 200ms ease-out,
+        translate 200ms ease-out;
+    @starting-style {
+        opacity: 0;
+        translate: 0 -4px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+
 @utility grain {
     position: relative;
     isolation: isolate;

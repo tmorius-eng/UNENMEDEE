@@ -48,7 +48,7 @@ export function StatusTicker({ stats, lastArticleAt, todayArticles }: { stats: s
       onPointerEnter={(e) => e.pointerType === "mouse" && setPaused(true)}
       onPointerLeave={(e) => e.pointerType === "mouse" && setPaused(false)}
       aria-label={messages.join(". ")}
-      className="mt-1 block h-5 w-full cursor-pointer overflow-hidden text-left text-sm text-tertiary"
+      className="label-mono mt-2 block h-4 w-full cursor-pointer overflow-hidden text-left text-tertiary"
     >
       <span
         key={step}

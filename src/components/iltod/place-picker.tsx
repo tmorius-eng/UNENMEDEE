@@ -10,11 +10,11 @@ export function PlacePicker({ current, title = "Миний аймаг, дүүр�
     { label: "Аймаг", items: PLACES.filter((p) => p.kind === "aimag") },
   ];
   return (
-    <nav id="places" aria-label={title} className="flex scroll-mt-24 flex-col gap-3 rounded-2xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
-      <h2 className="text-sm font-semibold text-primary">{title}</h2>
+    <nav id="places" aria-label={title} className="flex scroll-mt-24 flex-col gap-3 rounded-2xl bg-secondary p-4 ring-1 ring-line-soft ring-inset">
+      <h2 className="label-mono text-tertiary">{title}</h2>
       {groups.map((g) => (
         <div key={g.label} className="flex flex-col gap-2">
-          <p className="text-xs font-semibold tracking-wider text-tertiary uppercase">{g.label}</p>
+          <p className="text-xs font-semibold text-secondary">{g.label}</p>
           <ul className="flex flex-wrap gap-2">
             {g.items.map((p) => (
               <li key={p.slug}>
@@ -24,7 +24,7 @@ export function PlacePicker({ current, title = "Миний аймаг, дүүр�
                   aria-current={p.slug === current ? "page" : undefined}
                   className={cx(
                     "inline-flex h-9 items-center rounded-full px-3 text-sm font-medium ring-1 ring-inset transition",
-                    p.slug === current ? "bg-brand-solid text-white ring-transparent" : "text-secondary ring-primary hover:bg-primary_hover",
+                    p.slug === current ? "bg-ink text-bg-primary ring-transparent" : "bg-primary text-secondary ring-line hover:text-primary",
                   )}
                 >
                   {p.name}

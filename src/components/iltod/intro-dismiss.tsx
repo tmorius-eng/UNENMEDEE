@@ -13,7 +13,7 @@ export function IntroDismiss({ storageKey }: { storageKey: string }) {
         }
         document.documentElement.dataset.intro = "seen";
       }}
-      className="cursor-pointer rounded-lg bg-brand-solid px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover"
+      className="cursor-pointer rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-bg-primary hover:opacity-90"
     >
       Ойлголоо
     </button>

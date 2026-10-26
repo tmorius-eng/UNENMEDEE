@@ -24,7 +24,7 @@ function FollowButton({ kind, id, label, className }: { kind: keyof typeof KINDS
       onClick={() => setRaw(JSON.stringify(toggleTopicFollow(follows, id)))}
       className={cx(
         "flex min-w-32 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ring-1 transition ring-inset",
-        on ? "bg-warning-primary text-warning-primary ring-warning-subtle" : "text-secondary ring-primary hover:bg-primary_hover",
+        on ? "bg-signal-soft text-primary ring-signal" : "text-secondary ring-line hover:bg-primary_hover hover:text-primary",
         className,
       )}
     >
