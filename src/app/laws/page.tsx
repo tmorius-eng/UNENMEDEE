@@ -28,18 +28,18 @@ async function Acts() {
     <div className="flex flex-col gap-8">
       {[...byDay.entries()].map(([day, list]) => (
         <section key={day} aria-label={day} className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-tertiary">{day}</h2>
-          <ol className="flex flex-col gap-3">
+          <h2 className="label-mono text-tertiary">{day}</h2>
+          <ol className="flex flex-col divide-y divide-line-soft border-y border-line">
             {list.map((a) => (
-              <li key={a.id} className="flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
-                <Link href={`/article/${a.slug}`} className="font-semibold text-balance text-primary hover:text-brand-secondary">
+              <li key={a.id} className="flex flex-col gap-2 py-4">
+                <Link href={`/article/${a.slug}`} className="story-headline text-balance text-primary hover:text-brand-secondary">
                   {a.title}
                 </Link>
                 {a.tldr && (
                   <ul className="flex flex-col gap-1 text-sm text-secondary">
                     {tldrSentences(a.tldr, 2).map((s) => (
                       <li key={s} className="flex gap-2">
-                        <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-solid" />
+                        <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-[1px] bg-brand-solid" />
                         {s}
                       </li>
                     ))}
@@ -61,7 +61,7 @@ export default function LawsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col">
       <PageHeader
-        eyebrow="⚖️ Хууль, тогтоол"
+        eyebrow="Хууль, тогтоол · legalinfo.mn"
         title="Юу шинээр батлагдав?"
         description="Хууль зүйн мэдээллийн нэгдсэн системд (legalinfo.mn) шинээр бүртгэгдсэн хууль, тогтоол, тушаал. Товч тайлбарыг AI бичсэн тул хүчин төгөлдөр текстийг эх бичвэрээс уншина уу."
       >

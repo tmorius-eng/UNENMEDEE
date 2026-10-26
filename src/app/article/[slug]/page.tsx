@@ -2,17 +2,19 @@ import { ArrowLeft, LinkExternal01 } from "@untitledui/icons";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 
 import { AIMarkdownMessage } from "@/components/iltod/ai-markdown";
-import { AIMessage } from "@/components/iltod/ai-message";
+import { AIBullets, AIMessage } from "@/components/iltod/ai-message";
 import { ArticleGrid } from "@/components/iltod/article-grid";
-import { DeepBadge, MoneyTags, RiskBadge, SourceBadge } from "@/components/iltod/badges";
+import { Chip, DeepBadge, RiskBadge, SourceBadge } from "@/components/iltod/badges";
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { FollowCard } from "@/components/iltod/follow-card";
 import { HashBadge } from "@/components/iltod/hash-badge";
+import { Panel } from "@/components/iltod/panel";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
+import { STORY_BUTTON_PRIMARY } from "@/components/iltod/story-list";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
@@ -106,15 +108,16 @@ async function Related({ clusterId, currentId }: { clusterId: number; currentId:
   const others = data?.articles.filter((a) => a.id !== currentId) ?? [];
   if (!data || others.length === 0) return null;
   return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-lg font-semibold text-primary">Энэ сэдвээр бусад эх сурвалж</h2>
-        <Link href={`/clusters/${clusterId}`} className="text-sm font-semibold text-brand-secondary hover:underline">
-          {data.cluster.title} · {data.cluster.articleCount} мэдээ
+    <Panel
+      title="Энэ сэдвээр бусад эх сурвалж"
+      note={
+        <Link href={`/clusters/${clusterId}`} className="font-semibold text-brand-secondary hover:underline">
+          {data.cluster.articleCount} мэдээ →
         </Link>
-      </div>
+      }
+    >
       <ArticleGrid articles={others.slice(0, 3)} />
-    </section>
+    </Panel>
   );
 }
 
@@ -127,124 +130,110 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
 
   const dateUnknown = article.scrapeMeta?.date_unknown === true;
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
+  const summaryTitle = article.summaryFallback ? "Хураангуй · эх текстийн эхний өгүүлбэрүүд" : article.sourceDomain === "opendata.gov.mn" ? "Хураангуй · дүрмээр гаргасан" : "AI хураангуй";
+  const summaryNote = article.summaryFallback ? "AI ажиллаагүй" : article.sourceDomain === "opendata.gov.mn" ? "AI ашиглаагүй" : article.tier1Model ? aiModelLabel(article.tier1Model) : undefined;
   return (
-    <article className="flex flex-col gap-10">
+    // A 720 px reading column; the progress line on top fills as the reader scrolls (CSS only).
+    <article className="mx-auto flex w-full max-w-[45rem] flex-col gap-8">
+      <span aria-hidden className="reading-progress" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd(article)) }} />
-      <header className="flex flex-col gap-5">
-        <Link href="/" className="flex w-fit items-center gap-1.5 text-sm font-semibold text-tertiary hover:text-secondary">
-          <ArrowLeft className="size-4" /> Бүх мэдээ
+      <header className="flex flex-col gap-4">
+        <Link href="/" className="label-mono flex w-fit items-center gap-1.5 text-tertiary hover:text-primary">
+          <ArrowLeft className="size-3.5" /> Бүх мэдээ
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <SourceBadge domain={article.sourceDomain} category={article.sourceCategory} size="md" />
-          <span className="text-sm text-tertiary">{article.sourceName}</span>
-          <span className="text-sm text-quaternary">·</span>
-          {dateUnknown ? (
-            <span className="text-sm text-tertiary" title={`Эх хуудсанд огноо байхгүй. ${formatDateMn(article.createdAt)}-нд цуглуулсан.`}>
-              Огноо тодорхойгүй
-            </span>
-          ) : (
-            <TimeAgo date={article.publishedAt} className="text-sm text-tertiary" />
-          )}
-          <span className="flex gap-1.5 sm:ml-auto">
-            {article.hasDeepAnalysis && <DeepBadge />}
-            <RiskBadge score={article.riskScore} size="md" />
-            <Link href="/method#risk" className="self-center text-xs font-medium text-tertiary underline decoration-dotted hover:text-secondary">
-              AI-ийн үнэлгээ
-            </Link>
+          <span className="label-mono normal-case text-tertiary">
+            {article.sourceName} ·{" "}
+            {dateUnknown ? <span title={`Эх хуудсанд огноо байхгүй. ${formatDateMn(article.createdAt)}-нд цуглуулсан.`}>Огноо тодорхойгүй</span> : <TimeAgo date={article.publishedAt} />}
           </span>
         </div>
-        <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{article.title}</h1>
-        <MoneyTags amounts={article.amounts} max={6} />
-        <ShareButton path={`/article/${slug}`} title={article.title} text={tldrSentences(article.tldr, 1)[0]} className="w-fit" />
+        {/* The same view-transition name as the story row: the headline morphs into place. */}
+        <ViewTransition name={`hl-${article.slug}`}>
+          <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{article.title}</h1>
+        </ViewTransition>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <RiskBadge score={article.riskScore} size="md" />
+          <Link href="/method#risk" className="label-mono normal-case text-tertiary underline decoration-dotted underline-offset-4 hover:text-primary">
+            AI-ийн үнэлгээ
+          </Link>
+          {article.hasDeepAnalysis && <DeepBadge />}
+          {article.amounts.slice(0, 6).map((a) => (
+            <Chip key={a} tone="mnt" size="md">
+              {a}
+            </Chip>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a href={safeHttpUrl(article.originalUrl)} target="_blank" rel="noreferrer nofollow" className={STORY_BUTTON_PRIMARY}>
+            Эх сурвалж <LinkExternal01 className="size-4" />
+          </a>
+          <ShareButton path={`/article/${slug}`} title={article.title} text={tldrSentences(article.tldr, 1)[0]} className="w-fit" />
+        </div>
       </header>
 
-      <AIMessage
-        tier="tier1"
-        title={
-          article.summaryFallback
-            ? "Хураангуй · эх текстийн эхний өгүүлбэрүүд (AI ажиллаагүй)"
-            : article.tier1Model
-            ? `AI хураангуй · ${aiModelLabel(article.tier1Model)}`
-            : article.sourceDomain === "opendata.gov.mn"
-              ? "Хураангуй · дүрмээр гаргасан (AI ашиглаагүй)"
-              : "AI хураангуй"
-        }
-      >
-        <ul className="flex flex-col gap-2 text-md text-primary">
-          {tldrSentences(article.tldr).map((s) => (
-            <li key={s} className="flex gap-2">
-              <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-solid" />
-              {s}
-            </li>
-          ))}
-        </ul>
+      <AIMessage tier="tier1" title={summaryTitle} note={summaryNote} className="border-t border-line pt-3">
+        <AIBullets items={tldrSentences(article.tldr)} className="text-md" />
       </AIMessage>
 
       {!article.summaryFallback && <FactSpinPanel facts={article.facts} spin={article.spinDetected} neutrality={article.neutralityScore} />}
 
       {article.deepAnalysis && (
-        <section className="rounded-3xl bg-linear-to-br from-purple-500/10 via-transparent to-fuchsia-500/10 p-1">
-          <AIMarkdownMessage tier="tier2" title={`⚡ Гүнзгий шинжилгээ${article.tier2Model ? ` · ${aiModelLabel(article.tier2Model)}` : ""}`} markdown={article.deepAnalysis} />
-        </section>
+        <AIMarkdownMessage
+          tier="tier2"
+          title="⚡ Гүнзгий шинжилгээ"
+          note={article.tier2Model ? aiModelLabel(article.tier2Model) : undefined}
+          markdown={article.deepAnalysis}
+          className="border-t border-line pt-3"
+        />
       )}
 
       {(article.entities.people.length > 0 || article.entities.orgs.length > 0) && (
-        <section className="grid gap-4 md:grid-cols-2">
-          {[
-            { label: "Холбогдох хүмүүс", items: article.entities.people },
-            { label: "Байгууллагууд", items: article.entities.orgs },
-          ]
-            .filter((g) => g.items.length)
-            .map((g) => (
-              <div key={g.label} className="rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
-                <h3 className="text-sm font-semibold text-tertiary">{g.label}</h3>
-                <div className="mt-3 flex flex-wrap gap-1.5">
+        <Panel title="Нэр, байгууллага" note="AI ялгасан">
+          <div className="flex flex-col gap-3">
+            {[
+              { label: "Хүмүүс", items: article.entities.people },
+              { label: "Байгууллагууд", items: article.entities.orgs },
+            ]
+              .filter((g) => g.items.length)
+              .map((g) => (
+                <div key={g.label} className="flex flex-wrap items-center gap-1.5">
+                  <span className="label-mono mr-1 text-tertiary">{g.label}</span>
                   {g.items.map((p) => (
-                    <span key={p} className="rounded-md bg-secondary px-2 py-1 text-sm text-secondary">
+                    <Chip key={p} size="md" className="font-sans tracking-normal">
                       {p}
-                    </span>
+                    </Chip>
                   ))}
                 </div>
-              </div>
-            ))}
-        </section>
+              ))}
+          </div>
+        </Panel>
       )}
 
-      <section className="flex flex-col gap-4 rounded-3xl bg-primary p-6 ring-1 ring-secondary ring-inset md:p-8">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-primary">Эх текст (албан ёсны)</h2>
-            <p className="text-sm text-tertiary">
-              {dateUnknown ? `Эх хуудсанд нийтэлсэн огноо байхгүй; ${formatDateMn(article.createdAt)}-нд цуглуулсан.` : `${formatDateMn(article.publishedAt)}-нд нийтлэгдсэн.`} Цэвэрлэсэн текстийн SHA-256 хэш: хэн ч эх хуудсыг дахин татаж шалгах боломжтой.
+      <Panel title="Эх текст · албан ёсны" note={dateUnknown ? `${formatDateMn(article.createdAt)}-нд цуглуулсан` : `${formatDateMn(article.publishedAt)}-нд нийтлэгдсэн`}>
+        <div className="flex flex-col gap-3 rounded-2xl bg-secondary p-4 ring-1 ring-line-soft ring-inset md:p-5">
+          <SourceChangeNotice status={article.sourceStatus} changedAt={article.sourceChangedAt} diff={article.sourceDiff} />
+          {article.contentPrunedAt && (
+            <p className="rounded-lg bg-primary px-3 py-2 text-sm text-secondary ring-1 ring-line-soft ring-inset">
+              Хадгалах зай хэмнэхийн тулд 6 сараас дээш хугацааны мэдээний эх текстийн зөвхөн эхний хэсгийг хадгалдаг. Бүтэн текстийг эх сурвалжаас уншина уу; SHA-256 хэш анхны бүтэн текстийнх.
             </p>
+          )}
+          {article.editedAt && (
+            <p className="rounded-lg bg-signal-soft px-3 py-2 text-sm text-primary ring-1 ring-signal ring-inset">
+              ✏️ Редакцийн засвартай ({formatDateMn(article.editedAt)}). Доорх текстийг редактор зассан; SHA-256 хэш нь анх татсан эх текстэд хамаарна.
+            </p>
+          )}
+          <div className="prose max-w-none text-secondary dark:prose-invert">
+            {paragraphs.slice(0, 60).map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
           </div>
-          <a
-            href={safeHttpUrl(article.originalUrl)}
-            target="_blank"
-            rel="noreferrer nofollow"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-brand-solid_hover"
-          >
-            Эх сурвалж руу очих <LinkExternal01 className="size-4" />
-          </a>
+          <div className="flex flex-col gap-2 border-t border-dashed border-line pt-3">
+            <HashBadge hash={article.contentHash} />
+            <p className="text-xs text-tertiary">Цэвэрлэсэн текстийн SHA-256 хэш: хэн ч эх хуудсыг дахин татаж шалгах боломжтой.</p>
+          </div>
         </div>
-        <HashBadge hash={article.contentHash} />
-        <SourceChangeNotice status={article.sourceStatus} changedAt={article.sourceChangedAt} diff={article.sourceDiff} />
-        {article.contentPrunedAt && (
-          <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary">
-            Хадгалах зай хэмнэхийн тулд 6 сараас дээш хугацааны мэдээний эх текстийн зөвхөн эхний хэсгийг хадгалдаг. Бүтэн текстийг эх сурвалжаас уншина уу; SHA-256 хэш анхны бүтэн текстийнх.
-          </p>
-        )}
-        {article.editedAt && (
-          <p className="rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary">
-            ✏️ Редакцийн засвартай ({formatDateMn(article.editedAt)}). Доорх текстийг редактор зассан; SHA-256 хэш нь анх татсан эх текстэд хамаарна.
-          </p>
-        )}
-        <div className="prose max-w-none text-secondary dark:prose-invert">
-          {paragraphs.slice(0, 60).map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
-      </section>
+      </Panel>
 
       {article.clusterId && (
         <Suspense fallback={null}>
@@ -263,7 +252,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
 
 export default function ArticlePage(props: PageProps<"/article/[slug]">) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
+    <Suspense fallback={<div className="mx-auto h-96 w-full max-w-[45rem] animate-pulse rounded-2xl bg-secondary" />}>
       <ArticleView params={props.params} />
     </Suspense>
   );

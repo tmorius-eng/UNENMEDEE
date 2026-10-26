@@ -3,7 +3,7 @@
 import { ArrowUpRight, Check } from "@untitledui/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
 
 import { PushInvite } from "@/components/pwa/push-invite";
 import { largestAmount, tldrSentences } from "@/lib/format";
@@ -64,23 +64,26 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
             </span>
             {s.riskFlag && <Chip tone="risk">⚠ Өндөр эрсдэл · {s.riskScore}</Chip>}
           </p>
-          {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place. */}
-          <a
-            href={`/article/${s.slug}`}
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-              e.preventDefault();
-              onOpen(s.id);
-            }}
-            aria-expanded={isOpen}
-            className={cx(
-              "mt-2 block w-full cursor-pointer text-left transition-colors",
-              lead ? "headline text-[1.75rem] md:text-[2.5rem]" : "story-headline text-balance",
-              isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary",
-            )}
-          >
-            {s.title}
-          </a>
+          {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place.
+              The view-transition name is shared with the article's <h1>, so the headline morphs there. */}
+          <ViewTransition name={`hl-${s.slug}`}>
+            <a
+              href={`/article/${s.slug}`}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                onOpen(s.id);
+              }}
+              aria-expanded={isOpen}
+              className={cx(
+                "mt-2 block w-full cursor-pointer text-left transition-colors",
+                lead ? "headline text-[1.75rem] md:text-[2.5rem]" : "story-headline text-balance",
+                isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary",
+              )}
+            >
+              {s.title}
+            </a>
+          </ViewTransition>
           {teaser && !isOpen && <p className={cx("mt-2 text-secondary", lead ? "line-clamp-3 text-md" : "line-clamp-2 text-sm")}>{teaser}</p>}
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="label-mono text-tertiary">

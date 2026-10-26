@@ -31,14 +31,14 @@ async function ClusterView({ params }: { params: PageProps<"/clusters/[id]">["pa
   const { cluster, articles } = data;
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/clusters" className="flex w-fit items-center gap-1.5 text-sm font-semibold text-tertiary hover:text-secondary">
+      <Link href="/clusters" className="label-mono flex w-fit items-center gap-1.5 text-tertiary hover:text-primary">
         <ArrowLeft className="size-4" /> Бүх кластер
       </Link>
       <header className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm text-tertiary">
+        <div className="label-mono flex items-center gap-2 text-tertiary">
           {cluster.articleCount} эх сурвалжийн мэдээ {cluster.maxRiskScore >= 35 && <RiskBadge score={cluster.maxRiskScore} />}
         </div>
-        <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{cluster.title}</h1>
+        <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{cluster.title}</h1>
       </header>
       {cluster.synthesisSummary && (
         <AIMarkdownMessage tier={cluster.maxRiskScore >= 65 ? "tier2" : "tier1"} title="Эх сурвалжуудыг нэгтгэсэн дүгнэлт" markdown={cluster.synthesisSummary} />

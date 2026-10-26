@@ -12,7 +12,7 @@ export function SourceChangeNotice({ status, changedAt, diff }: { status: Source
   if (!changedAt || (status !== "changed" && status !== "gone")) return null;
   if (status === "gone") {
     return (
-      <p className="rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary">
+      <p className="rounded-lg bg-signal-soft px-3 py-2 text-sm text-primary ring-1 ring-signal ring-inset">
         ⚠️ Эх хуудас {formatDateMn(changedAt)}-нд нээгдэхгүй болсон (дор хаяж 2 удаа, хэдэн өдрийн зайтай шалгасан). Бидний хадгалсан анхны текст доор байна.{" "}
         <Link href="/changes" className="font-semibold underline">
           Бүх өөрчлөлт
@@ -22,7 +22,7 @@ export function SourceChangeNotice({ status, changedAt, diff }: { status: Source
   }
   const edits = (diff?.pairs.length ?? 0) + (diff?.removed.length ?? 0);
   return (
-    <details className="group rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary">
+    <details className="group rounded-lg bg-signal-soft px-3 py-2 text-sm text-primary ring-1 ring-signal ring-inset">
       <summary className="cursor-pointer list-none">
         ✏️ Эх хуудасны текст {formatDateMn(changedAt)}-нд бидний хадгалсан хувилбараас өөр болсон
         {diff ? ` (${Math.round(diff.containment * 100)}% нь хэвээр, ${edits} өгүүлбэр өөрчлөгдсөн эсвэл хасагдсан)` : ""}.{" "}
@@ -31,7 +31,7 @@ export function SourceChangeNotice({ status, changedAt, diff }: { status: Source
       {diff && (
         <div className="mt-3 flex flex-col gap-3 text-secondary">
           {diff.pairs.map((p, i) => (
-            <div key={i} className="grid gap-1 rounded-md bg-primary p-3 ring-1 ring-secondary ring-inset">
+            <div key={i} className="grid gap-1 rounded-md bg-primary p-3 ring-1 ring-line ring-inset">
               <p>
                 <span className="font-semibold text-error-primary">Өмнө: </span>
                 {p.before}
@@ -43,7 +43,7 @@ export function SourceChangeNotice({ status, changedAt, diff }: { status: Source
             </div>
           ))}
           {diff.removed.length > 0 && (
-            <div className="rounded-md bg-primary p-3 ring-1 ring-secondary ring-inset">
+            <div className="rounded-md bg-primary p-3 ring-1 ring-line ring-inset">
               <p className="font-semibold text-error-primary">Хуудаснаас хасагдсан:</p>
               <ul className="mt-1 list-disc pl-5">
                 {diff.removed.map((r, i) => (

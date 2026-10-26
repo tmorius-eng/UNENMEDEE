@@ -1,76 +1,62 @@
-"use client";
+import { useId } from "react";
 
-import { AlertTriangle, CheckVerified01 } from "@untitledui/icons";
-import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
-
-import { cx } from "@/utils/cx";
-
+import { Panel } from "./panel";
 import { SpinMeter } from "./spin-meter";
 
-type View = "facts" | "spin";
-
-/** "Баримт vs Пи-Ар Шүүлтүүр": side by side on desktop, toggled on mobile. */
+/**
+ * "Баримт vs Пи-ар": the facts and the PR the AI separated, side by side on desktop and
+ * switched with a segmented control on phones. CSS only (radio inputs + :has on their value),
+ * no client JavaScript and no animation library: the article page used to ship `motion` for
+ * this one toggle. Server markup; useId keeps the radio names unique.
+ */
 export function FactSpinPanel({ facts, spin, neutrality }: { facts: string[]; spin: string; neutrality: number | null }) {
-  const [view, setView] = useState<View>("facts");
-
-  const factsBox = (
-    <div className="flex h-full flex-col gap-3 rounded-2xl bg-success-primary p-5 ring-1 ring-green-200 ring-inset dark:ring-green-900">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-success-primary">
-        <CheckVerified01 className="size-5" /> Баримт (Facts)
-      </h3>
-      {facts.length ? (
-        <ul className="flex flex-col gap-2 text-sm text-secondary">
-          {facts.map((f) => (
-            <li key={f} className="flex gap-2">
-              <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-success-solid" />
-              {f}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-tertiary">Шалгаж болох тодорхой баримт олдсонгүй.</p>
-      )}
-    </div>
-  );
-
-  const spinBox = (
-    <div className="flex h-full flex-col gap-3 rounded-2xl bg-warning-primary p-5 ring-1 ring-amber-200 ring-inset dark:ring-amber-900">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-warning-primary">
-        <AlertTriangle className="size-5" /> Пи-Ар Шүүлтүүр (Spin Detector)
-      </h3>
-      <p className="text-sm text-secondary">{spin || "Илэрхий пи-ар илрээгүй."}</p>
-      <SpinMeter neutrality={neutrality} size="md" className="mt-auto pt-2" />
-    </div>
-  );
-
+  const id = useId();
+  const tab = "cursor-pointer rounded-md px-3 py-1.5 text-sm font-semibold text-tertiary transition peer-checked:bg-primary peer-checked:text-primary peer-checked:ring-1 peer-checked:ring-line";
   return (
-    <section aria-label="Баримт ба пи-ар" className="flex flex-col gap-3">
-      <div role="tablist" aria-label="Харах хэсэг" className="flex w-fit gap-1 rounded-xl bg-secondary p-1 md:hidden">
-        {(["facts", "spin"] as const).map((v) => (
-          <button
-            key={v}
-            role="tab"
-            type="button"
-            aria-selected={view === v}
-            onClick={() => setView(v)}
-            className={cx("rounded-lg px-3 py-1.5 text-sm font-semibold transition", view === v ? "bg-primary text-secondary shadow-sm" : "text-quaternary")}
-          >
-            {v === "facts" ? "Баримт" : "Пи-ар"}
-          </button>
-        ))}
+    <Panel title="Баримт vs пи-ар" note="AI-ийн үнэлгээ, буруутгал биш">
+      <div className="group/fs flex flex-col gap-3">
+        {/* Phones: one view at a time. The checked radio hides the other box through :has(). */}
+        <div role="group" aria-label="Харах хэсэг" className="flex w-fit gap-1 rounded-lg bg-secondary p-1 md:hidden">
+          <span className="contents">
+            <input type="radio" name={id} id={`${id}f`} value="facts" defaultChecked className="peer sr-only" />
+            <label htmlFor={`${id}f`} className={tab}>
+              Баримт
+            </label>
+          </span>
+          <span className="contents">
+            <input type="radio" name={id} id={`${id}s`} value="spin" className="peer sr-only" />
+            <label htmlFor={`${id}s`} className={tab}>
+              Пи-ар
+            </label>
+          </span>
+        </div>
+        <div className="grid overflow-hidden rounded-2xl ring-1 ring-line ring-inset md:grid-cols-2">
+          <div className="flex flex-col gap-2 p-4 max-md:group-has-[input[value=spin]:checked]/fs:hidden">
+            <h3 className="label-mono flex items-center gap-2 text-brand-secondary">
+              <span aria-hidden className="size-2 rounded-[2px] bg-brand-solid" /> Баримт
+            </h3>
+            {facts.length ? (
+              <ul className="flex flex-col gap-1.5 text-sm text-secondary">
+                {facts.map((f) => (
+                  <li key={f} className="flex gap-2">
+                    <span aria-hidden className="mt-[0.55em] size-1.5 shrink-0 rounded-[1px] bg-brand-solid" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-tertiary">Шалгаж болох тодорхой баримт олдсонгүй.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 border-line p-4 max-md:border-t max-md:group-has-[input[value=facts]:checked]/fs:hidden md:border-l">
+            <h3 className="label-mono flex items-center gap-2 text-warning-primary">
+              <span aria-hidden className="size-2 rounded-[2px] bg-signal" /> Пи-ар, үнэлэмж
+            </h3>
+            <p className="text-sm text-secondary">{spin || "Илэрхий пи-ар илрээгүй."}</p>
+          </div>
+        </div>
+        <SpinMeter neutrality={neutrality} size="md" />
       </div>
-      <div className="hidden gap-4 md:grid md:grid-cols-2">
-        {factsBox}
-        {spinBox}
-      </div>
-      <div className="md:hidden">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={view} initial={{ opacity: 0, x: view === "facts" ? -12 : 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            {view === "facts" ? factsBox : spinBox}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </section>
+    </Panel>
   );
 }
