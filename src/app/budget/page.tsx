@@ -51,7 +51,7 @@ function sentenceCase(title: string): string {
 
 function Section({ id, title, source, children }: { id: string; title: string; source: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:p-6">
+    <section aria-labelledby={id} className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset md:p-6">
       <header className="flex flex-col gap-1">
         <h2 id={id} className="text-lg font-semibold text-primary">
           {title}
@@ -73,10 +73,10 @@ function SourceLink({ href, children }: { href: string; children: React.ReactNod
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "bad" | "good" }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
-      <p className="text-xs text-tertiary">{label}</p>
-      <p className="text-md font-semibold text-primary tabular-nums md:text-xl">{value}</p>
-      {sub && <p className={cx("text-xs", tone === "bad" ? "text-error-primary" : tone === "good" ? "text-success-primary" : "text-tertiary")}>{sub}</p>}
+    <div className="flex min-w-0 flex-col gap-1 border-t border-line-soft py-3">
+      <p className="label-mono truncate text-tertiary">{label}</p>
+      <p className="num-mono text-lg text-primary md:text-xl">{value}</p>
+      {sub && <p className={cx("text-xs", tone === "bad" ? "text-risk" : tone === "good" ? "text-brand-secondary" : "text-tertiary")}>{sub}</p>}
     </div>
   );
 }
@@ -115,7 +115,7 @@ function YearTable({ caption, years, rows, format }: { caption: string; years: s
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-sm">
           <caption className="sr-only">{caption}</caption>
-          <thead className="border-b border-secondary text-xs text-tertiary">
+          <thead className="border-b border-line text-xs text-tertiary">
             <tr>
               <th scope="col" className="py-2 pr-4 font-medium">
                 Ангилал
@@ -127,7 +127,7 @@ function YearTable({ caption, years, rows, format }: { caption: string; years: s
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-secondary">
+          <tbody className="divide-y divide-line-soft">
             {rows.map((r) => (
               <tr key={r.name}>
                 <th scope="row" className="py-2 pr-4 font-medium text-primary">
@@ -207,10 +207,10 @@ function History({ nso }: { nso: BudgetNsoSnapshot }) {
         />
         <h3 className="text-sm font-semibold text-primary">Тэнцэл, орлогын хувиар (хасах = алдагдал)</h3>
         <SignedBarChart data={balance} name="Тэнцэл" unit="% (орлоготой харьцуулсан)" ariaLabel="Төсвийн тэнцэл, орлогын хувиар, жилээр" />
-        <div className="max-h-[32rem] overflow-auto rounded-2xl ring-1 ring-secondary ring-inset">
+        <div className="max-h-[32rem] overflow-auto rounded-2xl ring-1 ring-line ring-inset">
           <table className="w-full min-w-[640px] text-left text-sm">
             <caption className="sr-only">Нэгдсэн төсвийн орлого, зарлага, тэнцэл, тухайн оны Ерөнхий сайд</caption>
-            <thead className="sticky top-0 border-b border-secondary bg-secondary text-xs text-tertiary">
+            <thead className="sticky top-0 border-b border-line bg-secondary text-xs text-tertiary">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">
                   Он
@@ -229,7 +229,7 @@ function History({ nso }: { nso: BudgetNsoSnapshot }) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-secondary">
+            <tbody className="divide-y divide-line-soft">
               {[...rows].reverse().map((y) => (
                 <tr key={y.year}>
                   <th scope="row" className="px-3 py-2 font-semibold text-primary tabular-nums">
@@ -371,7 +371,7 @@ function Shilendans({ s }: { s: ShilendansSnapshot }) {
       }
     >
       <p className="text-sm text-secondary">Төрийн байгууллагуудын Шилэн дансанд нийтэлсэн төлбөрүүдээс хамгийн их мөнгө хүлээн авсан байгууллагууд. Регистрийн дугаараар нь шалгаж болно.</p>
-      <ol className="flex flex-col divide-y divide-secondary">
+      <ol className="flex flex-col divide-y divide-line-soft">
         {s.topPayees.map((p, i) => (
           <li key={`${p.registerNo}-${i}`} className="flex items-baseline justify-between gap-3 py-2 text-sm">
             <span className="min-w-0">
@@ -418,7 +418,7 @@ function Audit({ a }: { a: AuditSnapshot }) {
             <summary className="cursor-pointer font-semibold text-primary">
               {o} ({list.length})
             </summary>
-            <ul className="mt-2 flex flex-col divide-y divide-secondary">
+            <ul className="mt-2 flex flex-col divide-y divide-line-soft">
               {list.map((r) => (
                 <li key={r.id} className="flex flex-col gap-0.5 py-2">
                   <a href={r.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
@@ -466,7 +466,7 @@ export default function BudgetPage() {
         description="1990 оноос хойшхи нэгдсэн төсвийн орлого, зарлага, алдагдал, юунд зарцуулсан, хэнд төлсөн, аудит юу гэж дүгнэсэн. Зөвхөн албан ёсны статистик, тоо бүр эх сурвалж руугаа холбогдоно; бид хэнийг ч буруутгахгүй."
       >
         <div className="flex flex-wrap gap-2">
-          <Link href="/tax" className="rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover">
+          <Link href="/tax" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-bg-primary transition hover:opacity-90">
             🧾 Миний татвар хаашаа явдаг вэ?
           </Link>
           <ShareButton path="/budget" title="Татварын мөнгө хаашаа явдаг вэ? 1990 оноос хойшхи улсын төсөв" />

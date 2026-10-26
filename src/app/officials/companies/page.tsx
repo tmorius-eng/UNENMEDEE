@@ -18,10 +18,10 @@ export const metadata: Metadata = {
 
 function Tile({ label, value, sub, bad }: { label: string; value: string; sub?: string; bad?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
-      <p className="text-xs text-tertiary">{label}</p>
-      <p className="text-md font-semibold text-primary tabular-nums md:text-xl">{value}</p>
-      {sub && <p className={bad ? "text-xs text-error-primary" : "text-xs text-tertiary"}>{sub}</p>}
+    <div className="flex min-w-0 flex-col gap-1 border-t border-line-soft py-3">
+      <p className="label-mono truncate text-tertiary">{label}</p>
+      <p className="num-mono text-lg text-primary md:text-xl">{value}</p>
+      {sub && <p className={bad ? "text-xs text-risk" : "text-xs text-tertiary"}>{sub}</p>}
     </div>
   );
 }
@@ -51,7 +51,7 @@ async function Companies() {
         <Tile label="Нийт ажилтан" value={formatNumber(sum("staff"))} />
       </div>
 
-      <section aria-labelledby="ceo" className="flex flex-col gap-2 rounded-3xl bg-warning-primary/40 p-5 ring-1 ring-secondary ring-inset">
+      <section aria-labelledby="ceo" className="flex flex-col gap-2 rounded-3xl bg-signal-soft p-5 ring-1 ring-line ring-inset">
         <h2 id="ceo" className="text-md font-semibold text-primary">
           Захирлуудын цалин яагаад энд байхгүй вэ?
         </h2>
@@ -91,7 +91,7 @@ export default function CompaniesPage() {
       >
         <ShareButton path="/officials/companies" title="Төрийн өмчит компаниуд: орлого, ашиг, цалингийн сан" className="w-fit" />
       </PageHeader>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-secondary ring-inset" />}>
+      <Suspense fallback={<div className="h-96 animate-pulse rounded-3xl bg-primary ring-1 ring-line ring-inset" />}>
         <Companies />
       </Suspense>
     </>

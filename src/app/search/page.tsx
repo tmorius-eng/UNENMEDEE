@@ -31,9 +31,9 @@ function SearchForm({ q }: { q: string }) {
         maxLength={100}
         placeholder="Жишээ нь: тендер, тэтгэвэр, гишүүний нэр"
         autoComplete="off"
-        className="min-w-0 flex-1 rounded-lg bg-primary px-3.5 py-2.5 text-md text-primary ring-1 ring-primary ring-inset outline-none focus:ring-2 focus:ring-brand"
+        className="min-w-0 flex-1 rounded-lg bg-primary px-3.5 py-2.5 text-md text-primary ring-1 ring-line-strong ring-inset outline-none focus:ring-2 focus:ring-brand"
       />
-      <button type="submit" className="shrink-0 rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover">
+      <button type="submit" className="shrink-0 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-bg-primary transition hover:opacity-90">
         Хайх
       </button>
     </form>
@@ -70,7 +70,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
           <ul className="flex flex-wrap gap-2">
             {politicians.map((p) => (
               <li key={p.id}>
-                <Link href={`/officials/${p.id}`} className="flex items-center gap-2 rounded-full bg-primary py-1 pr-3 pl-1 text-sm ring-1 ring-secondary ring-inset hover:bg-primary_hover">
+                <Link href={`/officials/${p.id}`} className="flex items-center gap-2 rounded-full bg-primary py-1 pr-3 pl-1 text-sm ring-1 ring-line ring-inset hover:bg-primary_hover">
                   {/* eslint-disable-next-line @next/next/no-img-element -- portraits come from parliament.mn */}
                   {p.photoUrl ? <img src={p.photoUrl} alt="" className="size-7 rounded-full object-cover" loading="lazy" /> : <span className="size-7 rounded-full bg-secondary" />}
                   <span className="font-semibold text-primary">{p.fullName}</span>
@@ -88,7 +88,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
         {articles.length === 0 ? (
           <Empty title="Илэрц олдсонгүй" description="Үгээ богиносгох эсвэл өөр үгээр хайгаад үзээрэй." />
         ) : (
-          <ol className="divide-y divide-secondary border-y border-secondary">
+          <ol className="divide-y divide-line-soft border-y border-line">
             {articles.map((a) => (
               <li key={a.id} className="flex flex-col gap-1 py-4">
                 <p className="text-xs text-tertiary">

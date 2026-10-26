@@ -35,7 +35,7 @@ function AlertCta({ count }: { count: number }) {
   if (!pushSupported) return null;
   return (
     <div className="flex flex-col gap-1">
-      <button type="button" onClick={enablePush} disabled={busy} className="w-fit rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover disabled:opacity-60">
+      <button type="button" onClick={enablePush} disabled={busy} className="w-fit rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-bg-primary transition hover:opacity-90 disabled:opacity-60">
         🔔 Мэдээнд гарахад мэдэгдэл авах
       </button>
       {error && <p className="text-xs text-error-primary">{error}</p>}
@@ -55,7 +55,7 @@ export function FollowToggle({ id, name, className }: { id: number; name: string
       aria-label={on ? `${name}: дагахаа болих` : `${name}: дагах`}
       className={cx(
         "flex w-fit items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ring-1 ring-inset transition",
-        on ? "bg-warning-primary text-warning-primary ring-transparent" : "text-secondary ring-primary hover:bg-primary_hover",
+        on ? "bg-signal-soft text-primary ring-signal" : "text-secondary ring-line hover:bg-primary_hover hover:text-primary",
         className,
       )}
     >
@@ -76,7 +76,7 @@ export function MyMps({ people }: { people: PoliticianSummary[] }) {
   const listOnly = people.filter((p) => !p.constituency).length;
 
   return (
-    <section aria-labelledby="my-mps" className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:p-6">
+    <section aria-labelledby="my-mps" className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset md:p-6">
       <header className="flex flex-col gap-1">
         <h2 id="my-mps" className="text-lg font-semibold text-primary">
           ⭐ Миний гишүүн
@@ -85,7 +85,7 @@ export function MyMps({ people }: { people: PoliticianSummary[] }) {
       </header>
       <label className="flex flex-col gap-1.5 sm:max-w-xs">
         <span className="text-sm font-semibold text-primary">Би амьдардаг:</span>
-        <select value={area} onChange={(e) => setArea(e.target.value)} className="rounded-lg bg-primary px-3 py-2.5 text-md text-primary ring-1 ring-primary ring-inset">
+        <select value={area} onChange={(e) => setArea(e.target.value)} className="rounded-lg bg-primary px-3 py-2.5 text-md text-primary ring-1 ring-line-strong ring-inset">
           <option value="">— аймаг, дүүрэг сонгох —</option>
           {areas.map((a) => (
             <option key={a} value={a}>
@@ -136,7 +136,7 @@ function FollowToggleInline({ on, onClick, name }: { on: boolean; onClick: () =>
       onClick={onClick}
       aria-pressed={on}
       aria-label={on ? `${name}: дагахаа болих` : `${name}: дагах`}
-      className={cx("grid size-10 shrink-0 place-items-center rounded-full transition", on ? "text-warning-primary" : "text-quaternary hover:text-secondary")}
+      className={cx("grid size-10 shrink-0 place-items-center rounded-full transition", on ? "text-primary" : "text-quaternary hover:text-secondary")}
     >
       <Star01 className={cx("size-5", on && "fill-current")} aria-hidden />
     </button>

@@ -54,7 +54,7 @@ export function SoeTable({ rows }: { rows: SoeRow[] }) {
         onChange={(e) => setQ(e.target.value)}
         placeholder="Компанийн нэрээр хайх"
         aria-label="Компанийн нэрээр хайх"
-        className="rounded-lg bg-primary px-3.5 py-2.5 text-md text-primary ring-1 ring-primary ring-inset outline-none focus:ring-2 focus:ring-brand"
+        className="rounded-lg bg-primary px-3.5 py-2.5 text-md text-primary ring-1 ring-line-strong ring-inset outline-none focus:ring-2 focus:ring-brand"
       />
       <div className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Төрөл">
         {(
@@ -76,10 +76,10 @@ export function SoeTable({ rows }: { rows: SoeRow[] }) {
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-secondary ring-inset">
+      <div className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-line ring-inset">
         <table className="w-full min-w-[720px] text-left text-sm">
           <caption className="sr-only">Төрийн өмчит компаниудын {SORTS.find((s) => s.key === sort)?.label}-аар эрэмбэлсэн жагсаалт</caption>
-          <thead className="border-b border-secondary bg-secondary text-xs text-tertiary">
+          <thead className="border-b border-line bg-secondary text-xs text-tertiary">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">
                 Байгууллага
@@ -101,7 +101,7 @@ export function SoeTable({ rows }: { rows: SoeRow[] }) {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-secondary">
+          <tbody className="divide-y divide-line-soft">
             {shown.map((r) => {
               const wage = avgMonthlyWage(r);
               return (

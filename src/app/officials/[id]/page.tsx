@@ -71,7 +71,7 @@ async function Attendance({ shortName, nameShared }: { shortName: string; nameSh
     { label: "Шалтгаан бүртгэгдээгүй", n: m.unexplained, color: "bg-error-solid" },
   ];
   return (
-    <section aria-labelledby="attendance" className="flex flex-col gap-3 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+    <section aria-labelledby="attendance" className="flex flex-col gap-3 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset">
       <header className="flex flex-col gap-1">
         <h2 id="attendance" className="text-lg font-semibold text-primary">
           🏛 Нэгдсэн хуралдааны ирц
@@ -119,7 +119,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
         {/* eslint-disable-next-line @next/next/no-img-element -- portraits come from parliament.mn */}
         {p.photoUrl && <img src={p.photoUrl} alt={p.fullName} className="size-20 shrink-0 rounded-full bg-secondary object-cover" />}
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-display-xs font-semibold tracking-tight text-primary">{p.fullName}</h1>
+          <h1 className="headline text-[1.75rem] text-primary">{p.fullName}</h1>
           <p className="text-sm text-tertiary">
             УИХ-ын гишүүн{p.isActive ? "" : " (асан)"} · {p.party ?? "—"}
             {p.constituency ? ` · ${p.constituency}${p.votes ? ` (${formatNumber(p.votes)} санал)` : ""}` : ""}
@@ -175,7 +175,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
                 { label: "Гэр бүлийн орлого", value: money(latest.incomeFamily) },
                 { label: "Зээл (өр)", value: money(latest.loans) },
               ].map((t) => (
-                <div key={t.label} className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+                <div key={t.label} className="rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
                   <p className="text-xs text-tertiary">{t.label}</p>
                   <p className="mt-1 text-lg font-semibold text-primary tabular-nums">{t.value}</p>
                 </div>
@@ -184,8 +184,8 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
           )}
 
           {flags.length > 0 && (
-            <section className="flex flex-col gap-2 rounded-2xl bg-warning-primary p-4 ring-1 ring-warning ring-inset">
-              <h2 className="text-sm font-semibold text-warning-primary">Анхаарах өөрчлөлт (тооцоолсон, дүгнэлт биш)</h2>
+            <section className="flex flex-col gap-2 rounded-2xl bg-signal-soft p-4 ring-1 ring-signal ring-inset">
+              <h2 className="text-sm font-semibold text-primary">Анхаарах өөрчлөлт (тооцоолсон, дүгнэлт биш)</h2>
               <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
                 {flags.map((f) => (
                   <li key={`${f.kind}-${f.year}`}>{f.text}</li>
@@ -195,16 +195,16 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
           )}
 
           {rows.length > 1 && (
-            <section className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+            <section className="rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
               <h2 className="mb-2 text-sm font-semibold text-primary">Нийт хөрөнгө жилээр (сая ₮)</h2>
               <SeriesLineChart data={rows.map((r) => ({ label: String(r.year), value: Math.round((r.totalAssets ?? 0) / 1e5) / 10 }))} name="Нийт хөрөнгө" unit="сая ₮" ariaLabel="Нийт хөрөнгө жилээр" />
             </section>
           )}
 
-          <section className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-secondary ring-inset">
+          <section className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-line ring-inset">
             <table className="w-full min-w-[40rem] text-sm">
               <thead>
-                <tr className="border-b border-secondary text-left text-xs text-tertiary">
+                <tr className="border-b border-line text-left text-xs text-tertiary">
                   <th className="p-3 font-medium">Үзүүлэлт</th>
                   {rows.map((r) => (
                     <th key={r.year} className="p-3 text-right font-medium">
@@ -214,7 +214,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-secondary">
+                <tr className="border-b border-line">
                   <td className="p-3 text-tertiary">Албан тушаал</td>
                   {rows.map((r) => (
                     <td key={r.year} className="p-3 text-right text-xs text-tertiary">
@@ -223,7 +223,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
                   ))}
                 </tr>
                 {COLUMNS.map((c) => (
-                  <tr key={c.key} className={c.key === "totalAssets" ? "border-b border-secondary bg-secondary font-semibold" : "border-b border-secondary"}>
+                  <tr key={c.key} className={c.key === "totalAssets" ? "border-b border-line bg-secondary font-semibold" : "border-b border-line"}>
                     <td className="p-3 text-secondary">{c.label}</td>
                     {rows.map((r) => (
                       <td key={r.year} className="p-3 text-right text-primary tabular-nums">
@@ -245,7 +245,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-primary">Мэдээнд дурдагдсан</h2>
         {mentions.length ? (
-          <ul className="flex flex-col divide-y divide-secondary">
+          <ul className="flex flex-col divide-y divide-line-soft">
             {mentions.map((m) => (
               <li key={m.slug} className="py-3">
                 <Link href={`/article/${m.slug}`} className="font-medium text-primary hover:text-brand-secondary">

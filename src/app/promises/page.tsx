@@ -37,15 +37,9 @@ function Facts() {
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {facts.map((f) => (
-        <div
-          key={f.label}
-          className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset"
-        >
-          <dt className="sr-only">{f.label}</dt>
-          <dd className="text-display-xs font-semibold text-primary tabular-nums">
-            {f.value}
-          </dd>
-          <dd className="text-sm text-tertiary">{f.label}</dd>
+        <div key={f.label} className="flex flex-col gap-1 border-t border-line-soft py-3">
+          <dt className="label-mono text-tertiary">{f.label}</dt>
+          <dd className="num-mono text-2xl text-primary">{f.value}</dd>
         </div>
       ))}
     </dl>
@@ -113,7 +107,7 @@ export default function PromisesPage() {
       <div className="flex flex-col gap-8">
         <Facts />
 
-        <aside className="flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm text-secondary ring-1 ring-secondary ring-inset">
+        <aside className="flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm text-secondary ring-1 ring-line ring-inset">
           <p>
             <span className="font-semibold text-primary">
               Хэрэгжилтийг бид дүгнэдэггүй.
@@ -149,7 +143,7 @@ export default function PromisesPage() {
               return (
                 <li
                   key={i}
-                  className="rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset"
+                  className="rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset"
                 >
                   <details>
                     <summary className="cursor-pointer font-semibold text-primary">
@@ -189,7 +183,7 @@ export default function PromisesPage() {
                   <Link
                     href={`/promises/${directionSlug(d.id)}`}
                     prefetch={false}
-                    className="flex h-full flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary transition ring-inset hover:bg-primary_hover"
+                    className="flex h-full flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-line transition ring-inset hover:bg-primary_hover"
                   >
                     <span className="text-xs font-semibold text-tertiary tabular-nums">
                       {d.id}

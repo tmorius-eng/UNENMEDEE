@@ -34,7 +34,7 @@ export default function SupportPage() {
         <h2 id="account" className="text-lg font-semibold text-primary">
           Хандивын данс
         </h2>
-        <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-primary ring-1 ring-secondary ring-inset" />}>
+        <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-primary ring-1 ring-line ring-inset" />}>
           <DonateCard />
         </Suspense>
         <p className="text-sm text-tertiary">Гүйлгээний утга дээр &quot;Дэмжлэг&quot; гэж бичнэ үү. Банкны аппаараа дансаа хуулж шилжүүлэхэд хамгийн амар.</p>
@@ -46,7 +46,7 @@ export default function SupportPage() {
         </h2>
         <ul className="grid gap-3 sm:grid-cols-3">
           {USES.map((u) => (
-            <li key={u.title} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+            <li key={u.title} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
               <span aria-hidden className="text-2xl">
                 {u.icon}
               </span>
@@ -64,7 +64,7 @@ export default function SupportPage() {
         </p>
       </section>
 
-      <section aria-labelledby="contact" className="flex flex-col gap-2 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+      <section aria-labelledby="contact" className="flex flex-col gap-2 rounded-2xl bg-primary p-5 ring-1 ring-line ring-inset">
         <h2 id="contact" className="text-lg font-semibold text-primary">
           Холбоо барих
         </h2>

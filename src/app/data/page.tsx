@@ -26,9 +26,9 @@ const fmt = (n: number, digits = 2) => n.toLocaleString("en-US", { maximumFracti
 
 function Panel({ dataset, title, children }: { dataset: OpenDataset; title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset md:p-6">
+    <section className="flex flex-col gap-4 border-t border-line pt-5">
       <header className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold text-primary">{title}</h2>
+        <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-primary">{title}</h2>
         <p className="text-xs text-tertiary">
           Эх сурвалж: {dataset.dataSource ?? "opendata.mn"} · {dataset.title}
           {dataset.sourceUpdatedAt ? ` · шинэчлэгдсэн ${formatDateMn(dataset.sourceUpdatedAt)}` : ""} ·{" "}
@@ -51,7 +51,7 @@ function Table({ caption, head, rows, numeric = [] }: { caption: string; head: s
     <div className="overflow-x-auto">
       <table className="w-full min-w-[480px] text-left text-sm">
         <caption className="sr-only">{caption}</caption>
-        <thead className="border-b border-secondary text-xs text-tertiary">
+        <thead className="border-b border-line text-xs text-tertiary">
           <tr>
             {head.map((h, i) => (
               <th key={h} scope="col" className={cx("py-2 pr-4 font-medium", numeric.includes(i) && "text-right")}>
@@ -60,7 +60,7 @@ function Table({ caption, head, rows, numeric = [] }: { caption: string; head: s
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-secondary">
+        <tbody className="divide-y divide-line-soft">
           {rows.map((r, i) => (
             <tr key={i}>
               {r.map((c, j) => (
@@ -87,10 +87,10 @@ function SeriesTable({ caption, series, unit }: { caption: string; series: Serie
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
   return (
-    <div className="flex flex-col gap-1 rounded-2xl bg-secondary p-4">
-      <p className="text-xs text-tertiary">{label}</p>
-      <p className="text-xl font-semibold text-primary tabular-nums">{value}</p>
-      {sub && <p className={cx("text-xs tabular-nums", tone === "up" ? "text-error-primary" : tone === "down" ? "text-success-primary" : "text-tertiary")}>{sub}</p>}
+    <div className="flex min-w-0 flex-col gap-1 border-t border-line-soft py-3">
+      <p className="label-mono truncate text-tertiary">{label}</p>
+      <p className="num-mono text-xl text-primary">{value}</p>
+      {sub && <p className={cx("text-xs tabular-nums", tone === "up" ? "text-risk" : tone === "down" ? "text-brand-secondary" : "text-tertiary")}>{sub}</p>}
     </div>
   );
 }
@@ -239,7 +239,7 @@ function Catalogue({ datasets }: { datasets: OpenDataset[] }) {
           <h3 className="text-sm font-semibold text-secondary">{category}</h3>
           <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {items.map((d) => (
-              <li key={d.id} className="flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+              <li key={d.id} className="flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
                 <a href={d.pageUrl} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:text-brand-secondary hover:underline">
                   {d.title}
                 </a>
@@ -284,7 +284,7 @@ async function Mongolbank() {
       <MacroStrip />
       <div className="grid gap-4 lg:grid-cols-2">
         {charts.map((c) => (
-          <div key={c.title} className="flex flex-col gap-2 rounded-3xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+          <div key={c.title} className="flex flex-col gap-2 rounded-3xl bg-primary p-5 ring-1 ring-line ring-inset">
             <h3 className="text-sm font-semibold text-primary">{c.title}</h3>
             <SeriesLineChart data={c.data} name={c.title} unit={c.unit} ariaLabel={c.title} />
             <SeriesTable caption={c.title} series={c.data} unit={c.unit} />

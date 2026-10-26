@@ -44,14 +44,14 @@ const STEPS = [
 
 function Prompt({ id, title, text }: { id: string; title: string; text: string }) {
   return (
-    <details id={id} className="group rounded-2xl bg-primary ring-1 ring-secondary ring-inset">
+    <details id={id} className="group rounded-2xl bg-primary ring-1 ring-line ring-inset">
       <summary className="cursor-pointer list-none px-5 py-4 text-md font-semibold text-primary">
         <span className="mr-2 inline-block transition group-open:rotate-90" aria-hidden>
           ▸
         </span>
         {title}
       </summary>
-      <pre className="overflow-x-auto border-t border-secondary px-5 py-4 text-xs whitespace-pre-wrap text-secondary">{text}</pre>
+      <pre className="overflow-x-auto border-t border-line px-5 py-4 text-xs whitespace-pre-wrap text-secondary">{text}</pre>
     </details>
   );
 }
@@ -69,7 +69,7 @@ export default function MethodPage() {
           href={REPO_URL}
           target="_blank"
           rel="noreferrer"
-          className="flex w-fit items-center gap-2 rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-solid_hover"
+          className="flex w-fit items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-bg-primary transition hover:opacity-90"
         >
           Эх код GitHub дээр (MIT лиценз) ↗
         </a>
@@ -81,7 +81,7 @@ export default function MethodPage() {
         </h2>
         <ol className="grid gap-3 sm:grid-cols-2">
           {STEPS.map((s) => (
-            <li key={s.title} id={"id" in s ? s.id : undefined} className="scroll-mt-24 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+            <li key={s.title} id={"id" in s ? s.id : undefined} className="scroll-mt-24 rounded-2xl bg-primary p-5 ring-1 ring-line ring-inset">
               <p className="font-semibold text-primary">{s.title}</p>
               <p className="mt-1 text-sm text-tertiary">{s.text}</p>
             </li>
@@ -89,7 +89,7 @@ export default function MethodPage() {
         </ol>
       </section>
 
-      <section id="risk" aria-labelledby="risk-title" className="flex scroll-mt-24 flex-col gap-3 rounded-3xl bg-warning-primary p-6 ring-1 ring-secondary ring-inset">
+      <section id="risk" aria-labelledby="risk-title" className="flex scroll-mt-24 flex-col gap-3 rounded-3xl bg-signal-soft p-6 ring-1 ring-line ring-inset">
         <h2 id="risk-title" className="text-lg font-semibold text-primary">
           Эрсдэлийн оноо: AI-ийн үнэлгээ, баримт биш
         </h2>

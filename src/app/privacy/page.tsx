@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         </h2>
         <ul className="flex flex-col gap-3">
           {STORED.map((s) => (
-            <li key={s.title} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-secondary ring-inset">
+            <li key={s.title} className="flex flex-col gap-1 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset">
               <h3 className="font-semibold text-primary">{s.title}</h3>
               <p className="text-sm text-secondary">{s.text}</p>
             </li>

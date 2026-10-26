@@ -40,9 +40,9 @@ async function SourceTable() {
             <h2 className="text-lg font-semibold text-primary">
               {CATEGORY_LABEL[cat]} <span className="text-tertiary">({group.length})</span>
             </h2>
-            <div className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-secondary ring-inset">
+            <div className="overflow-x-auto rounded-2xl bg-primary ring-1 ring-line ring-inset">
               <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b border-secondary bg-secondary text-xs font-semibold text-tertiary">
+                <thead className="border-b border-line bg-secondary text-xs font-semibold text-tertiary">
                   <tr>
                     <th className="px-4 py-3">Байгууллага</th>
                     <th className="px-4 py-3">Домэйн</th>
@@ -51,7 +51,7 @@ async function SourceTable() {
                     <th className="px-4 py-3">Төлөв</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-secondary">
+                <tbody className="divide-y divide-line-soft">
                   {group.map((s) => (
                     <tr key={s.id} className="hover:bg-primary_hover">
                       <td className="px-4 py-3 font-medium text-primary">{s.name}</td>
@@ -85,7 +85,7 @@ export default function SourcesPage() {
         title="Хянаж буй эх сурвалжууд"
         description="Яам, агентлаг, аймаг, хурлын вэбсайтуудыг robots.txt-г хүндэтгэн, нэг домэйнд 8 секундээс доошгүй завсартайгаар уншдаг. Шинэ төрийн сайтыг автоматаар илрүүлж нэмдэг."
       />
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-primary ring-1 ring-secondary ring-inset" />}>
+      <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-primary ring-1 ring-line ring-inset" />}>
         <SourceTable />
       </Suspense>
     </>
