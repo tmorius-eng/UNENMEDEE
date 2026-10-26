@@ -9,7 +9,7 @@ import { canonicalImageQuery } from "@/lib/site";
  * the site's name.
  */
 const PAGES: Record<string, { eyebrow: string; title: string; footer: string }> = {
-  "/": { eyebrow: "Шинэ мэдээ", title: "Төрийн шинэ мэдээ: баримтыг пи-араас салгасан", footer: "2 цаг тутам шинэчлэгдэнэ" },
+  "/": { eyebrow: "Шинэ мэдээ", title: "Төрийн шинэ мэдээ: баримтыг пи-араас салгасан", footer: "Цаг тутам шинэчлэгдэнэ" },
   "/budget": { eyebrow: "Улсын төсөв", title: "Татварын мөнгө хаашаа явдаг вэ? 1990 оноос хойшхи улсын төсөв", footer: "ҮСХ, Сангийн яамны албан тоо" },
   "/tax": { eyebrow: "Миний татвар", title: "Таны төлсөн татвар юунд зарцуулагддаг вэ? 1 минутад тооцоол", footer: "Улсын төсвийн албан тоогоор" },
   "/laws": { eyebrow: "Хууль, тогтоол", title: "Юу шинээр батлагдав? Шинэ хууль, тогтоол товчоор", footer: "legalinfo.mn-ээс" },

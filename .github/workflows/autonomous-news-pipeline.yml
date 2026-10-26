@@ -1,12 +1,15 @@
 # Zero-cost backend: scrape Mongolian government sites and run the AI pipeline
-# (free Groq / Mistral / NVIDIA / Requesty / OpenRouter / Z.ai first, paid DeepSeek / Grok capped) every 2 hours. GitHub Actions minutes are free on PUBLIC repositories.
+# (free Groq / Mistral / NVIDIA / Requesty / OpenRouter / Z.ai first, paid DeepSeek / Grok capped) every hour. GitHub Actions minutes are free on PUBLIC repositories.
 name: Autonomous news pipeline
 
 on:
   schedule:
-    # Not on minute 0: GitHub delays or drops scheduled jobs at the top of the hour (runs came
-    # 3-6 h apart instead of 2).
+    # Two schedules an hour apart, off the congested minute 0. GitHub drops scheduled runs of
+    # public repositories under load: with one 2-hourly cron the runs came 4-7 h apart (Oct 26
+    # 2026: 00:24, 07:49, 15:13 UTC). Each attempt is independent, so hourly attempts give a
+    # pipeline roughly every 1-2 h; the concurrency group keeps two from overlapping.
     - cron: "17 */2 * * *"
+    - cron: "47 1-23/2 * * *"
   workflow_dispatch:
     inputs:
       sources:
