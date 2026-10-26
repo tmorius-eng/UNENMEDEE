@@ -119,6 +119,14 @@ describe("shouting headlines", () => {
     assert.equal(unshoutTitle("АҮЭБЯ-НЫ ДАРГА Б.ДАШПҮРЭВ С.К.ШОЙГУ-ТАЙ УУЛЗЛАА"), "АҮЭБЯ-ны дарга Б.Дашпүрэв С.К.Шойгу-тай уулзлаа");
     assert.equal(unshoutTitle("УЛААН БУРХАН ӨВЧИН ЭРГЭН ТАРХАЖ БАЙНА. БИД ЧАДАХ УУ?"), "Улаан бурхан өвчин эргэн тархаж байна. Бид чадах уу?");
   });
+  it("lowers hashtag headlines, keeping # and the underscores", () => {
+    assert.equal(
+      unshoutTitle("#ХАМТЫН_СЭТГЭЛ_ХАЛУУН_ХАНДИВ 📣 АЙМГИЙН ЗАСАГ ДАРГА ИРГЭДЭД ХАНДАН УРИАЛГА ГАРГАЛАА"),
+      "#Хамтын_сэтгэл_халуун_хандив 📣 аймгийн засаг дарга иргэдэд хандан уриалга гаргалаа",
+    );
+    // One hashtag is already several words.
+    assert.equal(unshoutTitle("#ХАМТЫН_СЭТГЭЛ_ХАЛУУН_ХАНДИВ📣"), "#Хамтын_сэтгэл_халуун_хандив📣");
+  });
   it("leaves normal and short titles alone", () => {
     assert.equal(unshoutTitle("АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт"), "АНУ: Крипто хөрөнгө холигч үйлчилгээнд тавих хяналт");
     assert.equal(unshoutTitle("ХУРАЛ БОЛНО"), "ХУРАЛ БОЛНО");

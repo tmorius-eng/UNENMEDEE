@@ -163,12 +163,14 @@ const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
  * Headlines some sites publish in capitals ("“1072 ХУВЬЦАА” НЭЭЛТТЭЙ ӨДӨРЛӨГ…") become sentence
  * case. Abbreviations (a list, plus any short word followed by a hyphenated case ending), Latin
  * words, numbers, initials ("Б.ДАШПҮРЭВ" → "Б.Дашпүрэв") and common proper nouns keep their
- * capitals. Mixed-case titles are returned unchanged.
+ * capitals; a hashtag keeps its "#" and underscores ("#Хамтын_сэтгэл"). Mixed-case titles are
+ * returned unchanged.
  */
 export function unshoutTitle(title: string): string {
   const letters = title.match(LETTER)?.length ?? 0;
   const upper = title.match(UPPER)?.length ?? 0;
-  const words = title.split(/\s+/).filter((w) => (w.match(LETTER)?.length ?? 0) >= 2).length;
+  // "_" separates the words of a hashtag ("#ХАМТЫН_СЭТГЭЛ_ХАЛУУН"): one shouted tag is several words.
+  const words = title.split(/[\s_]+/).filter((w) => (w.match(LETTER)?.length ?? 0) >= 2).length;
   if (letters < 12 || words < 3 || upper / letters < 0.7) return title;
 
   let out = title.replace(/[\p{L}\d]+/gu, (w: string, at: number, s: string) => {

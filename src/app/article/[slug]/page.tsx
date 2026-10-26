@@ -11,6 +11,7 @@ import { Chip, DeepBadge, RiskBadge, SourceBadge } from "@/components/iltod/badg
 import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { FollowCard } from "@/components/iltod/follow-card";
 import { HashBadge } from "@/components/iltod/hash-badge";
+import { KeyNumbers } from "@/components/iltod/key-numbers";
 import { Panel } from "@/components/iltod/panel";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
@@ -158,11 +159,6 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
             AI-ийн үнэлгээ
           </Link>
           {article.hasDeepAnalysis && <DeepBadge />}
-          {article.amounts.slice(0, 6).map((a) => (
-            <Chip key={a} tone="mnt" size="md">
-              {a}
-            </Chip>
-          ))}
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={safeHttpUrl(article.originalUrl)} target="_blank" rel="noreferrer nofollow" className={STORY_BUTTON_PRIMARY}>
@@ -175,6 +171,9 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       <AIMessage tier="tier1" title={summaryTitle} note={summaryNote} className="border-t border-line pt-3">
         <AIBullets items={tldrSentences(article.tldr)} className="text-md" />
       </AIMessage>
+
+      {/* The ₮ amounts moved out of the header row into their own ledger. */}
+      {article.amounts.length > 0 && <KeyNumbers amounts={article.amounts} facts={article.facts} />}
 
       {!article.summaryFallback && <FactSpinPanel facts={article.facts} spin={article.spinDetected} neutrality={article.neutralityScore} />}
 
