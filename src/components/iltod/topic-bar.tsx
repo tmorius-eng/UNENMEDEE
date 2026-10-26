@@ -10,8 +10,8 @@ import { cx } from "@/utils/cx";
 const ITEMS: { key: string; label: string; href: string }[] = [
   { key: "all", label: "Бүгд", href: "/" },
   { key: "my", label: "⭐ Миний", href: "/my" },
-  { key: "digest", label: "Онцлох тойм", href: "/digest" },
-  { key: "risk", label: "🚨 Эрсдэл", href: "/topic/risk" },
+  { key: "digest", label: "Тойм", href: "/digest" },
+  { key: "risk", label: "Эрсдэл", href: "/topic/risk" },
   ...TOPICS.filter((t) => t.key !== "data").map((t) => ({ key: t.key, label: t.label, href: `/topic/${t.key}` })),
   { key: "data", label: "Тоо баримт", href: "/data" },
 ];
@@ -22,8 +22,9 @@ const HOVER_MAX_SPEED = 12;
 
 /**
  * Kagi-style topic tabs: a scrollable strip pinned to the bottom of the screen on phones
- * (thumb reach, swipe), inline above the list on larger screens. Inline it has ‹ › buttons at
- * the ends, and a mouse near either edge scrolls the strip that way. The active tab scrolls into view.
+ * (thumb reach, swipe), inline above the list on larger screens as mono chips. Inline it has
+ * ‹ › buttons at the ends, and a mouse near either edge scrolls the strip that way. The active
+ * tab scrolls into view.
  */
 export function TopicBar({ active, placement }: { active: string; placement: "bottom" | "inline" }) {
   const inline = placement === "inline";
@@ -90,9 +91,7 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
     <nav
       aria-label="Сэдвүүд"
       className={cx(
-        inline
-          ? "hidden border-b border-secondary md:block"
-          : "fixed inset-x-0 bottom-0 z-30 border-t border-secondary bg-primary/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden",
+        inline ? "hidden md:block" : "fixed inset-x-0 bottom-0 z-30 border-t border-line bg-primary/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden",
       )}
     >
       <div className="relative" onPointerMove={inline ? onPointerMove : undefined} onPointerLeave={inline ? stopHover : undefined}>
@@ -101,7 +100,7 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
             <ChevronLeft className="size-5" aria-hidden />
           </button>
         )}
-        <ul ref={listRef} onScroll={inline ? measure : undefined} className={cx("scrollbar-hide flex gap-1 overflow-x-auto px-2", !inline && "scroll-fade-x")}>
+        <ul ref={listRef} onScroll={inline ? measure : undefined} className={cx("scrollbar-hide flex overflow-x-auto", inline ? "gap-1.5 py-3" : "scroll-fade-x gap-1 px-2")}>
           {ITEMS.map((it) => {
             const isActive = it.key === active;
             return (
@@ -113,12 +112,14 @@ export function TopicBar({ active, placement }: { active: string; placement: "bo
                   prefetch={false}
                   aria-current={isActive ? "page" : undefined}
                   className={cx(
-                    "relative block px-3 py-3.5 text-md whitespace-nowrap transition-colors",
-                    isActive ? "font-semibold text-primary" : "text-tertiary hover:text-secondary",
+                    "relative block whitespace-nowrap transition-colors",
+                    inline
+                      ? cx("label-mono rounded-full px-2.5 py-1.5 ring-1 ring-inset", isActive ? "bg-ink text-bg-primary ring-ink" : "text-secondary ring-line hover:bg-primary_hover hover:text-primary")
+                      : cx("px-3 py-3.5 text-sm", isActive ? "font-semibold text-primary" : "font-medium text-tertiary hover:text-secondary"),
                   )}
                 >
                   {it.label}
-                  {isActive && <span aria-hidden className="absolute inset-x-3 bottom-1.5 h-0.5 rounded-full bg-brand-solid" />}
+                  {!inline && isActive && <span aria-hidden className="absolute inset-x-3 bottom-1.5 h-0.5 rounded-full bg-brand-solid" />}
                 </Link>
               </li>
             );

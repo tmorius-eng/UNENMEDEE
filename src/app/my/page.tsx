@@ -14,8 +14,7 @@ export default function MyPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-20 md:pb-0">
       <header className="pb-2">
-        <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">⭐ Миний мэдээ</h1>
-        <span aria-hidden className="mt-2 block h-1 w-12 rounded-full bg-brand-solid" />
+        <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">⭐ Миний мэдээ</h1>
       </header>
       <TopicBar active="my" placement="inline" />
       <MyFeed />

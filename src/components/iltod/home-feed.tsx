@@ -1,4 +1,4 @@
-import { ArrowRight, Stars02 } from "@untitledui/icons";
+import { ArrowRight } from "@untitledui/icons";
 import { cacheLife } from "next/cache";
 import Link from "next/link";
 
@@ -55,22 +55,22 @@ function pickLead(stories: ArticleListItem[]): number | undefined {
 
 async function Masthead({ stats, digest, seo }: { stats: SiteStats; digest: DigestView | undefined; seo?: TopicSeo }) {
   return (
-    <header className="flex flex-col gap-4 pb-2">
+    // The paper grain is only here: the masthead is the one "printed" surface of the page.
+    <header className="grain -mx-4 flex flex-col gap-4 border-b border-line px-4 pt-1 pb-4 md:mx-0 md:px-0">
       <div>
         {seo ? (
           // A topic page is about one subject: its visible heading is the phrase people search for.
           <>
-            <h1 className="text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{seo.heading}</h1>
-            <p className="mt-1 text-md text-tertiary">{await todayMn()}</p>
+            <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{seo.heading}</h1>
+            <p className="label-mono mt-2 text-tertiary">{await todayMn()}</p>
           </>
         ) : (
-          <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">
+          <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">
             {/* Read by search engines and screen readers; the visible heading stays the date. */}
             <span className="sr-only">Монголын улс төр, эдийн засаг, төрийн шинэ мэдээ, </span>
             {await todayMn()}
           </h1>
         )}
-        <span aria-hidden className="mt-2 block h-1 w-12 rounded-full bg-brand-solid" />
         <StatusTicker
           stats={`${stats.activeSources} төрийн эх сурвалж · ${stats.analyzed} мэдээ AI-аар шүүгдсэн · AI зардал ${formatUsd(stats.aiCostThisMonthUsd)}`}
           lastArticleAt={stats.lastArticleAt}
@@ -78,13 +78,13 @@ async function Masthead({ stats, digest, seo }: { stats: SiteStats; digest: Dige
         />
       </div>
       {digest && (
-        <Link href="/digest" prefetch={false} className="group flex items-center gap-3 rounded-2xl bg-primary px-4 py-3.5 shadow-xs ring-1 ring-secondary transition ring-inset hover:bg-primary_hover">
-          <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-secondary text-fg-brand-primary">
-            <Stars02 className="size-5" />
-          </span>
+        <Link href="/digest" prefetch={false} className="group flex items-center gap-3 rounded-2xl bg-secondary px-3.5 py-3 ring-1 ring-line transition ring-inset hover:bg-primary_hover">
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold tracking-wider text-brand-secondary uppercase">{editionLabel(digest)}</span>
-            <span className="block truncate text-md font-semibold text-primary">{digest.title}</span>
+            <span className="label-mono flex items-center gap-2 text-brand-secondary">
+              <span aria-hidden className="size-2 rounded-[2px] bg-brand-solid" />
+              {editionLabel(digest)}
+            </span>
+            <span className="mt-0.5 block truncate text-md font-semibold tracking-[-0.01em] text-primary">{digest.title}</span>
           </span>
           <ArrowRight className="size-5 shrink-0 text-fg-quaternary transition group-hover:translate-x-0.5" />
         </Link>
@@ -112,7 +112,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       {seo && (
         <div className="flex flex-col gap-1 text-sm text-secondary">
           <p>{seo.intro}</p>
-          <p className="text-tertiary">
+          <p className="label-mono normal-case text-tertiary">
             ИЛ ТОД МЭДЭЭ (iltodmedee.mn) · {seo.latin.join(", ")}
           </p>
         </div>
@@ -122,8 +122,11 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
       {filter === "local" && <PlacePicker />}
       <TopicBar active={filter} placement="inline" />
       {topic && (
-        <div className="flex items-center justify-between gap-3 pt-6">
-          <h2 className={`text-xs font-semibold tracking-wider uppercase ${topic.color}`}>{topic.label}</h2>
+        <div className="flex items-center justify-between gap-3 pt-4">
+          <h2 className={`label-mono flex items-center gap-1.5 ${topic.color}`}>
+            <span aria-hidden className={`size-2 rounded-[2px] ${topic.dot}`} />
+            {topic.label}
+          </h2>
           <FollowTopicButton topic={topic.key} />
         </div>
       )}

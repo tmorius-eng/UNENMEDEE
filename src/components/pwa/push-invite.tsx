@@ -13,14 +13,14 @@ export function PushInvite() {
   const [dismissed, setDismissed] = useLocalStorage("iltod-push-invite", "");
   if (subscribed || dismissed || (!pushSupported && !needsInstallForPush)) return null;
   return (
-    <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm">
+    <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm ring-1 ring-line-soft ring-inset">
       <p className="font-semibold text-primary">🔔 Өдөрт хамгийн чухал мэдээг утсандаа аваарай</p>
       <p className="text-tertiary">
         {needsInstallForPush ? "iPhone дээр эхлээд Share → \"Add to Home Screen\"-ээр сайтыг нэмээд, тэндээс асаана." : "Спам биш: нэг ажиллалтад нэг л мэдэгдэл, хүссэн үедээ унтраана."}
       </p>
       <div className="flex gap-2">
         {!needsInstallForPush && (
-          <button type="button" onClick={enablePush} disabled={busy} className="rounded-lg bg-brand-solid px-4 py-2 font-semibold text-white shadow-xs hover:bg-brand-solid_hover disabled:opacity-60">
+          <button type="button" onClick={enablePush} disabled={busy} className="rounded-lg bg-ink px-4 py-2 font-semibold text-bg-primary hover:opacity-90 disabled:opacity-60">
             Мэдэгдэл асаах
           </button>
         )}

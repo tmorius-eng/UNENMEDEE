@@ -58,13 +58,13 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <PlaceJsonLd place={place} />
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-wider text-tertiary uppercase">
+        <p className="label-mono text-tertiary">
           <Link href="/topic/local" prefetch={false} className="hover:text-secondary">
             Орон нутаг
           </Link>
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-display-xs font-semibold tracking-tight text-primary md:text-display-sm">{placeGenitive(place)} мэдээ</h1>
+          <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{placeGenitive(place)} мэдээ</h1>
           <FollowPlaceButton place={place.slug} />
         </div>
         <p className="text-sm text-secondary">{description(place)}</p>
@@ -84,14 +84,14 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
       </header>
 
       {mps.length > 0 && (
-        <section aria-labelledby="mps" className="rounded-2xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
+        <section aria-labelledby="mps" className="rounded-2xl bg-secondary p-4 ring-1 ring-line-soft ring-inset">
           <h2 id="mps" className="text-sm font-semibold text-primary">
             Тойргийн УИХ-ын гишүүд <span className="font-normal text-tertiary">· {place.constituency}</span>
           </h2>
           <ul className="mt-2 flex flex-wrap gap-2">
             {mps.map((m) => (
               <li key={m.id}>
-                <Link href={`/officials/${m.id}`} prefetch={false} className="inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover">
+                <Link href={`/officials/${m.id}`} prefetch={false} className="inline-flex h-9 items-center rounded-full bg-primary px-3 text-sm font-medium text-secondary ring-1 ring-line ring-inset hover:text-primary">
                   {m.shortName}
                   {m.party && <span className="ml-1.5 text-xs text-tertiary">{m.party}</span>}
                 </Link>

@@ -10,70 +10,71 @@ const INFLATION_TARGET = "6% (±2)";
 
 const num = (v: number, digits = 2) => v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
-function Card({ accent, children, className }: { accent: string; children: React.ReactNode; className?: string }) {
-  return <div className={cx("flex min-w-0 flex-col rounded-2xl border-t-2 bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset", accent, className)}>{children}</div>;
+interface Cell {
+  label: string;
+  value: string;
+  unit?: string;
+  note: string;
+  /** Up = brand, down = risk (inflation above the target). */
+  tone?: "up" | "down";
+}
+
+/**
+ * A ledger: a hairline grid of mono numbers, 2 columns on phones and 4 where the container is
+ * wide enough (@container, so the same markup serves the home column and /data).
+ */
+export function Ledger({ cells, className }: { cells: Cell[]; className?: string }) {
+  return (
+    <dl className={cx("@container", className)}>
+      <div className="grid grid-cols-2 border-b border-line @2xl:grid-cols-4">
+        {cells.map((c, i) => (
+          <div
+            key={c.label}
+            className={cx(
+              "flex min-w-0 flex-col border-t border-line-soft py-3",
+              i % 2 === 0 ? "border-r pr-3" : "pl-3",
+              "@2xl:border-r @2xl:px-3.5 @2xl:first:pl-0 @2xl:last:border-r-0 @2xl:[&:nth-child(4n)]:border-r-0",
+            )}
+          >
+            <dt className="label-mono truncate text-tertiary">{c.label}</dt>
+            <dd className={cx("num-mono mt-1 text-xl", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-primary")}>
+              {c.value}
+              {c.unit && <span className="ml-1 text-xs font-medium text-tertiary">{c.unit}</span>}
+            </dd>
+            <dd className="mt-0.5 truncate text-xs text-tertiary">{c.note}</dd>
+          </div>
+        ))}
+      </div>
+    </dl>
+  );
 }
 
 /**
  * Policy rate, inflation and FX / gold / reserves, like mongolbank.mn's homepage. Server-only
  * markup (no client JS); renders nothing until `npm run macro:sync` has stored a snapshot.
+ * The compact strip (home page) shows four numbers; /data shows all of them.
  */
 export async function MacroStrip({ compact = false }: { compact?: boolean }) {
   const snap = await getIndicator<MacroSnapshot>("mongolbank");
   if (!snap) return null;
   const { policyRate, inflation, fx, gold, reserves } = snap.data;
   const usd = fx?.rates.find((r) => r.code === "USD");
+  const aboveTarget = (v: number | null) => (v !== null && v > 8 ? "down" : undefined);
+
+  const cells: (Cell | false | null | undefined)[] = [
+    policyRate && { label: "Бодлогын хүү", value: num(policyRate.value, 1), unit: "%", note: `Монголбанк · ${policyRate.since}` },
+    inflation && { label: compact ? "Инфляц · УБ" : "Инфляц · Улаанбаатар", value: inflation.ub === null ? "—" : num(inflation.ub, 1), unit: "%", note: `Зорилт ${INFLATION_TARGET}`, tone: aboveTarget(inflation.ub) },
+    !compact && inflation && { label: "Инфляц · суурь", value: inflation.core === null ? "—" : num(inflation.core, 1), unit: "%", note: `${inflation.month} сар` },
+    !compact && inflation && { label: "Инфляц · улс", value: inflation.national === null ? "—" : num(inflation.national, 1), unit: "%", note: `${inflation.month} сар`, tone: aboveTarget(inflation.national) },
+    usd && fx && { label: "1 USD", value: num(usd.rate), unit: "₮", note: fx.date },
+    !compact && gold && { label: "Алт (авах, гр)", value: num(gold.buy, 0), unit: "₮", note: gold.date },
+    reserves && { label: "ГВУН", value: num(reserves.value, 0), unit: "сая $", note: `${reserves.month} сар` },
+  ];
 
   return (
     <section aria-label="Монголбанкны үзүүлэлт" className="flex flex-col gap-2">
-      <div className={cx("grid gap-3", compact ? "scrollbar-hide max-sm:scroll-fade-x -mx-4 auto-cols-[78%] grid-flow-col items-start overflow-x-auto px-4 sm:items-stretch sm:mx-0 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-3 sm:px-0" : "sm:grid-cols-3")}>
-        {policyRate && (
-          <Card accent="border-utility-green-600">
-            <p className="text-sm font-semibold text-primary">Бодлогын хүү</p>
-            <p className="text-xs text-tertiary">Шинэчлэгдсэн: {policyRate.since}</p>
-            <p className="mt-2 text-display-xs font-semibold text-primary tabular-nums">{num(policyRate.value, 1)}%</p>
-          </Card>
-        )}
-        {inflation && (
-          <Card accent="border-brand-600">
-            <p className="text-sm font-semibold text-primary">Инфляц ({inflation.month} сар)</p>
-            <p className="text-xs text-tertiary">Зорилтот түвшин: {INFLATION_TARGET}</p>
-            <div className="mt-2 grid grid-cols-3 gap-1 text-center">
-              {[
-                { label: compact ? "УБ" : "Улаанбаатар", v: inflation.ub },
-                { label: "Суурь", v: inflation.core },
-                { label: "Улс", v: inflation.national },
-              ].map((x) => (
-                <div key={x.label}>
-                  <p className={cx("font-semibold text-primary tabular-nums", compact ? "text-md" : "text-lg")}>{x.v === null ? "—" : `${num(x.v, 1)}%`}</p>
-                  <p className="truncate text-[11px] leading-tight text-tertiary">{x.label}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-        <Card accent="border-utility-yellow-500">
-          <dl className="flex flex-col divide-y divide-secondary text-sm">
-            {[
-              usd && fx && { label: "1 USD", value: num(usd.rate), when: fx.date },
-              gold && { label: "Алт (авах, гр)", value: num(gold.buy), when: gold.date },
-              reserves && { label: "ГВУН (сая $)", value: num(reserves.value), when: `${reserves.month} сар` },
-            ]
-              .filter((r): r is { label: string; value: string; when: string } => Boolean(r))
-              .map((r, i) => (
-                // Phones (compact strip) show only the dollar rate, so the three cards stay short.
-                <div key={r.label} className={cx("flex items-center justify-between gap-3 py-1.5", compact && i > 0 && "max-sm:hidden")}>
-                  <dt className="min-w-0">
-                    <span className="block whitespace-nowrap text-secondary">{r.label}</span>
-                    <span className="block text-xs text-quaternary">{r.when}</span>
-                  </dt>
-                  <dd className="font-semibold whitespace-nowrap text-primary tabular-nums">{r.value}</dd>
-                </div>
-              ))}
-          </dl>
-        </Card>
-      </div>
-      <p className="flex items-center justify-between text-xs text-quaternary">
+      <Ledger cells={cells.filter((c): c is Cell => Boolean(c))} />
+      <p className="flex items-center justify-between text-xs text-tertiary">
         <span>Эх сурвалж: Монголбанк (mongolbank.mn)</span>
         {compact && (
           // No prefetch: /data pulls the chart library, which would load on every home visit.

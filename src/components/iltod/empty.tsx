@@ -7,8 +7,8 @@ import { FileSearch02 } from "@untitledui/icons";
  */
 export function Empty({ title, description, children }: { title: string; description: string; children?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl bg-primary px-6 py-12 text-center ring-1 ring-secondary ring-inset">
-      <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-fg-brand-primary shadow-xs ring-1 ring-primary ring-inset">
+    <div className="flex flex-col items-center gap-4 rounded-2xl bg-secondary px-6 py-12 text-center ring-1 ring-line-soft ring-inset">
+      <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-fg-brand-primary ring-1 ring-line ring-inset">
         <FileSearch02 className="size-6" />
       </span>
       <div className="flex max-w-sm flex-col gap-1">
