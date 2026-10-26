@@ -4,6 +4,8 @@ import { Moon01, Sun } from "@untitledui/icons";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
+import { HEADER_ICON_BUTTON } from "./header-styles";
+
 const subscribe = () => () => {};
 
 export function ThemeToggle() {
@@ -12,13 +14,8 @@ export function ThemeToggle() {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const isDark = mounted && resolvedTheme === "dark";
   return (
-    <button
-      type="button"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label={isDark ? "Цайвар горим" : "Харанхуй горим"}
-      className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-fg-quaternary transition hover:bg-primary_hover hover:text-fg-secondary"
-    >
-      {isDark ? <Sun className="size-5" /> : <Moon01 className="size-5" />}
+    <button type="button" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label={isDark ? "Цайвар горим" : "Харанхуй горим"} className={HEADER_ICON_BUTTON}>
+      {isDark ? <Sun className="size-[18px]" /> : <Moon01 className="size-[18px]" />}
     </button>
   );
 }

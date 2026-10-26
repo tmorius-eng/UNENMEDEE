@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 
 import { cx } from "@/utils/cx";
 
+import { HEADER_ICON_BUTTON } from "@/components/layout/header-styles";
+
 import { usePwa } from "./use-pwa";
 
 const DISMISS_KEY = "iltod-install-dismissed-at";
@@ -68,7 +70,7 @@ function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () 
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="w-full max-w-md animate-in rounded-t-3xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-secondary duration-300 fade-in slide-in-from-bottom-10 sm:rounded-3xl sm:pb-6"
+          className="w-full max-w-md animate-in rounded-t-2xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-line duration-300 fade-in slide-in-from-bottom-10 sm:rounded-2xl sm:pb-6"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 flex items-start justify-between gap-4">
@@ -104,13 +106,10 @@ export function NotifyButton() {
         disabled={pwa.busy}
         aria-label={label}
         title={label}
-        className={cx(
-          "relative flex size-10 cursor-pointer items-center justify-center rounded-lg transition hover:bg-primary_hover disabled:opacity-50",
-          pwa.subscribed ? "text-brand-secondary" : "text-fg-quaternary hover:text-fg-secondary",
-        )}
+        className={cx(HEADER_ICON_BUTTON, "relative disabled:opacity-50", pwa.subscribed && "text-brand-secondary ring-brand")}
       >
-        {pwa.subscribed ? <BellRinging01 className="size-5" /> : <Bell01 className="size-5" />}
-        {!pwa.subscribed && <span className="absolute top-2 right-2 size-2 rounded-full bg-error-solid ring-2 ring-bg-primary" aria-hidden />}
+        {pwa.subscribed ? <BellRinging01 className="size-[18px]" /> : <Bell01 className="size-[18px]" />}
+        {!pwa.subscribed && <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-risk ring-2 ring-bg-primary" aria-hidden />}
       </button>
       <Sheet
         open={sheet}
@@ -203,7 +202,7 @@ export function InstallBanner() {
     <>
       {visible && eligible && (
         <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 animate-in duration-300 fade-in slide-in-from-bottom-24 md:hidden">
-          <div className="flex items-center gap-3 rounded-2xl bg-primary p-3 shadow-xl ring-1 ring-secondary">
+          <div className="flex items-center gap-3 rounded-2xl bg-primary p-3 shadow-xl ring-1 ring-line">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icons/icon-192.png" alt="" className="size-11 rounded-xl" />
             <div className="min-w-0 flex-1">
