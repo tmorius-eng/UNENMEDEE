@@ -95,7 +95,7 @@ export function ShareButton({ path, title, text, className, label = "Хуваа�
         {label}
       </button>
       {menu && (
-        <div role="menu" className="absolute top-full left-0 z-30 mt-1 w-60 animate-in rounded-xl bg-primary p-1 shadow-lg ring-1 ring-line fade-in zoom-in-95">
+        <div role="menu" className="absolute top-full left-0 z-30 mt-1 menu-enter w-60 origin-top-left rounded-xl bg-primary p-1 shadow-lg ring-1 ring-line">
           {native && (
             <button role="menuitem" type="button" className={item} onClick={() => shareNative(menu)}>
               <Share07 className="size-5" aria-hidden />

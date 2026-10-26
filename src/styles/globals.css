@@ -9,7 +9,6 @@
 
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-react-aria-components";
-@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:where(.dark-mode, .dark-mode *));
 @custom-variant label (& [data-label]);
@@ -86,8 +85,9 @@
 }
 
 /*
- * Enter animation for panels that mount on a tap (the opened story's summary): @starting-style
- * replaces the tailwindcss-animate keyframes, with no motion for readers who asked for none.
+ * Enter animations for things that mount on a tap (an opened story's summary, a menu, a sheet,
+ * the next ticker line): @starting-style transitions instead of keyframes (tailwindcss-animate
+ * was dropped), and no motion for readers who asked for none.
  */
 @utility panel-enter {
     transition:
@@ -96,6 +96,53 @@
     @starting-style {
         opacity: 0;
         translate: 0 -4px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+@utility menu-enter {
+    transition:
+        opacity 150ms ease-out,
+        scale 150ms ease-out,
+        translate 150ms ease-out;
+    @starting-style {
+        opacity: 0;
+        scale: 0.97;
+        translate: 0 -2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+@utility fade-enter {
+    transition: opacity 200ms ease-out;
+    @starting-style {
+        opacity: 0;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+@utility sheet-enter {
+    transition:
+        opacity 300ms ease-out,
+        translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    @starting-style {
+        opacity: 0;
+        translate: 0 2.5rem;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+@utility rise-enter {
+    transition:
+        opacity 300ms ease-out,
+        translate 300ms ease-out;
+    @starting-style {
+        opacity: 0;
+        translate: 0 4px;
     }
     @media (prefers-reduced-motion: reduce) {
         transition: none;

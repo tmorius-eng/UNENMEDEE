@@ -284,7 +284,7 @@
     --color-text-brand-tertiary: light-dark(var(--color-brand-600), var(--color-brand-400));
     --color-text-editor-icon-fg: light-dark(var(--color-neutral-400), var(--color-neutral-400));
     --color-text-editor-icon-fg_active: light-dark(var(--color-neutral-500), var(--color-white));
-    --color-text-quaternary: light-dark(#6f7076, #8d8c86);
+    --color-text-quaternary: light-dark(#64656b, #8d8c86);
     --color-text-brand-primary: light-dark(var(--color-brand-900), var(--color-brand-100));
     --color-text-primary_on-brand: light-dark(var(--color-white), #0f1012);
     --color-text-secondary_on-brand: light-dark(var(--color-brand-100), var(--color-brand-900));
@@ -314,7 +314,7 @@
     --color-fg-primary: light-dark(#121314, #ecebe6);
     --color-fg-brand-secondary: light-dark(var(--color-brand-500), var(--color-brand-400));
     --color-fg-brand-primary: light-dark(var(--color-brand-600), var(--color-brand-400));
-    --color-fg-quaternary: light-dark(#6f7076, #8d8c86);
+    --color-fg-quaternary: light-dark(#64656b, #8d8c86);
     --color-fg-quaternary_hover: light-dark(#3f4045, #b4b3ad);
     --color-fg-error-primary: light-dark(var(--color-red-600), var(--color-red-500));
     --color-fg-warning-secondary: light-dark(var(--color-yellow-500), var(--color-yellow-400));

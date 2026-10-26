@@ -28,17 +28,17 @@ interface Cell {
 export function Ledger({ cells, className, wide = 4 }: { cells: Cell[]; className?: string; /** Columns once the container is wide (4 or 5). */ wide?: 4 | 5 }) {
   const five = wide === 5;
   return (
-    <dl className={cx("@container", className)}>
+    <div className={cx("@container", className)}>
       <div className={cx("grid grid-cols-2 border-b border-line", five ? "@2xl:grid-cols-5" : "@2xl:grid-cols-4")}>
         {cells.map((c, i) => {
           const body = (
             <>
-              <dt className="label-mono truncate text-tertiary">{c.label}</dt>
-              <dd className={cx("num-mono mt-1 text-xl", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-primary")}>
+              <p className="label-mono truncate text-tertiary">{c.label}</p>
+              <p className={cx("num-mono mt-1 text-xl", c.tone === "down" ? "text-risk" : c.tone === "up" ? "text-brand-secondary" : "text-primary")}>
                 {c.value}
                 {c.unit && <span className="ml-1 text-xs font-medium text-tertiary">{c.unit}</span>}
-              </dd>
-              <dd className="mt-0.5 truncate text-xs text-tertiary">{c.note}</dd>
+              </p>
+              <p className="mt-0.5 truncate text-xs text-tertiary">{c.note}</p>
             </>
           );
           const cell = cx(
@@ -59,7 +59,7 @@ export function Ledger({ cells, className, wide = 4 }: { cells: Cell[]; classNam
           );
         })}
       </div>
-    </dl>
+    </div>
   );
 }
 

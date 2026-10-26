@@ -82,7 +82,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
         <Providers>
           {isDemoDatabase() && (
-            <p className="bg-warning-solid px-4 py-1.5 text-center text-xs font-semibold text-white">
+            <p className="bg-signal px-4 py-1.5 text-center text-xs font-semibold text-signal-ink">
               Демо горим: tests/fixtures-аас ачаалсан жишээ өгөгдөл. Бодит сайт: iltodmedee.mn
             </p>
           )}
