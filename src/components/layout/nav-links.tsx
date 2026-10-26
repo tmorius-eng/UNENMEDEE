@@ -180,7 +180,7 @@ function NavMore({ pathname }: { pathname: string | null }) {
           role="menu"
           aria-label="Бусад хуудас"
           onKeyDown={onMenuKey}
-          className="absolute top-full right-0 z-50 mt-1 w-56 origin-top-right rounded-xl bg-primary py-1 shadow-lg ring-1 ring-line duration-150 ease-out animate-in fade-in slide-in-from-top-0.5"
+          className="absolute top-full right-0 z-50 mt-1 menu-enter w-56 origin-top-right rounded-xl bg-primary py-1 shadow-lg ring-1 ring-line"
         >
           {NAV_MORE.map((item) => {
             const active = isActive(item.href, pathname);

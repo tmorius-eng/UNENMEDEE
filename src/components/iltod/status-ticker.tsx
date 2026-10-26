@@ -54,7 +54,7 @@ export function StatusTicker({ stats, lastArticleAt, todayArticles }: { stats: s
         key={step}
         aria-hidden
         // The first message is already on the page: animate only the ones that replace it.
-        className={cx("block truncate", step > 0 && "animate-in duration-300 fade-in slide-in-from-bottom-1 motion-reduce:animate-none")}
+        className={cx("block truncate", step > 0 && "rise-enter")}
       >
         {current}
       </span>

@@ -64,13 +64,13 @@ function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () 
   if (!mounted) return null;
   return createPortal(
     open && (
-      // CSS enter animations (tailwindcss-animate): no animation library in the shared header bundle.
-      <div className="fixed inset-0 z-50 flex animate-in items-end justify-center bg-overlay/50 duration-200 fade-in sm:items-center" onClick={onClose}>
+      // CSS enter animations (@starting-style utilities in globals.css): no animation library in the shared header bundle.
+      <div className="fade-enter fixed inset-0 z-50 flex items-end justify-center bg-overlay/50 sm:items-center" onClick={onClose}>
         <div
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="w-full max-w-md animate-in rounded-t-2xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-line duration-300 fade-in slide-in-from-bottom-10 sm:rounded-2xl sm:pb-6"
+          className="sheet-enter w-full max-w-md rounded-t-2xl bg-primary p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-line sm:rounded-2xl sm:pb-6"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 flex items-start justify-between gap-4">
@@ -201,7 +201,7 @@ export function InstallBanner() {
   return (
     <>
       {visible && eligible && (
-        <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 animate-in duration-300 fade-in slide-in-from-bottom-24 md:hidden">
+        <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] sheet-enter z-40 md:hidden">
           <div className="flex items-center gap-3 rounded-2xl bg-primary p-3 shadow-xl ring-1 ring-line">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icons/icon-192.png" alt="" className="size-11 rounded-xl" />
