@@ -13,6 +13,8 @@
  *    its hash and its AI summary stay; it is archive material, not news).
  * 3. Titles starting with U+3164 / U+2800 and friends → trimmed.
  * 4. Sources that cannot be scraped are deactivated with the reason in last_error.
+ * 6. Published help and "about" pages (`looksLikeUnitPage`: "… холбоотой асуулт хариулт", "Чиг
+ *    үүрэг") → is_published = false, the rule db-sink now applies to new rows.
  * No network requests, except:
  * 5. `--refetch [--refetch-days 14]`: undated articles found in the last N days are fetched again
  *    (robots.txt and the 8 s per-host delay apply) and re-dated with the current extractor; one
@@ -28,6 +30,7 @@ import { closeDb, getDb, hasDatabase } from "@/db";
 import { isFutureDate, MAX_AGE_DAYS } from "@/lib/scraper/dates";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { politeFetch } from "@/lib/scraper/http";
+import { looksLikeUnitPage } from "@/lib/scraper/titles";
 import { normalizeText } from "@/lib/text";
 
 const { values } = parseArgs({
@@ -114,6 +117,15 @@ async function main() {
     console.log(`⛔ ${d.domain}: ${DEACTIVATE[d.domain]}`);
     if (!dry) await db.execute(sql`update sources set is_active = false, last_error = ${DEACTIVATE[d.domain]} where domain = ${d.domain}`);
   }
+  // 6. Help and "about" pages published as news.
+  const pages = (
+    await db.execute(sql`select a.id, s.domain, a.title, left(a.clean_content, 300) as head from articles a join sources s on s.id = a.source_id where a.is_published`)
+  ).rows as { id: number; domain: string; title: string; head: string }[];
+  const notNews = pages.filter((p) => looksLikeUnitPage(p.title, p.head ?? ""));
+  console.log(`📄 ${notNews.length} published help/about page(s) → unpublished`);
+  for (const p of notNews) console.log(`   #${p.id} ${p.domain}: "${p.title.slice(0, 70)}"`);
+  if (!dry && notNews.length) await db.execute(sql`update articles set is_published = false where id in (${sql.join(notNews.map((p) => sql`${p.id}`), sql`, `)})`);
+
   if (values.refetch) await refetchUndated(db, Math.max(1, Number(values["refetch-days"]) || 14));
   console.log(dry ? "Dry run: nothing written." : "✓ Done.");
 }

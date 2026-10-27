@@ -119,27 +119,38 @@ export function parseRobots(text: string, agent: string = BOT_NAME): RobotsPolic
 
 const cache = new Map<string, Promise<RobotsPolicy>>();
 
+/** A network error (timeout, reset) gets one more try after this pause; a 5xx answer does not. */
+export const ROBOTS_RETRY_MS = 3_000;
+
 /** Fetches (once per origin per process) and parses robots.txt. */
-export function getRobots(origin: string, fetchImpl: typeof fetch = fetch): Promise<RobotsPolicy> {
+export function getRobots(origin: string, fetchImpl: typeof fetch = fetch, retryMs = ROBOTS_RETRY_MS): Promise<RobotsPolicy> {
   const cached = cache.get(origin);
   if (cached) return cached;
   const promise = (async () => {
-    try {
-      const res = await fetchImpl(`${origin}/robots.txt`, {
-        headers: { "user-agent": USER_AGENT },
-        redirect: "follow",
-        signal: AbortSignal.timeout(15_000),
-      });
-      // RFC 9309: an unreachable robots.txt (5xx, network error) means "crawl nothing" for now.
-      if (res.status >= 500) return { ...DISALLOW_ALL, unavailable: `robots.txt answered HTTP ${res.status}` };
-      if (!res.ok) return ALLOW_ALL;
-      const type = res.headers.get("content-type") ?? "";
-      const text = await res.text();
-      if (type.includes("html")) return ALLOW_ALL;
-      return parseRobots(text);
-    } catch (err) {
-      const e = err as { name?: string; code?: string; cause?: { code?: string } };
-      return { ...DISALLOW_ALL, unavailable: `robots.txt unreachable (${e.cause?.code ?? e.code ?? e.name ?? "error"})` };
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await fetchImpl(`${origin}/robots.txt`, {
+          headers: { "user-agent": USER_AGENT },
+          redirect: "follow",
+          signal: AbortSignal.timeout(15_000),
+        });
+        // RFC 9309: an unreachable robots.txt (5xx, network error) means "crawl nothing" for now.
+        if (res.status >= 500) return { ...DISALLOW_ALL, unavailable: `robots.txt answered HTTP ${res.status}` };
+        if (!res.ok) return ALLOW_ALL;
+        const type = res.headers.get("content-type") ?? "";
+        const text = await res.text();
+        if (type.includes("html")) return ALLOW_ALL;
+        return parseRobots(text);
+      } catch (err) {
+        // Slow .gov.mn hosts drop a connection now and then: one failed attempt used to take the
+        // source out of the run and start its backoff.
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, retryMs));
+          continue;
+        }
+        const e = err as { name?: string; code?: string; cause?: { code?: string } };
+        return { ...DISALLOW_ALL, unavailable: `robots.txt unreachable (${e.cause?.code ?? e.code ?? e.name ?? "error"})` };
+      }
     }
   })();
   cache.set(origin, promise);

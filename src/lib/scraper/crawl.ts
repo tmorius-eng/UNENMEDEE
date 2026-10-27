@@ -4,7 +4,7 @@ import { CheerioCrawler, Configuration, gotScraping, log, PlaywrightCrawler } fr
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
 import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS, parseDateValue } from "./extractor";
 import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "./links";
-import { getRobots, MIN_DOMAIN_DELAY_MS, USER_AGENT } from "./robots";
+import { getRobots, MIN_DOMAIN_DELAY_MS, type RobotsPolicy, USER_AGENT } from "./robots";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Storage hooks so the crawler works with the DB or in --dry-run mode. */
@@ -81,6 +81,27 @@ const robotsFetch = (async (url: string) => {
   });
 }) as unknown as typeof fetch;
 
+/**
+ * robots.txt files fetched at once before a run. A Promise.all over every source opened 100+ TLS
+ * connections together from a GitHub runner, and on Oct 26 2026 ~40 sources failed in the same
+ * second with "robots.txt unreachable (ETIMEDOUT)" though most answered in 1–2 s on their own.
+ */
+const ROBOTS_CONCURRENCY = 8;
+
+/** `fn` over `items`, at most `limit` at a time, results in input order. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return out;
+}
+
 /** Longest robots.txt Crawl-delay we honour for every domain (Crawlee's delay is global). */
 const MAX_CRAWL_DELAY_MS = 20_000;
 
@@ -137,7 +158,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
   // unreachable robots.txt as "allowed", fetches it again before every request and ignores
   // Crawl-delay. RFC 9309: a 5xx or unreachable robots.txt means crawl nothing this run.
   const robotsFor = (url: string) => getRobots(new URL(url).origin, robotsFetch);
-  const policies = await Promise.all(sources.map((s) => robotsFor(s.urlPattern)));
+  const policies: RobotsPolicy[] = await mapLimit(sources, ROBOTS_CONCURRENCY, (s) => robotsFor(s.urlPattern));
   const crawlDelayMs = Math.min(MAX_CRAWL_DELAY_MS, Math.max(MIN_DOMAIN_DELAY_MS, ...policies.map((p) => p.crawlDelayMs ?? 0)));
 
   // ---------------------------------------------------------------- shared logic

@@ -677,6 +677,8 @@ export interface SourceHealth {
   lastError: string | null;
   consecutiveFailures: number;
   articleCount: number;
+  /** Published, summarized stories: what its /source/<domain> page lists (0 = empty, noindex). */
+  visibleCount: number;
 }
 
 export async function getSources(): Promise<SourceHealth[]> {
@@ -693,11 +695,16 @@ export async function getSources(): Promise<SourceHealth[]> {
     lastError: null,
     consecutiveFailures: 0,
     articleCount: 0,
+    visibleCount: 0,
   }));
   return safe("getSources", fallback, async () => {
     const db = getDb();
     const counts = db
-      .select({ sourceId: articles.sourceId, n: count().as("n") })
+      .select({
+        sourceId: articles.sourceId,
+        n: count().as("n"),
+        visible: sql<number>`count(*) filter (where ${articles.isPublished} and ${articles.tldrSummary} is not null)`.as("visible"),
+      })
       .from(articles)
       .groupBy(articles.sourceId)
       .as("counts");
@@ -712,6 +719,7 @@ export async function getSources(): Promise<SourceHealth[]> {
         lastError: sources.lastError,
         consecutiveFailures: sources.consecutiveFailures,
         articleCount: sql<number>`coalesce(${counts.n}, 0)::int`,
+        visibleCount: sql<number>`coalesce(${counts.visible}, 0)::int`,
       })
       .from(sources)
       .leftJoin(counts, eq(counts.sourceId, sources.id))

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DomainThrottle, parseRobots } from "@/lib/scraper/robots";
+import { DomainThrottle, getRobots, parseRobots } from "@/lib/scraper/robots";
 
 describe("parseRobots", () => {
   it("allows everything for empty or HTML robots files (SPA shells)", () => {
@@ -67,5 +67,34 @@ describe("DomainThrottle", () => {
     await throttle.wait("b.gov.mn"); // different host: no wait
     const elapsed = Date.now() - start;
     assert.ok(elapsed >= 55 && elapsed < 200, `elapsed ${elapsed}ms`);
+  });
+});
+
+describe("getRobots", () => {
+  const ok = () => new Response("User-agent: *\nDisallow: /private\n", { status: 200, headers: { "content-type": "text/plain" } });
+  const fail = () => Promise.reject(Object.assign(new Error("connect"), { code: "ETIMEDOUT" }));
+
+  it("tries once more after a network error", async () => {
+    let calls = 0;
+    const policy = await getRobots("https://retry-once.example", (async () => (++calls === 1 ? fail() : ok())) as unknown as typeof fetch, 1);
+    assert.equal(calls, 2);
+    assert.equal(policy.unavailable, undefined);
+    assert.equal(policy.isAllowed("/private/x"), false);
+    assert.equal(policy.isAllowed("/news"), true);
+  });
+
+  it("gives up after the second network error and crawls nothing", async () => {
+    let calls = 0;
+    const policy = await getRobots("https://down-twice.example", (async () => (calls++, fail())) as unknown as typeof fetch, 1);
+    assert.equal(calls, 2);
+    assert.equal(policy.unavailable, "robots.txt unreachable (ETIMEDOUT)");
+    assert.equal(policy.isAllowed("/news"), false);
+  });
+
+  it("does not retry a 5xx answer", async () => {
+    let calls = 0;
+    const policy = await getRobots("https://server-error.example", (async () => (calls++, new Response("", { status: 503 }))) as unknown as typeof fetch, 1);
+    assert.equal(calls, 1);
+    assert.equal(policy.unavailable, "robots.txt answered HTTP 503");
   });
 });
