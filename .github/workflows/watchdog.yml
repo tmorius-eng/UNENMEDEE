@@ -49,6 +49,7 @@ jobs:
           SOCIAL_INSTAGRAM: ${{ secrets.INSTAGRAM_TOKEN != '' }}
           SOCIAL_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && vars.TELEGRAM_CHAT_ID != '' }}
           SOCIAL_DISCORD: ${{ secrets.DISCORD_BOT_TOKEN != '' && (vars.DISCORD_CHANNEL_ID != '' || secrets.DISCORD_CHANNEL_ID != '') }}
+          BACKUP_CONFIGURED: ${{ secrets.BACKUP_AGE_PUBLIC_KEY != '' }}
         # 2>&1: a crash's stack trace lands in the issue too, not only in the run log.
         run: npm run --silent health 2>&1 | tee health.txt
 

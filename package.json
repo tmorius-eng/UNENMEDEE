@@ -31,6 +31,8 @@
     "sources:discover": "tsx scripts/discover-sources.ts",
     "sources:recheck": "tsx scripts/recheck-sources.ts",
     "db:prune": "tsx scripts/prune-content.ts",
+    "db:backup": "tsx scripts/backup-db.ts",
+    "db:restore": "tsx scripts/restore-db.ts",
     "db:fix-titles": "tsx scripts/fix-generic-titles.ts",
     "db:repair-dates": "tsx scripts/repair-dates.ts",
     "health": "tsx scripts/health-check.ts"

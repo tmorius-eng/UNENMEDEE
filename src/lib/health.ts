@@ -97,6 +97,8 @@ export interface HealthSnapshot {
 export interface HealthConfig {
   /** Platforms whose secrets are set in the workflow (booleans only, never the secret). */
   socialConfigured: Partial<Record<SocialPlatform, boolean>>;
+  /** Whether the BACKUP_AGE_PUBLIC_KEY secret is set (undefined = not checked, e.g. a local run). */
+  backupConfigured?: boolean;
   /** Dated facts in the code that someone has to re-check by hand. */
   dated: {
     /** The Prime Minister list was last verified on this day (`GOVERNMENTS_VERIFIED_THROUGH`). */
@@ -170,6 +172,7 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
 
   const m = s.maintenance;
   if (m?.pruneAt && daysSince(m.pruneAt, now) > 3) out.push(`Өгөгдлийн сангийн цэвэрлэгээ (db:prune) ${Math.round(daysSince(m.pruneAt, now))} хоног ажиллаагүй.`);
+  if (config.backupConfigured === false) out.push(`Нөөц хуулбар хийгдэхгүй байна: BACKUP_AGE_PUBLIC_KEY secret алга (docs/BACKUP.md-ийн 1-р алхам).`);
   if (m?.backupAt && daysSince(m.backupAt, now) > 10) out.push(`Нөөц хуулбар (backup) ${Math.round(daysSince(m.backupAt, now))} хоног хийгдээгүй (backup workflow).`);
 
   const n = s.network;

@@ -1,0 +1,85 @@
+# Weekly encrypted backup of the database (Thursday 04:11 Ulaanbaatar time; docs/BACKUP.md).
+# The export (npm run db:backup, NDJSON) is streamed through gzip and age with the owner's PUBLIC
+# key, so the plain text never touches the runner's disk and only the owner's private key, kept
+# off GitHub, can read it. Artifacts of a public repository can be downloaded by anyone signed in:
+# that is why only the encrypted file is ever uploaded. The log shows row counts only.
+name: Backup
+
+on:
+  schedule:
+    - cron: "11 20 * * 3"
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    # Forks keep the code but never run the scheduled jobs (no secrets, no Actions minutes).
+    if: github.repository == 'tmorius-eng/UNENMEDEE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # No secrets on this step: dependency install scripts never see them.
+      - name: Install dependencies
+        run: npm ci || (sleep 60 && npm ci)
+
+      - name: Check the encryption key
+        env:
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          case "$BACKUP_AGE_PUBLIC_KEY" in
+            age1*) echo "✓ public key present" ;;
+            "") echo "::error::Add the BACKUP_AGE_PUBLIC_KEY repository secret (the age1… line from age-keygen, docs/BACKUP.md). No backup is made without it."; exit 1 ;;
+            *) echo "::error::BACKUP_AGE_PUBLIC_KEY must be an age public key (starts with age1). Never put the private AGE-SECRET-KEY there."; exit 1 ;;
+          esac
+
+      - name: Install age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Export, compress and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p out
+          file="out/iltodmedee-$(date -u +%Y%m%d-%H%M).ndjson.gz.age"
+          npm run --silent db:backup | gzip -9 | age -r "$BACKUP_AGE_PUBLIC_KEY" -o "$file"
+          # Proof that the file is age ciphertext, not plain text, before anything is uploaded.
+          head -c 21 "$file" | grep -q "age-encryption.org/v1" || { echo "::error::output is not age-encrypted"; rm -f "$file"; exit 1; }
+          ls -l out
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: iltodmedee-backup-${{ github.run_id }}
+          path: out/*.age
+          if-no-files-found: error
+          retention-days: 90
+          # Already gzip-compressed and encrypted: zipping again gains nothing.
+          compression-level: 0
+
+      - name: Record the backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run --silent db:backup -- --mark

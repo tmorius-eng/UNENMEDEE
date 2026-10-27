@@ -250,6 +250,7 @@ async function main() {
       telegram: flag(process.env.SOCIAL_TELEGRAM),
       discord: flag(process.env.SOCIAL_DISCORD),
     },
+    backupConfigured: process.env.BACKUP_CONFIGURED === undefined ? undefined : flag(process.env.BACKUP_CONFIGURED),
     dated: { governmentsVerified: GOVERNMENTS_VERIFIED_THROUGH, programmeEnd: PROGRAMME_END, populationYear: POPULATION.year, ratesChecked: RATES_CHECKED },
   };
 

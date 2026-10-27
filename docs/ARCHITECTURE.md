@@ -368,6 +368,10 @@ The site is designed to keep publishing for months with nobody touching it:
   also reminds the owner of dated facts in the code (Prime Minister list, population, tax rates, the end
   of the 2024–2028 programme). Each collector runs on its own, so one failing query never hides the
   rest; the issue closes itself when things recover.
+- `backup.yml` (weekly) streams `npm run db:backup` (NDJSON through the app's own connection) through
+  `gzip` and `age` with the owner's public key and uploads only the encrypted file as a 90-day artifact;
+  `npm run db:restore` upserts it back (`docs/BACKUP.md`). The watchdog reports a missing key or a
+  backup older than 10 days.
 - Retention pruning, the AI fallback and source back-off keep the free tiers within limits without
   manual work. A scrape or AI failure never skips the digest (with its rule-based fallback) or the
   pushes: every later pipeline step runs unless the run was cancelled or the migration failed.
