@@ -246,7 +246,10 @@ Next.js 16 App Router with **Cache Components** (`cacheComponents: true`):
 - Performance budget: the target is Lighthouse mobile ≥ 0.9 on the home page (~470 KiB transferred). Heavy libraries (markdown
   renderer, charts, animation) are kept off the home bundle.
 - SEO: per-page canonicals, `sitemap.xml`, a Google News sitemap, RSS, `NewsArticle` JSON-LD and
-  generated OG images.
+  generated OG images. Internal links keep every story reachable without JavaScript: an article links
+  to its topic, place, source and day; `/archive/<yyyy-mm-dd>` lists every published story of an
+  Ulaanbaatar day by topic (`/archive` indexes the last 60 days, the feeds link the last 7);
+  `/source/<domain>` lists one official site's newest 40 stories.
 
 Functions run in Vercel's `sin1` region, next to the Supabase database (ap-southeast-1).
 
