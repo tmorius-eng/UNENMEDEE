@@ -5,7 +5,7 @@
  * it too. Only REST calls from GitHub Actions: the bot never connects to the gateway, so nothing
  * has to stay online. The token goes in the Authorization header only and errors never echo it.
  */
-import { editionLabel } from "@/lib/edition";
+import { editionLabel, ruleBasedNote } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { formatShare, perPersonShare, POPULATION_LABEL } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
@@ -76,6 +76,8 @@ export function discordDigestPost(d: DigestForPost, site = PRODUCTION_URL): Disc
   const lines = [`🗞 ${bold(editionLabel(d))}`];
   if (top) lines.push(`⚡ ${bold(top.headline)}`, ...(top.whyItMatters ? [`> ${top.whyItMatters}`] : []));
   if (rest.length) lines.push("", ...rest.slice(0, 6).map((it, i) => `\`${i + 2}\` ${it.headline}`));
+  const note = ruleBasedNote(d);
+  if (note) lines.push("", `-# ${note}`);
   lines.push("", `👉 Бүх ${d.items.length} мэдээ, эх сурвалжтай нь: <${link}>`);
   return { text: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }

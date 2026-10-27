@@ -5,7 +5,7 @@
  * wording is unit-tested and the token never leaves here. Hooks are facts only: the editor's
  * headline, "why it matters" and the official source, never a verdict.
  */
-import { editionLabel } from "@/lib/edition";
+import { editionLabel, ruleBasedNote } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { perPersonLine } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
@@ -28,6 +28,8 @@ export interface DigestForPost {
   intro: string;
   periodEnd: Date | string;
   items: { headline: string; whyItMatters?: string }[];
+  /** "provider/model" or "rule-based" (`ruleBasedNote`). */
+  generatedBy?: string;
 }
 
 export interface ArticleForPost {
@@ -53,6 +55,8 @@ export function digestPost(d: DigestForPost, site = PRODUCTION_URL): FacebookPos
   const lines = [`🗞 ${editionLabel(d)}`, ""];
   if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
   if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 4).map((it) => `• ${it.headline}`), "");
+  const note = ruleBasedNote(d);
+  if (note) lines.push(note, "");
   lines.push(`Бүх ${d.items.length} мэдээ, эх сурвалжтай нь 👉 ${link}`, "", hashtags("facebook"));
   return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }

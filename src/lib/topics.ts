@@ -51,7 +51,7 @@ export const TOPICS: Topic[] = [
     tag: "ХУУЛЬ, ШҮҮХ",
     color: "text-utility-purple-700",
     dot: "bg-utility-purple-500", hex: "#a855f7",
-    domains: ["legalinfo.mn", "mojha.gov.mn", "supremecourt.mn", "judcouncil.mn", "constcourt.mn", "cd.gov.mn", "nfa.gov.mn", "police.gov.mn", "bpo.gov.mn", "sspa.gov.mn", "immigration.gov.mn", "burtgel.gov.mn", "nhrcm.gov.mn"],
+    domains: ["legalinfo.mn", "mojha.gov.mn", "supremecourt.mn", "judcouncil.mn", "conscourt.gov.mn", "cd.gov.mn", "nfa.gov.mn", "police.gov.mn", "bpo.gov.mn", "sspa.gov.mn", "immigration.gov.mn", "burtgel.gov.mn", "nhrcm.gov.mn"],
   },
   {
     key: "mining",

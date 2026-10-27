@@ -9,6 +9,7 @@ import { cx } from "@/utils/cx";
 import { HEADER_ICON_BUTTON } from "@/components/layout/header-styles";
 
 import { usePwa } from "./use-pwa";
+import { digestWindowsLabel } from "@/lib/edition";
 
 const DISMISS_KEY = "iltod-install-dismissed-at";
 const DISMISS_DAYS = 14;
@@ -124,7 +125,7 @@ export function NotifyButton() {
         ) : !pwa.subscribed ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-tertiary">
-              Өдөрт хэдхэн удаа: улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ, өглөө 08:00, орой 20:00 цагийн онцлох тойм. Зар сурталчилгаа илгээхгүй.
+              Өдөрт хэдхэн удаа: улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ, {digestWindowsLabel()} гарах онцлох тойм. Зар сурталчилгаа илгээхгүй.
             </p>
             {pwa.error && <p className="text-sm text-error-primary">{pwa.error}</p>}
             <button
@@ -140,7 +141,7 @@ export function NotifyButton() {
         ) : (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-tertiary">
-              Улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ гарахад (цаг тутмын шалгалтаар нэг мэдэгдэл) болон өглөө 08:00, орой 20:00 цагийн онцлох тойм бэлэн болоход танд мэдэгдэнэ.
+              Улс орны хэмжээний чухал шийдвэр, өндөр эрсдэлтэй мэдээ гарахад (цаг тутмын шалгалтаар нэг мэдэгдэл) болон {digestWindowsLabel()} гарах онцлох тойм бэлэн болоход танд мэдэгдэнэ.
             </p>
             <button
               type="button"

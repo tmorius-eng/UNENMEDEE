@@ -41,10 +41,25 @@ async function get(path: string): Promise<unknown> {
   return res.json();
 }
 
-/** This calendar year so far (Ulaanbaatar date). */
-export async function fetchShilendans(): Promise<ShilendansSnapshot> {
-  const to = new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10);
-  const from = `${to.slice(0, 4)}-01-01`;
+/**
+ * The period to show: this calendar year so far (Ulaanbaatar date), except in January and
+ * February, when a few weeks of payments made "the year's largest payees" near-empty and
+ * misleading: then the whole previous year. The page prints the dates either way.
+ */
+export function shilendansPeriod(now = new Date()): { from: string; to: string } {
+  const today = new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(0, 10);
+  const year = Number(today.slice(0, 4));
+  if (today.slice(5) < "03-01") return { from: `${year - 1}-01-01`, to: `${year - 1}-12-31` };
+  return { from: `${year}-01-01`, to: today };
+}
+
+/** Fewer payees than this is a broken or empty answer: the sync keeps the previous snapshot. */
+export const MIN_PAYEES = 5;
+
+export async function fetchShilendans(now = new Date()): Promise<ShilendansSnapshot> {
+  const { from, to } = shilendansPeriod(now);
   const q = `dateStart=${from}&dateEnd=${to}&type=1`;
-  return { from, to, topPayees: parseTopPayees(await get(`getTopTen?${q}`)), categories: parseCategories(await get(`getEZAListByDateBetween?${q}`)) };
+  const topPayees = parseTopPayees(await get(`getTopTen?${q}`));
+  if (topPayees.length < MIN_PAYEES) throw new Error(`shilendans returned only ${topPayees.length} payee(s) for ${from}–${to}: keeping the previous snapshot`);
+  return { from, to, topPayees, categories: parseCategories(await get(`getEZAListByDateBetween?${q}`)) };
 }

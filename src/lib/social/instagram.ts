@@ -5,7 +5,7 @@
  * they point to the link in the bio). The 60-day token is seeded by INSTAGRAM_TOKEN and kept and
  * refreshed in app_settings key INSTAGRAM_SETTINGS_KEY, exactly like Threads.
  */
-import { editionLabel } from "@/lib/edition";
+import { editionLabel, ruleBasedNote } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { perPersonLine } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
@@ -32,6 +32,8 @@ export function instagramDigestPost(d: DigestForPost, site = PRODUCTION_URL): In
   const lines = [`🗞 ${editionLabel(d)}`, ""];
   if (top) lines.push(`⚡ ${top.headline}`, ...(top.whyItMatters ? [`👉 ${top.whyItMatters}`] : []), "");
   if (rest.length) lines.push("Мөн өнөөдөр:", ...rest.slice(0, 9).map((it) => `• ${it.headline}`), "");
+  const note = ruleBasedNote(d);
+  if (note) lines.push(note, "");
   lines.push("Бүгдийг эх сурвалжийн холбоостой нь: iltodmedee.mn (холбоос bio-д)", "", hashtags("instagram"));
   return { imageUrl: `${site}/ig-image?d=${d.id}`, caption: fit(lines.join("\n")) };
 }

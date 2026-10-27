@@ -132,6 +132,17 @@ export function blacklistHighlight(rows: Row[], today = new Date()): DatasetHigh
   return { kind: "blacklist", total: items.length, activeCount: active.length, items: active.slice(0, 200) };
 }
 
+/**
+ * The blacklist as of `now`: the stored highlight was computed on its sync day, so a ban that has
+ * ended since must not keep reading "одоо хүчинтэй" if the sync stops for a while.
+ */
+export function activeBlacklist<T extends DatasetHighlight>(h: T, now = new Date()): T {
+  if (h.kind !== "blacklist") return h;
+  const day = now.toISOString().slice(0, 10);
+  const items = h.items.filter((i) => !i.end || i.end >= day);
+  return { ...h, items, activeCount: Math.max(0, h.activeCount - (h.items.length - items.length)) };
+}
+
 /* ---------------------------------------------------------------- tenders */
 
 export function tendersHighlight(rows: Row[]): DatasetHighlight | null {

@@ -45,9 +45,22 @@ export const GOVERNMENTS: Government[] = [
   { pm: "Н.Учрал", party: "МАН", from: "2026-03-30", to: null },
 ];
 
-/** Governments that held office at any point in a calendar year (acting ones left out). */
-export function governmentsInYear(year: number): Government[] {
-  const start = `${year}-01-01`;
-  const end = `${year}-12-31`;
-  return GOVERNMENTS.filter((g) => !g.acting && g.from <= end && (g.to === null || g.to >= start));
+/**
+ * Governments that held office at any point in a calendar year (acting ones left out). The open-ended
+ * last entry only counts up to `verifiedThrough`: after that day nobody has confirmed it still
+ * holds, so a later year gets no name rather than a possibly wrong one.
+ */
+export function governmentsInYear(year: number, verifiedThrough = GOVERNMENTS_VERIFIED_THROUGH): Government[] {
+  return governmentsBetween(`${year}-01-01`, `${year}-12-31`, verifiedThrough).filter((g) => !g.acting);
+}
+
+/** Governments in office at any point between two days (acting ones included), bounded by `verifiedThrough`. */
+export function governmentsBetween(from: string, to: string, verifiedThrough = GOVERNMENTS_VERIFIED_THROUGH): Government[] {
+  if (from > verifiedThrough) return [];
+  return GOVERNMENTS.filter((g) => g.from <= to && (g.to ?? verifiedThrough) >= from);
+}
+
+/** Whether a calendar year runs past the day the list was last checked. */
+export function yearUnverified(year: number, verifiedThrough = GOVERNMENTS_VERIFIED_THROUGH): boolean {
+  return `${year}-12-31` > verifiedThrough;
 }

@@ -29,7 +29,8 @@ export async function DonateChip({ className }: { className?: string }) {
 
 /** Full card for the footer and /support: bank, account, holder, copy button. */
 export async function DonateCard({ className }: { className?: string }) {
-  const d = await getDonation();
+  // In the footer of every page: same fallback as DonateChip, a DB blip never reaches the root layout.
+  const d = await getDonation().catch(() => DEFAULT_DONATION);
   return (
     <div className={cx("flex flex-col gap-2 rounded-2xl bg-primary p-4 ring-1 ring-line ring-inset", className)}>
       <p className="label-mono text-tertiary">

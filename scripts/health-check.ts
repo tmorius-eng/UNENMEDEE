@@ -85,9 +85,14 @@ async function officials() {
 }
 
 async function indicators() {
-  const out: Record<string, number> = {};
-  for (const r of await rows(sql`select key, extract(epoch from now() - updated_at) / 3600 as h from indicator_snapshots`)) out[String(r.key)] = Number(r.h);
-  return out;
+  const ages: Record<string, number> = {};
+  let population: { year: number; count: number } | null = null;
+  for (const r of await rows(sql`select key, extract(epoch from now() - updated_at) / 3600 as h, case when key = 'population' then data end as data from indicator_snapshots`)) {
+    ages[String(r.key)] = Number(r.h);
+    const d = (typeof r.data === "string" ? JSON.parse(r.data) : r.data) as { year?: unknown; count?: unknown } | null;
+    if (d && typeof d.year === "number" && typeof d.count === "number") population = { year: d.year, count: d.count };
+  }
+  return { ages, population };
 }
 
 async function opendata() {
@@ -235,7 +240,8 @@ async function main() {
   const snapshot: HealthSnapshot = {
     core: got("мэдээ/AI/push"),
     officials: got("УИХ-ын гишүүд"),
-    indicators: got("өгөгдлийн хэсгүүд"),
+    indicators: got<Awaited<ReturnType<typeof indicators>>>("өгөгдлийн хэсгүүд")?.ages,
+    population: got<Awaited<ReturnType<typeof indicators>>>("өгөгдлийн хэсгүүд")?.population,
     opendataHours: got("opendata.mn"),
     social: got("сошиал пост"),
     tokens: s?.tokens,

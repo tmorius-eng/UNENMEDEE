@@ -10,6 +10,7 @@ import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { Ledger } from "@/components/iltod/macro-strip";
 import { formatNumber } from "@/lib/format";
 import { getDigests, getWeekNumbers } from "@/lib/queries";
+import { digestWindowsLabel } from "@/lib/edition";
 
 export const metadata: Metadata = {
   title: "Өнөөдрийн онцлох мэдээ — өглөө, оройн тойм",
@@ -41,7 +42,7 @@ async function WeekNumbers() {
 async function Digests() {
   const [editions, reviews] = await Promise.all([getDigests("12h", 14), getDigests("30d", 1)]);
   if (editions.length === 0 && reviews.length === 0) {
-    return <Empty title="Тойм хараахан бэлэн болоогүй" description="AI редактор өглөө 08:00, орой 20:00 цагт (Улаанбаатар) шинэ тойм бэлтгэнэ." />;
+    return <Empty title="Тойм хараахан бэлэн болоогүй" description={`AI редактор ${digestWindowsLabel()} (Улаанбаатарын цагаар) шинэ тойм бэлтгэнэ.`} />;
   }
   return (
     <div className="flex flex-col gap-12">
@@ -75,7 +76,7 @@ export default function DigestPage() {
       <PageHeader
         eyebrow="AI редакторын тойм · өдөрт 2 удаа"
         title="Онцлох тойм"
-        description="Өглөө 08:00, орой 20:00 цагт AI редактор сүүлийн 12 цагийн бүх төрийн мэдээнээс иргэдийн амьдрал, төсөв, хууль, эрүүл мэнд, авлигад хамгийн их нөлөөлөх мэдээг сонгож, пи-аргүйгээр тоймлоно."
+        description={`Өдөрт хоёр удаа, ${digestWindowsLabel()} AI редактор сүүлийн 12 цагийн бүх төрийн мэдээнээс иргэдийн амьдрал, төсөв, хууль, эрүүл мэнд, авлигад хамгийн их нөлөөлөх мэдээг сонгож, пи-аргүйгээр тоймлоно.`}
       >
         <ShareButton path="/digest" title="Өнөөдрийн онцлох мэдээ · ИЛ ТОД МЭДЭЭ" className="w-fit" />
       </PageHeader>

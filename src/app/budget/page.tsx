@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
 import { AUDIT_URL, type AuditSnapshot, OPINIONS, type Opinion } from "@/lib/budget/audit";
-import { GOVERNMENTS_SOURCE, governmentsInYear } from "@/lib/budget/governments";
+import { GOVERNMENTS_SOURCE, GOVERNMENTS_VERIFIED_THROUGH, governmentsInYear, yearUnverified } from "@/lib/budget/governments";
 import { type BudgetNsoSnapshot, type CategorySeries, NSO_SOURCE_URL } from "@/lib/budget/nso";
 import { SHILENDANS_URL, type ShilendansSnapshot } from "@/lib/budget/shilendans";
 import type { TaxShareSnapshot } from "@/lib/budget/worldbank";
@@ -240,7 +240,8 @@ function History({ nso }: { nso: BudgetNsoSnapshot }) {
                   <td className="px-3 py-2 text-xs text-secondary">
                     {governmentsInYear(y.year)
                       .map((g) => `${g.pm} (${g.party})`)
-                      .join(", ")}
+                      .join(", ") || "—"}
+                    {yearUnverified(y.year) && governmentsInYear(y.year).length > 0 && " …"}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap text-secondary tabular-nums">{mln(y.revenue)}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap text-secondary tabular-nums">{mln(y.expenditure)}</td>
@@ -252,6 +253,8 @@ function History({ nso }: { nso: BudgetNsoSnapshot }) {
         </div>
         <p className="text-xs text-tertiary">
           Ерөнхий сайдын нэр нь тухайн онд Засгийн газрыг хэн тэргүүлж байсныг л харуулна. Төсвийг УИХ баталдаг; алдагдал, өсөлтийг нэг хүн эсвэл намд оноосон дүгнэлт биш.
+          {rows.some((y) => yearUnverified(y.year)) &&
+            ` Ерөнхий сайдын жагсаалтыг ${GOVERNMENTS_VERIFIED_THROUGH}-нд шалгасан: түүнээс хойших хугацааг «…» эсвэл «—» гэж тэмдэглэв.`}
         </p>
       </Section>
     </>

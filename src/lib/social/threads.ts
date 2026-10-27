@@ -6,7 +6,7 @@
  * token-state.ts). Texts are capped at 500 characters, emoji counting as their UTF-8 bytes. The
  * token travels as the documented `access_token` parameter and never appears in an error message.
  */
-import { editionLabel } from "@/lib/edition";
+import { editionLabel, ruleBasedNote } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { PRODUCTION_URL } from "@/lib/site";
 
@@ -50,7 +50,8 @@ export function threadsDigestPost(d: DigestForPost, site = PRODUCTION_URL): Thre
   const link = `${site}/digest`;
   const top = d.items[0];
   const head = `🗞 ${editionLabel(d)}\n\n⚡ ${cut(top?.headline ?? d.title, 180)}`;
-  const tail = `\n\nБүх ${d.items.length} мэдээ 👉 ${link}\n${hashtags("threads")}`;
+  // Threads counts bytes (500): the short form of the rule-based note.
+  const tail = `${ruleBasedNote(d) ? "\n\nℹ️ AI редакторгүй, дүрмээр эрэмбэлсэн." : ""}\n\nБүх ${d.items.length} мэдээ 👉 ${link}\n${hashtags("threads")}`;
   const room = THREADS_MAX - threadsLength(head + tail + "\n👉 ");
   const why = top?.whyItMatters && room > 40 ? `\n👉 ${cut(top.whyItMatters, room)}` : "";
   return { text: cut(head + why + tail, THREADS_MAX), link, imageUrl: `${site}/ig-image?d=${d.id}` };

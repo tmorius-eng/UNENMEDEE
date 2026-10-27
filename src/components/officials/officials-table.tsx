@@ -45,10 +45,13 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
     return sort === "name" ? [...list].sort((a, b) => a.fullName.localeCompare(b.fullName, "mn")) : [...list].sort((a, b) => key(b) - key(a));
   }, [people, party, sort]);
   const max = useMemo(() => Math.max(0, ...rows.map((p) => p.latestAssets ?? 0)), [rows]);
+  // The newest filing year in the list. Members whose newest filing is older are labelled with
+  // their own year, so a 2024 figure is never read as 2025.
   const years = useMemo(() => {
     const latest = Math.max(0, ...rows.map((p) => p.latestYear ?? 0));
-    return latest ? { latest, previous: latest - 1 } : null;
+    return latest ? { latest, mixed: rows.some((p) => p.latestYear !== null && p.latestYear !== latest) } : null;
   }, [rows]);
+  const money = (v: number | null) => (v === null ? "—" : formatMntShort(v));
 
   const chip = (active: boolean) =>
     cx("label-mono shrink-0 cursor-pointer rounded-full px-3 py-1.5 ring-1 ring-inset transition", active ? "bg-ink text-bg-primary ring-transparent" : "text-secondary ring-line hover:bg-primary_hover");
@@ -79,9 +82,9 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
         <div className="label-mono hidden grid-cols-[40px_1.6fr_1fr_1fr_0.8fr] gap-x-3 border-b border-line py-2 text-tertiary xl:grid">
           <span />
           <span>Гишүүн</span>
-          <span className="text-right">Хөрөнгө{years ? ` ${years.latest}` : ""}</span>
-          <span className="text-right">Орлого{years ? ` ${years.latest}` : ""}</span>
-          <span className="text-right">Өөрчлөлт{years ? ` ${years.previous}→${years.latest}` : ""}</span>
+          <span className="text-right">Хөрөнгө{years && !years.mixed ? ` ${years.latest}` : " (сүүлийн мэдүүлэг)"}</span>
+          <span className="text-right">Орлого{years && !years.mixed ? ` ${years.latest}` : ""}</span>
+          <span className="text-right">Өөрчлөлт</span>
         </div>
         <ul className="divide-y divide-line-soft">
           {rows.map((p) => {
@@ -111,7 +114,8 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
                     <>
                       <span className="flex min-w-[6.5rem] flex-col items-end gap-1">
                         <span className="num-mono text-md text-primary">
-                          {formatMntShort(p.latestAssets ?? 0)}
+                          {money(p.latestAssets)}
+                          {years?.mixed && p.latestYear !== years.latest && <span className="label-mono ml-1.5 text-tertiary">{p.latestYear}</span>}
                         </span>
                         <span className="block h-[3px] w-full bg-line-soft" aria-hidden>
                           <span className={cx("block h-full", p.latestSuspect ? "bg-fg-quaternary/50" : "bg-brand-solid/75")} style={{ width }} />
@@ -119,7 +123,7 @@ export function OfficialsTable({ people }: { people: PoliticianSummary[] }) {
                       </span>
                       <span className="label-mono col-start-2 text-right normal-case text-secondary xl:col-start-auto">
                         <span className="xl:hidden">орлого </span>
-                        <span className="num-mono text-sm">{formatMntShort(p.latestIncome ?? 0)}</span>
+                        <span className="num-mono text-sm">{money(p.latestIncome)}</span>
                       </span>
                       <span className="label-mono text-right normal-case text-tertiary" title={p.previousYear ? `${p.previousYear}→${p.latestYear}` : undefined}>
                         {changeLabel(c, p)}
