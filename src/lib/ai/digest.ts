@@ -9,6 +9,7 @@ import type { BudgetGuard } from "./limits";
 import { digestMessages, type DigestCandidate } from "./prompts";
 import { AIUnavailableError, callAIWithFallback, chainFor, type UsageLogger } from "./router";
 import { DigestSchema } from "./schemas";
+import { DIGEST_WINDOWS } from "@/lib/edition";
 
 /**
  * AI news digest: picks the most nationally important stories of a period and writes a
@@ -60,11 +61,8 @@ export interface DigestPlan {
 
 /** A 12h edition needs at least this many stories; with fewer it widens to 24 h, then skips. */
 export const MIN_DIGEST_STORIES = 5;
-/** Ulaanbaatar hours [from, to) when a scheduled 12h edition may be written (morning, evening). */
-export const DIGEST_WINDOWS: [number, number][] = [
-  [6, 11],
-  [17, 23],
-];
+// Defined in the client-safe edition module so page copy can quote the real hours.
+export { DIGEST_WINDOWS } from "@/lib/edition";
 
 /**
  * Whether a scheduled run should write a 12h edition now: inside a morning or evening window

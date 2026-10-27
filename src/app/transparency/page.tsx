@@ -62,7 +62,7 @@ async function Dashboard() {
   const ledgerRows = [...data.ledger].reverse().map((l) => ({
     month: l.month,
     expenses: l.infraCostUsd + l.aiCostUsd,
-    income: l.adRevenueUsd + l.donationsUsd,
+    income: (l.adRevenueUsd ?? 0) + (l.donationsUsd ?? 0),
   }));
   return (
     <div className="flex flex-col gap-6">
@@ -149,8 +149,8 @@ async function Dashboard() {
                   <td className="py-2 pr-4 font-medium text-primary">{l.month}</td>
                   <td className="py-2 pr-4 text-right text-secondary tabular-nums">{formatUsd(l.infraCostUsd)}</td>
                   <td className="py-2 pr-4 text-right text-secondary tabular-nums">{formatUsd(l.aiCostUsd, 4)}</td>
-                  <td className="py-2 pr-4 text-right text-secondary tabular-nums">{formatUsd(l.adRevenueUsd)}</td>
-                  <td className="py-2 pr-4 text-right text-secondary tabular-nums">{formatUsd(l.donationsUsd)}</td>
+                  <td className="py-2 pr-4 text-right text-secondary tabular-nums">{l.adRevenueUsd === null ? <span className="text-tertiary">бүртгээгүй</span> : formatUsd(l.adRevenueUsd)}</td>
+                  <td className="py-2 pr-4 text-right text-secondary tabular-nums">{l.donationsUsd === null ? <span className="text-tertiary">бүртгээгүй</span> : formatUsd(l.donationsUsd)}</td>
                   <td className="py-2 text-tertiary">{l.notes ?? "—"}</td>
                 </tr>
               ))}

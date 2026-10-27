@@ -99,11 +99,14 @@ export async function saveArticle(_prev: ActionResult | null, formData: FormData
 
 /* ------------------------------------------------------------------ ledger */
 
+/** An empty income field = not entered (null, "бүртгээгүй" on /transparency), never $0. */
+const optionalUsd = z.preprocess((v) => (v === "" || v === undefined || v === null ? null : v), z.coerce.number().min(0).max(1e7).nullable());
+
 const Ledger = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
   infraCostUsd: z.coerce.number().min(0).max(1e6),
-  adRevenueUsd: z.coerce.number().min(0).max(1e7),
-  donationsUsd: z.coerce.number().min(0).max(1e7),
+  adRevenueUsd: optionalUsd,
+  donationsUsd: optionalUsd,
   notes: z.string().max(500).optional(),
 });
 
@@ -115,10 +118,10 @@ export async function saveLedger(_prev: ActionResult | null, formData: FormData)
   const db = getDb();
   await db
     .insert(transparencyLedger)
-    .values({ month: v.month, infraCostUsd: v.infraCostUsd.toFixed(2), adRevenueUsd: v.adRevenueUsd.toFixed(2), donationsUsd: v.donationsUsd.toFixed(2), notes: v.notes || null })
+    .values({ month: v.month, infraCostUsd: v.infraCostUsd.toFixed(2), adRevenueUsd: v.adRevenueUsd?.toFixed(2) ?? null, donationsUsd: v.donationsUsd?.toFixed(2) ?? null, notes: v.notes || null })
     .onConflictDoUpdate({
       target: transparencyLedger.month,
-      set: { infraCostUsd: v.infraCostUsd.toFixed(2), adRevenueUsd: v.adRevenueUsd.toFixed(2), donationsUsd: v.donationsUsd.toFixed(2), notes: v.notes || null },
+      set: { infraCostUsd: v.infraCostUsd.toFixed(2), adRevenueUsd: v.adRevenueUsd?.toFixed(2) ?? null, donationsUsd: v.donationsUsd?.toFixed(2) ?? null, notes: v.notes || null },
     });
   await syncLedgerAiCost(db, v.month);
   updateTag("ledger");

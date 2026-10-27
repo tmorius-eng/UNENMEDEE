@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 
 import { formatMntShort, formatNumber } from "@/lib/format";
-import { type BudgetShare, looksLikeSalary, payrollFromInputs, payrollParts, PIT_RATE, SI_RATE, taxReceipt } from "@/lib/tax/receipt";
+import { type BudgetShare, looksLikeSalary, payrollFromInputs, payrollParts, PIT_RATE, RATES_CHECKED, SI_RATE, taxReceipt } from "@/lib/tax/receipt";
 
 const toNumber = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
 const pct = (x: number) => `${(x * 100).toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
@@ -50,7 +50,7 @@ export function TaxReceiptCalculator({ shares, year }: { shares: BudgetShare[]; 
             hint={
               parts.total > 0 ? (
                 <>
-                  ≈ НДШ {formatNumber(parts.si)} + ХХОАТ {formatNumber(parts.pit)} = <strong className="font-semibold text-secondary">{formatNumber(parts.total)} ₮</strong> сард суутгагдана (НДШ {pct(SI_RATE)}, ХХОАТ {pct(PIT_RATE)} НДШ хассаны дараа).
+                  ≈ НДШ {formatNumber(parts.si)} + ХХОАТ {formatNumber(parts.pit)} = <strong className="font-semibold text-secondary">{formatNumber(parts.total)} ₮</strong> сард суутгагдана (НДШ {pct(SI_RATE)}, ХХОАТ {pct(PIT_RATE)} НДШ хассаны дараа; хувь хэмжээг {RATES_CHECKED}-нд шалгасан).
                 </>
               ) : (
                 "Цалингүй бол хоосон орхи. Хөнгөлөлт, 2026 оны өөрчлөлтийг тооцоогүй тул ойролцоо."

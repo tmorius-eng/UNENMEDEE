@@ -7,6 +7,7 @@ import { DIGEST_SYSTEM, TIER1_MAX_CHARS, TIER1_SYSTEM, TIER2_MAX_CHARS, TIER2_SY
 import { CHANGED_BELOW, GONE_CHECKS, GONE_MIN_DAYS } from "@/lib/scraper/recheck";
 import { FEED_MIN_IMPORTANCE } from "@/lib/seo";
 import { REPO_URL, repoFile } from "@/lib/site";
+import { RISK_FLAG_THRESHOLD } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Арга зүй: AI яаж ажилладаг, эрсдэлийн оноо гэж юу вэ",
@@ -30,7 +31,7 @@ const STEPS = [
   },
   {
     title: "4. Гүнзгий шинжилнэ",
-    text: `Эрсдэлийн оноо 65 ба түүнээс дээш бол ${TIER2_MAX_CHARS.toLocaleString("en-US")} тэмдэгт хүртэлх текстийг илүү хүчтэй загварт өгч, иргэд асуух ёстой асуултуудыг бичүүлнэ.`,
+    text: `Эрсдэлийн оноо ${RISK_FLAG_THRESHOLD} ба түүнээс дээш бол ${TIER2_MAX_CHARS.toLocaleString("en-US")} тэмдэгт хүртэлх текстийг илүү хүчтэй загварт өгч, иргэд асуух ёстой асуултуудыг бичүүлнэ.`,
   },
   {
     title: "5. Тайлагнана",
@@ -105,7 +106,7 @@ export default function MethodPage() {
           </li>
           <li>Оноо нь хэнийг ч буруутгаж байгаа хэрэг биш. Энэ мэдээг илүү анхааралтай унших, эх сурвалжаас нь тулгаж шалгах дохио юм.</li>
           <li>
-            65-аас дээш оноог &quot;өндөр&quot; гэж тэмдэглэх босгыг AI биш, манай код тогтоодог. AI-д хүнийг гэмт хэрэгт буруутгахыг хориглосон.
+            {RISK_FLAG_THRESHOLD}-аас дээш оноог &quot;өндөр&quot; гэж тэмдэглэх босгыг AI биш, манай код тогтоодог. AI-д хүнийг гэмт хэрэгт буруутгахыг хориглосон.
           </li>
           <li>
             Шийдвэр гаргахын өмнө мэдээ бүрийн доорх <strong>&quot;Эх сурвалж руу очих&quot;</strong> холбоосоор албан ёсны эх текстийг уншаарай.
@@ -124,7 +125,7 @@ export default function MethodPage() {
           </a>
         </p>
         <Prompt id="prompt-tier1" title="Хураангуй, баримт, эрсдэлийн оноо (мэдээ бүрт)" text={TIER1_SYSTEM} />
-        <Prompt id="prompt-tier2" title="Гүнзгий шинжилгээ (оноо 65+)" text={TIER2_SYSTEM} />
+        <Prompt id="prompt-tier2" title={`Гүнзгий шинжилгээ (оноо ${RISK_FLAG_THRESHOLD}+)`} text={TIER2_SYSTEM} />
         <Prompt id="prompt-digest" title="Онцлох тойм (өдөрт 2 удаа)" text={DIGEST_SYSTEM} />
       </section>
 

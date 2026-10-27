@@ -2,7 +2,8 @@
  * Budget and public-money data for /budget, stored as small snapshots (indicator_snapshots):
  *   budget_nso        NSO/MoF: revenue, expenditure, balance since 1990; spending split;
  *                     revenue by tax type; government debt  (data.1212.mn)
- *   shilendans        this year's largest payees and spending categories (Шилэн данс)
+ *   shilendans        this year's largest payees and spending categories (Шилэн данс; last year in Jan–Feb)
+ *   population        NSO's newest resident population (the watchdog compares it with POPULATION)
  *   worldbank_tax     tax revenue, % of GDP (World Bank)
  *   audit_opinions    latest adverse / disclaimer / qualified audit opinions (audit.mn)
  *   soe_finance       state-owned companies' revenue, expenses, profit, wage fund, staff (Шилэн данс)
@@ -17,6 +18,7 @@ import { closeDb, getDb, hasDatabase } from "@/db";
 import { indicatorSnapshots } from "@/db/schema";
 import { fetchAuditOpinions } from "@/lib/budget/audit";
 import { budgetHistory, type BudgetNsoSnapshot, fetchTable, governmentDebt, NSO_TABLES, revenueByType, spendingBreakdown } from "@/lib/budget/nso";
+import { fetchPopulation } from "@/lib/budget/population";
 import { fetchShilendans } from "@/lib/budget/shilendans";
 import { fetchSoeSnapshot } from "@/lib/soe/shilendans";
 import { fetchTaxShare } from "@/lib/budget/worldbank";
@@ -42,6 +44,13 @@ const JOBS: { key: string; run: () => Promise<{ data: unknown; asOf: string | nu
     run: async () => {
       const data = await fetchShilendans();
       return { data, asOf: data.to, summary: `${data.topPayees.length} payees, ${data.categories.length} categories (${data.from}…${data.to})` };
+    },
+  },
+  {
+    key: "population",
+    run: async () => {
+      const data = await fetchPopulation();
+      return { data, asOf: String(data.year), summary: `${data.year}: ${data.count} residents` };
     },
   },
   {

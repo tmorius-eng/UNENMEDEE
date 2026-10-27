@@ -216,8 +216,9 @@ export const transparencyLedger = pgTable("transparency_ledger", {
   month: varchar("month", { length: 7 }).notNull().unique(),
   infraCostUsd: numeric("infra_cost_usd", { precision: 10, scale: 2 }).notNull().default("0"),
   aiCostUsd: numeric("ai_cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
-  adRevenueUsd: numeric("ad_revenue_usd", { precision: 10, scale: 2 }).notNull().default("0"),
-  donationsUsd: numeric("donations_usd", { precision: 10, scale: 2 }).notNull().default("0"),
+  /** null = not entered for that month ("бүртгээгүй"), never shown as $0 income. */
+  adRevenueUsd: numeric("ad_revenue_usd", { precision: 10, scale: 2 }),
+  donationsUsd: numeric("donations_usd", { precision: 10, scale: 2 }),
   notes: text("notes"),
 });
 

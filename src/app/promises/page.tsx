@@ -3,10 +3,12 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
-import { GOVERNMENTS } from "@/lib/budget/governments";
+import { cacheLife } from "next/cache";
+
+import { GOVERNMENTS_VERIFIED_THROUGH, governmentsBetween } from "@/lib/budget/governments";
 import { formatDateMn } from "@/lib/format";
 import { ALL_GOALS, MEASURABLE_GOALS, PROGRAMME } from "@/lib/promises";
-import { directionGoals, directionSlug } from "@/lib/promises/programme";
+import { directionGoals, directionSlug, PROGRAMME_END } from "@/lib/promises/programme";
 import { absoluteUrl, jsonLd, SITE_NAME } from "@/lib/site";
 
 const TITLE = "Засгийн газрын амлалт: 2024–2028 оны хөтөлбөрийн 620 зорилт";
@@ -19,9 +21,14 @@ export const metadata: Metadata = {
   openGraph: { title: TITLE, description: DESCRIPTION, url: "/promises" },
 };
 
-/** Prime Ministers who have led the government since the programme was approved (labels only). */
-function governmentsSince(date: string) {
-  return GOVERNMENTS.filter((g) => g.to === null || g.to > date);
+/**
+ * Whether the programme's term has ended, from a daily cached clock: the page stays static, and
+ * after PROGRAMME_END it stops presenting the 2024–2028 programme as the current one.
+ */
+async function programmeEnded(): Promise<boolean> {
+  "use cache";
+  cacheLife("days");
+  return new Date().toISOString().slice(0, 10) >= PROGRAMME_END;
 }
 
 function Facts() {
@@ -83,15 +90,17 @@ function PromisesJsonLd() {
   );
 }
 
-export default function PromisesPage() {
-  const pms = governmentsSince(PROGRAMME.approved);
+export default async function PromisesPage() {
+  // Prime Ministers since approval, as far as the list was last checked (labels only).
+  const pms = governmentsBetween(PROGRAMME.approved, PROGRAMME_END);
+  const ended = await programmeEnded();
   return (
     // PageHeader brings its own bottom padding, so only the blocks after it are spaced by the gap.
     <div className="mx-auto flex max-w-3xl flex-col">
       <PromisesJsonLd />
       <PageHeader
-        eyebrow="📜 Амлалт"
-        title="Засгийн газар юу хийнэ гэж амласан бэ?"
+        eyebrow={ended ? "📜 Амлалт · өмнөх хөтөлбөр" : "📜 Амлалт"}
+        title={ended ? "2024–2028 онд Засгийн газар юу хийнэ гэж амласан бэ?" : "Засгийн газар юу хийнэ гэж амласан бэ?"}
         description={
           <>
             {PROGRAMME.title}: {PROGRAMME.act} (
@@ -105,6 +114,11 @@ export default function PromisesPage() {
       </PageHeader>
 
       <div className="flex flex-col gap-8">
+        {ended && (
+          <p className="rounded-2xl bg-secondary p-4 text-sm text-secondary ring-1 ring-line ring-inset">
+            Энэ хөтөлбөрийн хугацаа ({PROGRAMME_END.slice(0, 4)} оны УИХ-ын сонгуулиар) дууссан. Шинэ Засгийн газрын хөтөлбөр батлагдсаны дараа энд нэмэгдэнэ.
+          </p>
+        )}
         <Facts />
 
         <aside className="flex flex-col gap-2 rounded-2xl bg-secondary p-4 text-sm text-secondary ring-1 ring-line ring-inset">
@@ -118,7 +132,8 @@ export default function PromisesPage() {
           </p>
           <p>
             Хөтөлбөр батлагдсанаас хойш Засгийн газрыг{" "}
-            {pms.map((g) => g.pm).join(", ")} тэргүүлсэн. Хөтөлбөрт өөрчлөлт
+            {pms.map((g) => g.pm).join(", ")} тэргүүлсэн (жагсаалтыг{" "}
+            {formatDateMn(new Date(`${GOVERNMENTS_VERIFIED_THROUGH}T00:00:00+08:00`))}-нд шалгасан). Хөтөлбөрт өөрчлөлт
             орсон эсэхийг{" "}
             <a
               href={PROGRAMME.sourceUrl}

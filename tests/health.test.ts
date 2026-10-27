@@ -26,7 +26,8 @@ function healthy(): HealthSnapshot {
       hoursSinceRecheck: 58,
     },
     officials: { hoursSinceSync: 34, active: 126 },
-    indicators: { mongolbank: 3, budget_nso: 3, shilendans: 3, worldbank_tax: 3, audit_opinions: 3, soe_finance: 3 },
+    indicators: { mongolbank: 3, budget_nso: 3, shilendans: 3, worldbank_tax: 3, audit_opinions: 3, soe_finance: 3, population: 3 },
+    population: { year: 2025, count: 3_425_162 },
     opendataHours: 3,
     social: { facebook: { hoursSinceOk: 9, unknown7d: 0 }, threads: { hoursSinceOk: 9, unknown7d: 0 }, telegram: { hoursSinceOk: null, unknown7d: 0 } },
     tokens: { threads: daysAgo(2), instagram: daysAgo(2) },
@@ -73,6 +74,7 @@ describe("watchdog rules", () => {
       ["places lost their MPs", (s) => (s.officials!.placesWithoutMps = ["Ховд", "Увс"]), /2 аймаг\/дүүргийн хуудсанд.*Ховд, Увс/],
       ["indicator stale", (s) => (s.indicators!.mongolbank = 80), /"mongolbank" 3 хоног/],
       ["indicator missing", (s) => delete s.indicators!.audit_opinions, /"audit_opinions" огт/],
+      ["NSO published a newer population", (s) => (s.population = { year: 2026, count: 3_470_000 }), /ҮСХ 2026 оны хүн амын тоог \(3,470,000\)/],
       ["opendata stale", (s) => (s.opendataHours = 80), /opendata\.mn/],
       ["facebook silent", (s) => (s.social!.facebook!.hoursSinceOk = 80), /^facebook: 80 цаг/],
       ["unknown post", (s) => (s.social!.threads!.unknown7d = 1), /^threads: 1 пост/],
@@ -128,7 +130,8 @@ describe("watchdog rules", () => {
   });
 
   it("dated facts ask for a re-check at the right time", () => {
-    const dated = (iso: string) => evaluateHealth(healthy(), CONFIG, new Date(iso)).filter((l) => /Ерөнхий сайд|хөтөлбөр дууссан|Хүн амын|Татварын/.test(l));
+    // Without NSO's snapshot the population reminder falls back to the calendar.
+    const dated = (iso: string) => evaluateHealth({ ...healthy(), population: null }, CONFIG, new Date(iso)).filter((l) => /Ерөнхий сайд|хөтөлбөр дууссан|Хүн амын|Татварын/.test(l));
     assert.deepEqual(dated("2027-03-31T00:00:00Z"), []);
     // Population of 2025 is published early 2026; asking from April 2027 leaves time for the 2026 figure.
     assert.equal(dated("2027-04-02T00:00:00Z").length, 1);

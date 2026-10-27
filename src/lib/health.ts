@@ -17,6 +17,7 @@ export const INDICATOR_MAX_AGE_H: Record<string, number> = {
   worldbank_tax: 14 * 24,
   audit_opinions: 14 * 24,
   soe_finance: 14 * 24,
+  population: 14 * 24,
 };
 
 export const SOCIAL_PLATFORMS = ["facebook", "threads", "instagram", "telegram", "discord"] as const;
@@ -94,6 +95,8 @@ export interface HealthSnapshot {
   workflows?: WorkflowSnapshot;
   /** Expiry of the bundled intermediate certificate (`certs/*.pem`). */
   bundledCerts?: { file: string; validTo: Date }[];
+  /** NSO's newest population figure (indicator_snapshots `population`). */
+  population?: { year: number; count: number } | null;
 }
 
 export interface HealthConfig {
@@ -198,7 +201,9 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
   const d = config.dated;
   if (daysSince(d.governmentsVerified, now) > 548) out.push(`Ерөнхий сайдын жагсаалтыг ${d.governmentsVerified}-нээс хойш шалгаагүй (src/lib/budget/governments.ts, GOVERNMENTS_VERIFIED_THROUGH).`);
   if (now.getTime() >= new Date(d.programmeEnd).getTime()) out.push(`Засгийн газрын 2024–2028 оны үйл ажиллагааны хөтөлбөр дууссан: шинэ хөтөлбөр батлагдсан бол npm run promises:import.`);
-  if (now.getTime() >= Date.UTC(d.populationYear + 2, 3, 1)) out.push(`Хүн амын тоо ${d.populationYear} оных (src/lib/per-person.ts POPULATION): ҮСХ-ны шинэ тоог оруулах.`);
+  // NSO's own newest figure names the exact update; without it, ask once two years have passed.
+  if (s.population && s.population.year > d.populationYear) out.push(`ҮСХ ${s.population.year} оны хүн амын тоог (${s.population.count.toLocaleString("en-US")}) нийтэлсэн: src/lib/per-person.ts POPULATION-ийг шинэчлэх (одоо ${d.populationYear} оных).`);
+  else if (!s.population && now.getTime() >= Date.UTC(d.populationYear + 2, 3, 1)) out.push(`Хүн амын тоо ${d.populationYear} оных (src/lib/per-person.ts POPULATION): ҮСХ-ны шинэ тоог оруулах.`);
   if (daysSince(d.ratesChecked, now) > 395) out.push(`Татварын хувь хэмжээг ${d.ratesChecked}-нээс хойш шалгаагүй (src/lib/tax/receipt.ts RATES_CHECKED).`);
   return out;
 }

@@ -82,10 +82,11 @@ export const TEST_PAYLOAD: PushPayload = {
   tag: "test",
 };
 
-export function digestPayload(d: { title: string; intro: string; kind: string }): PushPayload {
+export function digestPayload(d: { title: string; intro: string; kind: string; generatedBy?: string }): PushPayload {
   return {
     title: clip(`🗞 ${d.kind === "30d" ? "30 хоногийн тойм" : "Онцлох тойм"}: ${d.title}`, 90),
-    body: clip(d.intro, 160),
+    // A rule-based edition says so first: the body is clipped, the note must survive.
+    body: clip(d.generatedBy === "rule-based" ? `AI редакторгүй, дүрмээр эрэмбэлсэн. ${d.intro}` : d.intro, 160),
     url: "/digest",
     tag: "digest",
   };

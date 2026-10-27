@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { ubDateKey, ubDayBounds } from "@/lib/archive";
+import { activeBlacklist } from "@/lib/opendata-mn/highlights";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
 import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
@@ -748,7 +749,8 @@ export interface TransparencyData {
   /** Paid spend per day (free providers are always $0 and appear in byProvider instead). */
   dailySpend: { day: string; deepseek: number; grok: number }[];
   byProvider: { provider: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number }[];
-  ledger: { month: string; infraCostUsd: number; aiCostUsd: number; adRevenueUsd: number; donationsUsd: number; notes: string | null }[];
+  /** Income null = not entered for that month ("бүртгээгүй"). */
+  ledger: { month: string; infraCostUsd: number; aiCostUsd: number; adRevenueUsd: number | null; donationsUsd: number | null; notes: string | null }[];
   totals: { costUsd: number; calls: number; tokens: number };
 }
 
@@ -807,8 +809,8 @@ export async function getTransparency(): Promise<TransparencyData> {
         month: l.month,
         infraCostUsd: Number(l.infraCostUsd),
         aiCostUsd: Number(l.aiCostUsd),
-        adRevenueUsd: Number(l.adRevenueUsd),
-        donationsUsd: Number(l.donationsUsd),
+        adRevenueUsd: l.adRevenueUsd === null ? null : Number(l.adRevenueUsd),
+        donationsUsd: l.donationsUsd === null ? null : Number(l.donationsUsd),
         notes: l.notes,
       })),
       totals: {
@@ -875,7 +877,11 @@ export async function getOpenDatasets(): Promise<OpenDataset[]> {
   "use cache";
   cacheLife("hours");
   cacheTag("open-data");
-  return safe("getOpenDatasets", [], () => getDb().select().from(openDatasets).orderBy(openDatasets.category, openDatasets.title));
+  return safe("getOpenDatasets", [], async () => {
+    const rows = await getDb().select().from(openDatasets).orderBy(openDatasets.category, openDatasets.title);
+    // Re-checked on every cache refresh (hourly), not only on sync day: an ended ban drops out.
+    return rows.map((r) => (r.highlight ? { ...r, highlight: activeBlacklist(r.highlight) } : r));
+  });
 }
 
 /* ------------------------------------------------------------------ officials */

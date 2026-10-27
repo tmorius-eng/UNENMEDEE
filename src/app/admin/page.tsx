@@ -78,8 +78,8 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin">["
           month={month}
           defaults={{
             infra: Number(ledger?.infraCostUsd ?? 0),
-            ads: Number(ledger?.adRevenueUsd ?? 0),
-            donations: Number(ledger?.donationsUsd ?? 0),
+            ads: ledger?.adRevenueUsd == null ? null : Number(ledger.adRevenueUsd),
+            donations: ledger?.donationsUsd == null ? null : Number(ledger.donationsUsd),
             notes: ledger?.notes ?? "",
           }}
         />
