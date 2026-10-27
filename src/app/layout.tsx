@@ -17,7 +17,10 @@ import "./globals.css";
 const inter = localFont({ src: "../assets/fonts/inter-var.woff2", weight: "100 900", variable: "--font-inter", display: "swap", preload: true });
 // Headlines: Inter Display (the opsz=32 instance, weights 650–850, 40 KB). Numbers and labels:
 // JetBrains Mono 500 (34 KB). Both subset to the same characters as the body font.
-const interDisplay = localFont({ src: "../assets/fonts/inter-display-var.woff2", weight: "650 850", variable: "--font-inter-display", display: "swap", preload: true });
+// "optional", not "swap": a long article headline wrapped to an extra line in the fallback, and the late
+// swap moved everything below it (PageSpeed CLS 0.126 on articles, Oct 2026). Preloaded, so it is
+// usually in time; when it is not, that page keeps the fallback and the next page has it from cache.
+const interDisplay = localFont({ src: "../assets/fonts/inter-display-var.woff2", weight: "650 850", variable: "--font-inter-display", display: "optional", preload: true });
 const mono = localFont({ src: "../assets/fonts/jetbrains-mono-500.woff2", weight: "500", variable: "--font-jb-mono", display: "swap", preload: true });
 
 const verification: Metadata["verification"] = {
