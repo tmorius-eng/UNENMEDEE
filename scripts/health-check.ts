@@ -25,6 +25,7 @@ import { budgetConfig } from "@/lib/ai/limits";
 import { GOVERNMENTS_VERIFIED_THROUGH } from "@/lib/budget/governments";
 import { type CoreSnapshot, evaluateHealth, type HealthConfig, type HealthSnapshot, type NetworkSnapshot, SOCIAL_PLATFORMS, type SocialPlatform, type SocialSnapshot, type WorkflowSnapshot } from "@/lib/health";
 import { POPULATION } from "@/lib/per-person";
+import { PLACES, placeMatchesConstituency } from "@/lib/places";
 import { PROGRAMME_END } from "@/lib/promises/programme";
 import { PRODUCTION_URL } from "@/lib/site";
 import { RATES_CHECKED } from "@/lib/tax/receipt";
@@ -78,7 +79,9 @@ async function core(): Promise<CoreSnapshot> {
 
 async function officials() {
   const [r] = await rows(sql`select extract(epoch from now() - max(updated_at)) / 3600 as h, (count(*) filter (where is_active))::int as active from politicians`);
-  return { hoursSinceSync: num(r.h), active: Number(r.active) };
+  const constituencies = (await rows(sql`select distinct constituency from politicians where is_active and constituency is not null`)).map((x) => String(x.constituency));
+  const placesWithoutMps = PLACES.filter((p) => p.kind !== "capital" && !constituencies.some((c) => placeMatchesConstituency(p, c))).map((p) => p.name);
+  return { hoursSinceSync: num(r.h), active: Number(r.active), placesWithoutMps };
 }
 
 async function indicators() {

@@ -11,7 +11,8 @@ import { TimeAgo } from "@/components/iltod/time-ago";
 import type { AssetDeclaration } from "@/db/schema";
 import { formatMntShort, formatNumber } from "@/lib/format";
 import { declarationFlags } from "@/lib/officials/flags";
-import { PLACES } from "@/lib/places";
+import { termLabel, termOf } from "@/lib/officials/terms";
+import { PLACES, placeMatchesConstituency } from "@/lib/places";
 import { getAttendance, getPolitician, getPoliticianIds } from "@/lib/queries";
 import { jsonLd, parseRouteId } from "@/lib/site";
 import { breadcrumbLd, personLd } from "@/lib/structured-data";
@@ -53,8 +54,11 @@ function money(v: unknown): string {
   return typeof v === "number" ? formatMntShort(v) : "—";
 }
 
-/** Plenary attendance from opendata.mn, matched by short name ("Х.Баттулга"). */
-async function Attendance({ shortName, nameShared }: { shortName: string; nameShared: boolean }) {
+/**
+ * Plenary attendance from opendata.mn, matched by short name ("Х.Баттулга") within the member's
+ * own parliamentary term (`termOf`): a former member with the same short name is another row.
+ */
+async function Attendance({ shortName, nameShared, termStart }: { shortName: string; nameShared: boolean; termStart: string | null }) {
   if (nameShared) {
     return (
       <p className="rounded-2xl bg-secondary p-4 text-sm text-secondary">
@@ -63,7 +67,10 @@ async function Attendance({ shortName, nameShared }: { shortName: string; nameSh
     );
   }
   const data = await getAttendance();
-  const m = data?.highlight.top.find((x) => x.name === shortName);
+  const rowsForName = data?.highlight.top.filter((x) => x.name === shortName) ?? [];
+  const term = termStart ? termOf(termStart) : null;
+  // Older snapshots have no term; without a known term the newest one is the member's current seat.
+  const m = rowsForName.find((x) => x.term === undefined || x.term === term) ?? (term === null ? [...rowsForName].sort((a, b) => (b.term ?? 0) - (a.term ?? 0))[0] : undefined);
   if (!data || !m) return null;
   const { highlight: h } = data;
   const parts = [
@@ -80,7 +87,8 @@ async function Attendance({ shortName, nameShared }: { shortName: string; nameSh
           🏛 Нэгдсэн хуралдааны ирц
         </h2>
         <p className="text-xs text-tertiary">
-          {h.from} – {h.to}, {m.records} хуралдаан. Эх сурвалж:{" "}
+          {m.term !== undefined ? `${termLabel(m.term)} оны парламент, ` : ""}
+          {m.from ?? h.from} – {m.to ?? h.to}, {m.records} хуралдаан. Эх сурвалж:{" "}
           <a href={data.pageUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-secondary hover:underline">
             opendata.mn
           </a>
@@ -109,12 +117,14 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
   if (!id) notFound();
   const data = await getPolitician(id);
   if (!data) notFound();
-  const { politician: p, declarations: rows, hiddenYears, mentions, nameShared } = data;
-  const flags = declarationFlags(rows, hiddenYears);
+  const { politician: p, declarations: rows, hiddenYears, mentions, nameShared, nameSharedNow } = data;
+  // Only years the member held this seat can have a "missing" filing.
+  const seatFrom = p.termStart ? Number(p.termStart.slice(0, 4)) : null;
+  const flags = declarationFlags(rows, hiddenYears, seatFrom ? { from: seatFrom, to: p.termEnd ? Number(p.termEnd.slice(0, 4)) : null } : undefined);
   const latest = rows.at(-1);
 
-  // The constituency's aimags / districts link to their news pages (the whole string must match).
-  const places = p.constituency ? PLACES.filter((pl) => pl.constituency === p.constituency) : [];
+  // The constituency's aimags / districts link to their news pages (matched by the areas it lists).
+  const places = PLACES.filter((pl) => pl.kind !== "capital" && placeMatchesConstituency(pl, p.constituency));
   const ld = { "@context": "https://schema.org", "@graph": [personLd(p), breadcrumbLd([{ name: "УИХ-ын гишүүд", path: "/officials" }, { name: p.shortName, path: `/officials/${p.id}` }])] };
 
   return (
@@ -166,7 +176,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
         цалин г.м.) эх мэдүүлгээс шалгана уу.
       </p>
 
-      <Attendance shortName={p.shortName} nameShared={nameShared} />
+      <Attendance shortName={p.shortName} nameShared={nameSharedNow} termStart={p.termStart} />
 
       {hiddenYears.length > 0 && (
         <p className="rounded-2xl bg-secondary p-4 text-sm text-secondary">
@@ -277,7 +287,9 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
             ))}
           </ul>
         ) : nameShared ? (
-          <p className="text-sm text-tertiary">Энэ нэртэй ({p.shortName}) гишүүн хоёр байгаа тул мэдээн дэх дурдлагыг хэнийх нь гэж ялгах боломжгүй: харуулаагүй.</p>
+          <p className="text-sm text-tertiary">
+            {p.shortName} гэсэн товч нэртэй өөр гишүүн {nameSharedNow ? "одоогийн парламентад" : "өмнөх парламентад"} байсан тул мэдээн дэх дурдлагыг хэнийх нь гэж ялгах боломжгүй: харуулаагүй.
+          </p>
         ) : (
           <p className="text-sm text-tertiary">Төрийн эх сурвалжуудын мэдээнд {p.shortName} одоогоор дурдагдаагүй байна.</p>
         )}

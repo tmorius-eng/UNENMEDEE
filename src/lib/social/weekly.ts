@@ -71,8 +71,9 @@ export function biggestAmount<T extends { amounts: string[] }>(rows: T[]): (T & 
 }
 
 /** The active MP named in the most stories (exact short-name matches, shared names left out), at least 2. */
-export function mostNamed(people: string[][], politicians: { id: number; shortName: string }[], shared: Set<string>): WeeklyTop["mostNamed"] {
-  const byName = new Map(politicians.filter((p) => !shared.has(p.shortName)).map((p) => [p.shortName, p.id]));
+/** `politicians`: every member, inactive ones included; only active members can be named (`isActive`). */
+export function mostNamed(people: string[][], politicians: { id: number; shortName: string; isActive?: boolean }[], shared: Set<string>): WeeklyTop["mostNamed"] {
+  const byName = new Map(politicians.filter((p) => p.isActive !== false && !shared.has(p.shortName)).map((p) => [p.shortName, p.id]));
   const counts = new Map<string, number>();
   for (const names of people) for (const n of new Set(names)) if (byName.has(n)) counts.set(n, (counts.get(n) ?? 0) + 1);
   const [name, stories] = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];

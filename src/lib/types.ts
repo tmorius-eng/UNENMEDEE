@@ -94,5 +94,6 @@ export type DatasetHighlight =
       to: string;
       members: number;
       records: number;
-      top: { name: string; records: number; present: number; travel: number; medical: number; leave: number; unexplained: number }[];
+      /** One row per member and parliamentary term (`term` = its start year; older snapshots lack it). */
+      top: { name: string; term?: number; from?: string; to?: string; records: number; present: number; travel: number; medical: number; leave: number; unexplained: number }[];
     };

@@ -70,6 +70,7 @@ describe("watchdog rules", () => {
       ["re-check stopped", (s) => (s.core!.hoursSinceRecheck = 10 * 24), /дахин шалгалт 10 хоног/],
       ["officials stale", (s) => (s.officials!.hoursSinceSync = 10 * 24), /10 хоног шинэчлэгдээгүй/],
       ["officials retired", (s) => (s.officials!.active = 20), /Идэвхтэй УИХ-ын гишүүн 20/],
+      ["places lost their MPs", (s) => (s.officials!.placesWithoutMps = ["Ховд", "Увс"]), /2 аймаг\/дүүргийн хуудсанд.*Ховд, Увс/],
       ["indicator stale", (s) => (s.indicators!.mongolbank = 80), /"mongolbank" 3 хоног/],
       ["indicator missing", (s) => delete s.indicators!.audit_opinions, /"audit_opinions" огт/],
       ["opendata stale", (s) => (s.opendataHours = 80), /opendata\.mn/],

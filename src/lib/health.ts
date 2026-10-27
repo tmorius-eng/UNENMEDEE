@@ -51,6 +51,8 @@ export interface CoreSnapshot {
 export interface OfficialsSnapshot {
   hoursSinceSync: number | null;
   active: number;
+  /** Aimags / districts no active MP's constituency covers (`placeMatchesConstituency`). */
+  placesWithoutMps?: string[];
 }
 
 export interface SocialSnapshot {
@@ -143,6 +145,7 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
   if (o) {
     if (olderThan(o.hoursSinceSync, 9 * 24)) out.push(`УИХ-ын гишүүдийн мэдээлэл ${o.hoursSinceSync === null ? "хэзээ ч" : `${Math.round(o.hoursSinceSync / 24)} хоног`} шинэчлэгдээгүй (officials-sync workflow).`);
     if (o.active < 100) out.push(`Идэвхтэй УИХ-ын гишүүн ${o.active} байна (126 байх ёстой): сонгуулийн дараах эсвэл parliament.mn-ийн дутуу хариу. /officials-ыг шалгах.`);
+    else if (o.placesWithoutMps?.length) out.push(`${o.placesWithoutMps.length} аймаг/дүүргийн хуудсанд УИХ-ын гишүүн харагдахгүй байна (${o.placesWithoutMps.slice(0, 5).join(", ")}): тойргийн нэр өөрчлөгдсөн бол src/lib/places.ts-ийг шалгах.`);
   }
 
   if (s.indicators) {
