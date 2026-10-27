@@ -67,7 +67,7 @@ describe("opendata.mn highlights", () => {
     ]);
     assert.ok(h?.kind === "attendance");
     assert.equal(h.sessions, 2);
-    assert.deepEqual(h.top[0], { name: "Б", records: 2, present: 0, travel: 0, medical: 1, leave: 0, unexplained: 1 });
+    assert.deepEqual(h.top[0], { name: "Б", term: 2024, from: "2025-01-01", to: "2025-01-02", records: 2, present: 0, travel: 0, medical: 1, leave: 0, unexplained: 1 });
   });
 
   it("formats large MNT amounts in words", () => {

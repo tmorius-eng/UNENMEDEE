@@ -15,6 +15,7 @@ import { jsonLd } from "@/lib/site";
 import { breadcrumbLd, datasetLd } from "@/lib/structured-data";
 import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 import { cx } from "@/utils/cx";
+import { termLabel } from "@/lib/officials/terms";
 
 export const metadata: Metadata = {
   title: "Валютын ханш, инфляц, бодлогын хүү — нээлттэй өгөгдөл",
@@ -201,7 +202,8 @@ function Attendance({ d, h }: { d: OpenDataset; h: Highlight<"attendance"> }) {
       <Table
         caption="УИХ-ын гишүүдийн ирц"
         head={["Гишүүн", "Ирсэн", "Томилолт", "Эмнэлэг", "Чөлөө", "Шалтгаан бүртгэгдээгүй"]}
-        rows={h.top.slice(0, 20).map((m) => [m.name, `${m.present}/${m.records}`, m.travel, m.medical, m.leave, m.unexplained])}
+        // One row per member and term: a re-elected member, or a namesake from another parliament, is a separate row.
+        rows={h.top.slice(0, 20).map((m) => [new Set(h.top.map((x) => x.term)).size > 1 && m.term !== undefined ? `${m.name} (${termLabel(m.term)})` : m.name, `${m.present}/${m.records}`, m.travel, m.medical, m.leave, m.unexplained])}
         numeric={[1, 2, 3, 4, 5]}
       />
     </Panel>

@@ -22,7 +22,7 @@ import { archiveDateLabel, ubDateKey } from "@/lib/archive";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { placeGenitive, placeOfDomain } from "@/lib/places";
 import { linkPeople } from "@/lib/officials/links";
-import { type ArticleDetail, type FeedFilter, getArticleBySlug, getCluster, getPoliticians, getRecentSlugs, getTopicNeighbours } from "@/lib/queries";
+import { type ArticleDetail, type FeedFilter, getArticleBySlug, getCluster, getPoliticianNames, getRecentSlugs, getTopicNeighbours } from "@/lib/queries";
 import { isThinArticle } from "@/lib/seo";
 import { absoluteUrl, jsonLd, safeHttpUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import { topicFor } from "@/lib/topics";
@@ -165,7 +165,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
   const place = article.sourceCategory === "local" ? placeOfDomain(article.sourceDomain) : undefined;
   const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
   // Named people link to their MP profile when the short name is one active member's.
-  const people = article.entities.people.length ? linkPeople(article.entities.people, await getPoliticians()) : [];
+  const people = article.entities.people.length ? linkPeople(article.entities.people, await getPoliticianNames()) : [];
 
   const dateUnknown = article.scrapeMeta?.date_unknown === true;
   const day = !dateUnknown && article.publishedAt ? ubDateKey(new Date(article.publishedAt).getTime()) : null;

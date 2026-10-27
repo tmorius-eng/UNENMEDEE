@@ -54,8 +54,10 @@ export function suspectUnitYears(rows: { year: number; totalAssets: number | nul
 /**
  * Neutral markers for a member's yearly filings. `hiddenYears` are years an editor took out of the
  * comparison: they were published, so a gap there is not a missing filing (saying so would be false).
+ * `term` (the member's seat, by year) limits "not published" to years they held it: a member
+ * re-elected after years out of parliament owed parliament no filing for those years.
  */
-export function declarationFlags(rows: DeclarationLike[], hiddenYears: number[] = []): Flag[] {
+export function declarationFlags(rows: DeclarationLike[], hiddenYears: number[] = [], term?: { from: number; to: number | null }): Flag[] {
   const sorted = [...rows].sort((a, b) => a.year - b.year);
   const suspect = new Set(suspectUnitYears(sorted));
   const flags: Flag[] = [];
@@ -81,6 +83,7 @@ export function declarationFlags(rows: DeclarationLike[], hiddenYears: number[] 
   for (let i = 1; i < sorted.length; i++) {
     // Every year of a gap (2020 → 2023 is 2021 and 2022), except the hidden ones.
     for (let y = sorted[i - 1].year + 1; y < sorted[i].year; y++) {
+      if (term && (y < term.from || (term.to !== null && y > term.to))) continue;
       if (!hidden.has(y)) flags.push({ year: y, kind: "missing_year", text: `${y} оны мэдүүлэг нийтлэгдээгүй байна.` });
     }
   }
@@ -100,6 +103,17 @@ export function declarationFlags(rows: DeclarationLike[], hiddenYears: number[] 
     }
   }
   return flags.sort((a, b) => b.year - a.year);
+}
+
+/**
+ * Members a short name in the news may be attributed to: active members whose short name no other
+ * member shares, current OR former. Pass every politician (inactive ones included): after an
+ * election a new "Б.Бат" must not inherit news, alerts or links about a former "Б.Бат", who may
+ * still be in the news as a minister or governor. A member without `isActive` counts as active.
+ */
+export function attributable<T extends { shortName: string; isActive?: boolean }>(people: T[]): T[] {
+  const shared = sharedShortNames(people);
+  return people.filter((p) => p.isActive !== false && !shared.has(p.shortName));
 }
 
 /** Short names ("Д.Цогтбаатар") that more than one of these people share: nothing can be matched by name alone. */

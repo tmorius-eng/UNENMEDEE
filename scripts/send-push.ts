@@ -90,7 +90,8 @@ async function sendMentionAlerts(dryRun: boolean) {
     .limit(200);
   if (!rows.length) return;
   const [pols, subs] = await Promise.all([
-    db.select({ id: politicians.id, shortName: politicians.shortName }).from(politicians).where(eq(politicians.isActive, true)),
+    // Every member, former ones included: a short name shared across terms is never attributed.
+    db.select({ id: politicians.id, shortName: politicians.shortName, isActive: politicians.isActive }).from(politicians),
     db.select({ endpoint: pushSubscriptions.endpoint, follows: pushSubscriptions.followPoliticians }).from(pushSubscriptions).where(sql`cardinality(${pushSubscriptions.followPoliticians}) > 0`),
   ]);
   const alerts = mentionAlerts(rows, pols, subs);

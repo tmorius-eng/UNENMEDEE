@@ -6,6 +6,8 @@
  *
  * Members missing from the current roster are marked is_active = false (never deleted), so
  * after an election the new parliament simply appears. Only official numbers are stored.
+ * A short or broken answer never retires members (`mayRetire`), and a field the API did not give
+ * (term, constituency) keeps its stored value instead of becoming empty.
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -14,6 +16,7 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { assetDeclarations, politicians } from "@/db/schema";
+import { detailsDegraded, mayRetire } from "@/lib/officials/roster-guard";
 import { fetchMember, fetchRoster, type MemberInfo } from "@/lib/officials/parliament";
 import { fetchDeclarations, searchXacxomId, xacxomPageUrl, type Declaration } from "@/lib/officials/xacxom";
 
@@ -41,10 +44,12 @@ async function main() {
   const pending: Promise<void>[] = [];
   let ok = 0;
   let failed = 0;
+  let withoutElection = 0;
   for (const base of list) {
     let member: MemberInfo;
     try {
       member = await fetchMember(base);
+      if (!member.electionKnown) withoutElection++;
     } catch (err) {
       failed++;
       console.error(`  ✗ ${base.fullName}: ${err instanceof Error ? err.message : err}`);
@@ -73,13 +78,31 @@ async function main() {
 
   if (!dryRun && !values.limit && roster.length > 0) {
     // Only a full, successful roster read may retire members.
-    const current = roster.map((r) => r.parliamentMemberId);
-    const retired = await getDb()
-      .update(politicians)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(and(eq(politicians.isActive, true), notInArray(politicians.parliamentMemberId, current)))
-      .returning({ id: politicians.id });
-    if (retired.length) console.log(`  ↺ ${retired.length} member(s) no longer in parliament marked inactive`);
+    const [{ active }] = await getDb()
+      .select({ active: sql<number>`count(*)::int` })
+      .from(politicians)
+      .where(eq(politicians.isActive, true));
+    if (!mayRetire(roster.length, Number(active))) {
+      console.error(`::error::parliament.mn listed only ${roster.length} members (${active} active now): nobody was marked inactive. Check ${"https://parliament.mn/api/parliament_members_list/"}.`);
+      process.exitCode = 1;
+    } else {
+      const current = roster.map((r) => r.parliamentMemberId);
+      const retired = await getDb()
+        .update(politicians)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(and(eq(politicians.isActive, true), notInArray(politicians.parliamentMemberId, current)))
+        .returning({ id: politicians.id });
+      if (retired.length) console.log(`  ↺ ${retired.length} member(s) no longer in parliament marked inactive`);
+    }
+  }
+  const unknownTerms = list.filter((r) => !r.termKnown).length;
+  if (detailsDegraded(list.length, unknownTerms)) {
+    console.error(`::error::${unknownTerms}/${list.length} roster entries had no parliament seat: the roster's shape changed. Stored terms were kept.`);
+    process.exitCode = 1;
+  }
+  if (detailsDegraded(ok + failed, withoutElection)) {
+    console.error(`::error::${withoutElection} member detail page(s) had no election result: the API changed. Stored constituencies were kept.`);
+    process.exitCode = 1;
   }
   console.log(`🏛️  Done: ${ok} synced, ${failed} failed.`);
   if (failed > list.length / 2) process.exitCode = 1;
@@ -87,27 +110,24 @@ async function main() {
 
 async function store(m: MemberInfo, rows: Declaration[]) {
   const db = getDb();
-  const values = {
+  const term = { termStart: m.termStart, termEnd: m.termEnd };
+  const election = { constituency: m.constituency, votes: m.votes, electionSystem: m.electionSystem };
+  const always = {
     parliamentMemberId: m.parliamentMemberId,
     xacxomId: m.xacxomId,
     fullName: m.fullName,
     shortName: m.shortName,
     party: m.party,
-    constituency: m.constituency,
-    votes: m.votes,
-    electionSystem: m.electionSystem,
-    termStart: m.termStart,
-    termEnd: m.termEnd,
     isActive: true,
     photoUrl: m.photoUrl,
     profileUrl: m.profileUrl,
     updatedAt: new Date(),
   };
-  const [p] = await db
-    .insert(politicians)
-    .values(values)
-    .onConflictDoUpdate({ target: politicians.parliamentMemberId, set: { ...values, xacxomId: sql`coalesce(excluded.xacxom_id, ${politicians.xacxomId})` } })
-    .returning({ id: politicians.id });
+  const values = { ...always, ...term, ...election };
+  // A field the API did not give this time keeps its stored value (an outage must not blank
+  // every constituency and hide every place's MP box); a real new value always replaces it.
+  const set = { ...always, ...(m.termKnown ? term : {}), ...(m.electionKnown ? election : {}), xacxomId: sql`coalesce(excluded.xacxom_id, ${politicians.xacxomId})` };
+  const [p] = await db.insert(politicians).values(values).onConflictDoUpdate({ target: politicians.parliamentMemberId, set }).returning({ id: politicians.id });
   if (!m.xacxomId) return;
   for (const r of rows) {
     const row = { politicianId: p.id, sourceUrl: xacxomPageUrl(m.xacxomId), fetchedAt: new Date(), ...r };

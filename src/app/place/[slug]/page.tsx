@@ -8,7 +8,7 @@ import { FollowCard } from "@/components/iltod/follow-card";
 import { FollowPlaceButton } from "@/components/iltod/follow-topic";
 import { PlacePicker } from "@/components/iltod/place-picker";
 import { StoryList } from "@/components/iltod/story-list";
-import { findPlace, type Place, placeGenitive, placeLabel, PLACES } from "@/lib/places";
+import { findPlace, type Place, placeGenitive, placeLabel, placeMatchesConstituency, PLACES } from "@/lib/places";
 import { getPlaceFeed, getPoliticians } from "@/lib/queries";
 import { absoluteUrl, jsonLd, SITE_NAME } from "@/lib/site";
 
@@ -53,7 +53,8 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
   const place = findPlace((await params).slug);
   if (!place) notFound();
   const [stories, people] = await Promise.all([getPlaceFeed(place.domains), getPoliticians()]);
-  const mps = place.constituency ? people.filter((p) => p.constituency === place.constituency) : [];
+  // By the areas the constituency lists, so a renamed or redrawn constituency after an election still matches.
+  const mps = people.filter((p) => placeMatchesConstituency(place, p.constituency));
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <PlaceJsonLd place={place} />
@@ -86,7 +87,8 @@ async function PlaceView({ params }: { params: PageProps<"/place/[slug]">["param
       {mps.length > 0 && (
         <section aria-labelledby="mps" className="rounded-2xl bg-secondary p-4 ring-1 ring-line-soft ring-inset">
           <h2 id="mps" className="text-sm font-semibold text-primary">
-            Тойргийн УИХ-ын гишүүд <span className="font-normal text-tertiary">· {place.constituency}</span>
+            {place.kind === "capital" ? "Нийслэлийн тойргуудын УИХ-ын гишүүд" : "Тойргийн УИХ-ын гишүүд"}{" "}
+            <span className="font-normal text-tertiary">· {[...new Set(mps.map((m) => m.constituency))].join(" · ")}</span>
           </h2>
           <ul className="mt-2 flex flex-wrap gap-2">
             {mps.map((m) => (

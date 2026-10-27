@@ -1,3 +1,4 @@
+import { termOf } from "@/lib/officials/terms";
 import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 
 /**
@@ -175,15 +176,24 @@ export function tendersHighlight(rows: Row[]): DatasetHighlight | null {
 
 /* ---------------------------------------------------------------- parliament attendance */
 
+/**
+ * Counted per member AND parliamentary term (`termOf` the session date): the dataset names members
+ * only by short name, so a new member who shares a former member's short name must not inherit
+ * the former member's record, and a re-elected member gets one row per term.
+ */
 export function attendanceHighlight(rows: Row[]): DatasetHighlight | null {
-  const members = new Map<string, { records: number; present: number; travel: number; medical: number; leave: number; unexplained: number }>();
+  const members = new Map<string, { name: string; term: number; from: string; to: string; records: number; present: number; travel: number; medical: number; leave: number; unexplained: number }>();
   const sessions = new Set<string>();
   for (const r of rows) {
     const name = str(r, "Гишүүдийн нэр");
     const session = str(r, "Чуулганы огноо").slice(0, 10);
-    if (!name || !session) continue;
+    const term = termOf(session);
+    if (!name || !session || term === null) continue;
     sessions.add(session);
-    const m = members.get(name) ?? { records: 0, present: 0, travel: 0, medical: 0, leave: 0, unexplained: 0 };
+    const key = `${term}|${name}`;
+    const m = members.get(key) ?? { name, term, from: session, to: session, records: 0, present: 0, travel: 0, medical: 0, leave: 0, unexplained: 0 };
+    if (session < m.from) m.from = session;
+    if (session > m.to) m.to = session;
     m.records += 1;
     const note = str(r, "Тайлбар").toLowerCase();
     if (str(r, "Ирсэн цаг")) m.present += 1;
@@ -191,15 +201,14 @@ export function attendanceHighlight(rows: Row[]): DatasetHighlight | null {
     else if (note.includes("эмнэлг")) m.medical += 1;
     else if (note.includes("чөлөө")) m.leave += 1;
     else m.unexplained += 1;
-    members.set(name, m);
+    members.set(key, m);
   }
   if (members.size === 0) return null;
   const sorted = [...sessions].sort();
-  const top = [...members.entries()]
-    .map(([name, m]) => ({ name, ...m }))
+  const top = [...members.values()]
     // Every member (about 127, ~13 KB): /officials/[id] shows each MP's own row; /data shows the top 20.
     .sort((a, b) => b.unexplained - a.unexplained || a.present / a.records - b.present / b.records);
-  return { kind: "attendance", sessions: sessions.size, from: sorted[0], to: sorted[sorted.length - 1], members: members.size, records: rows.length, top };
+  return { kind: "attendance", sessions: sessions.size, from: sorted[0], to: sorted[sorted.length - 1], members: new Set(top.map((m) => m.name)).size, records: rows.length, top };
 }
 
 /** opendata.mn dataset ids with a dedicated summary. Every other dataset is listed in the catalogue. */

@@ -959,14 +959,27 @@ export async function getPoliticianIds(): Promise<number[]> {
   });
 }
 
+/** Every member's short name, former ones included: links and mentions refuse a name two members ever shared. */
+export async function getPoliticianNames(): Promise<{ id: number; shortName: string; isActive: boolean }[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("officials");
+  return safe("getPoliticianNames", [], () => getDb().select({ id: politicians.id, shortName: politicians.shortName, isActive: politicians.isActive }).from(politicians));
+}
+
 export interface PoliticianDetail {
   politician: Politician;
   declarations: AssetDeclaration[];
   /** Years an editor left out of the comparison (shown as a note with the original filing's link). */
   hiddenYears: number[];
   mentions: { slug: string; title: string; publishedAt: Date | null; sourceName: string }[];
-  /** Another active member has the same short name: attendance and news mentions cannot be told apart. */
+  /**
+   * Another member, current or former, has the same short name: news that names it cannot be
+   * attributed to this one (a former "Б.Бат" may still be in the news as a minister).
+   */
   nameShared: boolean;
+  /** Another ACTIVE member has the same short name: this term's attendance cannot be told apart either. */
+  nameSharedNow: boolean;
 }
 
 export async function getPolitician(id: number): Promise<PoliticianDetail | null> {
@@ -980,11 +993,12 @@ export async function getPolitician(id: number): Promise<PoliticianDetail | null
     const [allDeclarations, hidden, namesakes] = await Promise.all([
       db.select().from(assetDeclarations).where(eq(assetDeclarations.politicianId, id)).orderBy(assetDeclarations.year),
       loadHiddenYears(),
-      db.select({ shortName: politicians.shortName }).from(politicians).where(and(eq(politicians.shortName, politician.shortName), eq(politicians.isActive, true))),
+      db.select({ shortName: politicians.shortName, isActive: politicians.isActive }).from(politicians).where(eq(politicians.shortName, politician.shortName)),
     ]);
     const hiddenYears = hidden[String(id)] ?? [];
     const declarations = allDeclarations.filter((d) => !hiddenYears.includes(d.year));
     const nameShared = sharedShortNames(namesakes).size > 0;
+    const nameSharedNow = sharedShortNames(namesakes.filter((n) => n.isActive)).size > 0;
     // News that names the person the way Mongolian text does ("Ж.Алдаржавхлан"); a short name two
     // members share cannot be attributed to either.
     const mentions = nameShared
@@ -996,7 +1010,7 @@ export async function getPolitician(id: number): Promise<PoliticianDetail | null
           .where(and(visible, sql`jsonb_exists(coalesce(${articles.extractedEntities}->'people', '[]'::jsonb), ${politician.shortName})`))
           .orderBy(desc(articles.publishedAt))
           .limit(20);
-    return { politician, declarations, hiddenYears, mentions, nameShared };
+    return { politician, declarations, hiddenYears, mentions, nameShared, nameSharedNow };
   });
 }
 

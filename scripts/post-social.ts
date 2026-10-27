@@ -302,7 +302,8 @@ async function loadWeekly(db: Db): Promise<WeeklyTop | null> {
   for (const r of rows) if (r.clusterId !== null) bySources.set(r.clusterId, (bySources.get(r.clusterId) ?? new Set()).add(r.sourceId));
   const [topCluster] = [...bySources.entries()].sort((a, b) => b[1].size - a[1].size);
   const [cluster] = topCluster && topCluster[1].size >= 2 ? await db.select({ id: clusters.id, title: clusters.title }).from(clusters).where(eq(clusters.id, topCluster[0])) : [];
-  const people = await db.select({ id: politicians.id, shortName: politicians.shortName }).from(politicians).where(eq(politicians.isActive, true));
+  // Every member, former ones included: a short name shared across terms is never attributed.
+  const people = await db.select({ id: politicians.id, shortName: politicians.shortName, isActive: politicians.isActive }).from(politicians);
   return {
     week,
     label,

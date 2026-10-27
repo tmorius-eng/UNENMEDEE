@@ -22,7 +22,8 @@ const RosterMember = z.object({
   last_name: z.string(),
   profile_image: z.string().nullish(),
   party: z.object({ name: z.string() }).nullish(),
-  positions: z.array(Position).catch([]),
+  // A changed shape must not read as "no seat": null = unknown, and the stored term is kept.
+  positions: z.array(Position).nullish().catch(null),
 });
 
 const Roster = z.object({ members: z.array(RosterMember) });
@@ -42,7 +43,9 @@ const Detail = z.object({
         votes_received: z.number().nullish(),
       }),
     )
-    .catch([]),
+    .nullish()
+    // A changed shape must not blank every constituency: null = unknown, the stored values stay.
+    .catch(null),
 });
 
 export interface MemberInfo {
@@ -60,13 +63,17 @@ export interface MemberInfo {
   electionSystem: string | null;
   xacxomId: string | null;
   profileUrl: string;
+  /** The roster gave this member's parliament seat (term dates). False = unknown, keep what is stored. */
+  termKnown: boolean;
+  /** The detail gave an election result (constituency, votes). False = unknown, keep what is stored. */
+  electionKnown: boolean;
 }
 
-export type RosterEntry = Pick<MemberInfo, "parliamentMemberId" | "firstName" | "lastName" | "fullName" | "shortName" | "party" | "photoUrl" | "termStart" | "termEnd" | "profileUrl">;
+export type RosterEntry = Pick<MemberInfo, "parliamentMemberId" | "firstName" | "lastName" | "fullName" | "shortName" | "party" | "photoUrl" | "termStart" | "termEnd" | "profileUrl" | "termKnown">;
 
 export function parseRoster(json: unknown): RosterEntry[] {
   return Roster.parse(json).members.map((m) => {
-    const seat = m.positions.find((p) => p.unit_type === "PARLIAMENT");
+    const seat = m.positions?.find((p) => p.unit_type === "PARLIAMENT");
     return {
       parliamentMemberId: m.id,
       firstName: m.first_name.trim(),
@@ -78,6 +85,7 @@ export function parseRoster(json: unknown): RosterEntry[] {
       termStart: seat?.start_date ?? null,
       termEnd: seat?.end_date ?? null,
       profileUrl: memberProfileUrl(m.id),
+      termKnown: Boolean(seat),
     };
   });
 }
@@ -89,7 +97,8 @@ export function xacxomIdFromUrl(url: string | null | undefined): string | null {
 
 export function parseMemberDetail(json: unknown, base: RosterEntry): MemberInfo {
   const d = Detail.parse(json);
-  const election = [...d.election_results].sort((a, b) => (b.election_date ?? "").localeCompare(a.election_date ?? ""))[0];
+  const results = d.election_results ?? [];
+  const election = [...results].sort((a, b) => (b.election_date ?? "").localeCompare(a.election_date ?? ""))[0];
   return {
     ...base,
     fullName: d.full_name?.trim() || base.fullName,
@@ -98,6 +107,7 @@ export function parseMemberDetail(json: unknown, base: RosterEntry): MemberInfo 
     votes: election?.votes_received ?? null,
     electionSystem: election?.election_system ?? null,
     xacxomId: xacxomIdFromUrl(d.hom_url),
+    electionKnown: results.length > 0,
   };
 }
 
