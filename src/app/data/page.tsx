@@ -11,13 +11,15 @@ import type { OpenDataset } from "@/db/schema";
 import { formatDateMn, formatMntShort, formatNumber } from "@/lib/format";
 import type { MacroSnapshot } from "@/lib/mongolbank/client";
 import { getIndicator, getOpenDatasets } from "@/lib/queries";
+import { jsonLd } from "@/lib/site";
+import { breadcrumbLd, datasetLd } from "@/lib/structured-data";
 import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 import { cx } from "@/utils/cx";
 
 export const metadata: Metadata = {
-  title: "Нээлттэй өгөгдөл — ханш, эдийн засаг, тендер",
+  title: "Валютын ханш, инфляц, бодлогын хүү — нээлттэй өгөгдөл",
   alternates: { canonical: "/data" },
-  description: "opendata.mn-ийн бүх өгөгдлийн багц: Монголбанкны ханш, макро эдийн засаг, цалин, тендер, хар жагсаалт, УИХ-ын ирц.",
+  description: "Монголбанкны валютын ханш, инфляц, бодлогын хүү, валютын нөөц, алтны үнэ сүүлийн тоогоор, мөн opendata.mn-ийн цалин, тендер, хар жагсаалт, УИХ-ын ирц. Тоо бүр эх өгөгдөлтэйгөө.",
 };
 
 type Highlight<K extends DatasetHighlight["kind"]> = Extract<DatasetHighlight, { kind: K }>;
@@ -311,12 +313,41 @@ async function OpenData() {
   );
 }
 
+/** What the page re-shows, with the official publisher of each (Google Dataset Search). */
+const DATA_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    datasetLd(
+      {
+        name: "Монголбанкны гол үзүүлэлтүүд: валютын ханш, инфляц, бодлогын хүү, валютын нөөц, алтны үнэ",
+        description: "Монголбанкны вэбсайтын нийтэлдэг бодлогын хүү, улсын дүнгийн инфляц, төгрөгийн албан ханш, гадаад валютын улсын нөөц, алт, мөнгөний үнийн цуваа. ИЛ ТОД МЭДЭЭ өдөр бүр татаж, өөрчлөлтгүйгээр харуулна.",
+        creator: { name: "Монголбанк", url: "https://www.mongolbank.mn" },
+        sourceUrl: "https://www.mongolbank.mn",
+        keywords: ["валютын ханш", "инфляц", "бодлогын хүү", "валютын нөөц", "алтны үнэ", "Монголбанк"],
+      },
+      "/data",
+    ),
+    datasetLd(
+      {
+        name: "opendata.mn нээлттэй өгөгдлийн багцууд: цалин, тендер, хар жагсаалт, УИХ-ын ирц",
+        description: "Монгол Улсын нээлттэй өгөгдлийн порталд (opendata.mn) нийтлэгдсэн өгөгдлийн багцуудын мета өгөгдөл ба гол үзүүлэлт: дундаж цалин, төрийн худалдан авалт, тендерт оролцох эрхээ хасуулсан байгууллага, УИХ-ын нэгдсэн хуралдааны ирц.",
+        creator: { name: "Нээлттэй өгөгдлийн портал", url: "https://opendata.mn" },
+        sourceUrl: "https://opendata.mn",
+        keywords: ["нээлттэй өгөгдөл", "дундаж цалин", "тендер", "УИХ-ын ирц"],
+      },
+      "/data",
+    ),
+    breadcrumbLd([{ name: "Нээлттэй өгөгдөл", path: "/data" }]),
+  ],
+};
+
 export default function DataPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(DATA_LD) }} />
       <PageHeader
-        eyebrow="📊 Нээлттэй өгөгдөл"
-        title="Тоо худлаа хэлдэггүй"
+        eyebrow="📊 Нээлттэй өгөгдөл · Тоо худлаа хэлдэггүй"
+        title="Валютын ханш, инфляц, эдийн засгийн тоо"
         description="opendata.mn нээлттэй өгөгдлийн сангийн бүх багцыг өдөрт 2 удаа API-аар татаж, хамгийн чухал үзүүлэлтүүдийг энд харуулна: ханш, инфляци, цалин, тендер, хар жагсаалт, УИХ-ын ирц. Тоо бүр эх өгөгдөл рүүгээ холбогдоно."
       />
       <Suspense fallback={null}>

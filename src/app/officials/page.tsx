@@ -7,17 +7,37 @@ import { ShareButton } from "@/components/iltod/share-button";
 import { MyMps } from "@/components/officials/follow";
 import { OfficialsTable } from "@/components/officials/officials-table";
 import { getPoliticians } from "@/lib/queries";
+import { absoluteUrl, jsonLd } from "@/lib/site";
+import { breadcrumbLd } from "@/lib/structured-data";
 
 export const metadata: Metadata = {
-  title: "УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг",
+  title: "УИХ-ын гишүүдийн хөрөнгө, орлогын мэдүүлэг, ирц",
   description: "Улсын Их Хурлын 126 гишүүний Авлигатай тэмцэх газарт гаргасан хөрөнгө, орлогын мэдүүлэг жил бүрээр: орлого, үл хөдлөх, тээврийн хэрэгсэл, хадгаламж, зээл.",
   alternates: { canonical: "/officials" },
 };
 
 export default async function OfficialsPage() {
   const people = await getPoliticians();
+  const ld = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        url: absoluteUrl("/officials"),
+        name: "УИХ-ын гишүүдийн хөрөнгө, орлого",
+        inLanguage: "mn",
+        mainEntity: {
+          "@type": "ItemList",
+          numberOfItems: people.length,
+          itemListElement: people.map((m, i) => ({ "@type": "ListItem", position: i + 1, url: absoluteUrl(`/officials/${m.id}`), name: m.fullName })),
+        },
+      },
+      breadcrumbLd([{ name: "УИХ-ын гишүүд", path: "/officials" }]),
+    ],
+  };
   return (
     <div className="flex flex-col gap-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
       <PageHeader
         eyebrow="Улстөрчдийн хөрөнгө"
         title="УИХ-ын гишүүдийн хөрөнгө, орлого"

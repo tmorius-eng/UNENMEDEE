@@ -14,10 +14,12 @@ import { SHILENDANS_URL, type ShilendansSnapshot } from "@/lib/budget/shilendans
 import type { TaxShareSnapshot } from "@/lib/budget/worldbank";
 import { formatDateMn, formatMntShort } from "@/lib/format";
 import { getIndicator } from "@/lib/queries";
+import { jsonLd } from "@/lib/site";
+import { breadcrumbLd, datasetLd } from "@/lib/structured-data";
 import { cx } from "@/utils/cx";
 
 export const metadata: Metadata = {
-  title: "Улсын төсөв 1990 оноос — татварын мөнгө хаашаа явдаг вэ",
+  title: "Улсын төсөв 1990 оноос: орлого, зарлага, өр, аудит",
   alternates: { canonical: "/budget" },
   description:
     "Монгол Улсын нэгдсэн төсвийн орлого, зарлага, алдагдал 1990 оноос хойш, тухайн үеийн Ерөнхий сайдтай нь. Татварын мөнгө юунд зарцуулагдсан, Засгийн газрын өр, Шилэн данс, Үндэсний аудитын газрын дүгнэлт. Бүгд албан ёсны эх сурвалжтай.",
@@ -457,12 +459,31 @@ async function Budget() {
   );
 }
 
+const BUDGET_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    datasetLd(
+      {
+        name: "Монгол Улсын нэгдсэн төсвийн орлого, зарлага, тэнцэл 1990 оноос",
+        description: "Үндэсний статистикийн хорооны нэгдсэн төсвийн гүйцэтгэл (сая төгрөгөөр): орлого, зарлага, тэнцэл, зардлын эдийн засгийн ангилал, орлогын бүтэц, Засгийн газрын өр улирлаар. ИЛ ТОД МЭДЭЭ өдөр бүр татаж харуулна.",
+        creator: { name: "Үндэсний статистикийн хороо", url: "https://www.1212.mn" },
+        sourceUrl: NSO_SOURCE_URL,
+        temporalCoverage: "1990/..",
+        keywords: ["улсын төсөв", "төсвийн орлого", "төсвийн зарлага", "Засгийн газрын өр", "ҮСХ"],
+      },
+      "/budget",
+    ),
+    breadcrumbLd([{ name: "Улсын төсөв", path: "/budget" }]),
+  ],
+};
+
 export default function BudgetPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(BUDGET_LD) }} />
       <PageHeader
-        eyebrow="💰 Улсын төсөв"
-        title="Татварын мөнгө хаашаа явдаг вэ?"
+        eyebrow="💰 Татварын мөнгө хаашаа явдаг вэ"
+        title="Монгол Улсын төсөв"
         description="1990 оноос хойшхи нэгдсэн төсвийн орлого, зарлага, алдагдал, юунд зарцуулсан, хэнд төлсөн, аудит юу гэж дүгнэсэн. Зөвхөн албан ёсны статистик, тоо бүр эх сурвалж руугаа холбогдоно; бид хэнийг ч буруутгахгүй."
       >
         <div className="flex flex-wrap gap-2">

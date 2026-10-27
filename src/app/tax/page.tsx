@@ -8,12 +8,14 @@ import { ShareButton } from "@/components/iltod/share-button";
 import { TaxReceiptCalculator } from "@/components/iltod/tax-receipt";
 import type { BudgetNsoSnapshot } from "@/lib/budget/nso";
 import { getIndicator } from "@/lib/queries";
+import { absoluteUrl, jsonLd } from "@/lib/site";
+import { breadcrumbLd } from "@/lib/structured-data";
 import { sharesFromSpending } from "@/lib/tax/receipt";
 
 export const metadata: Metadata = {
-  title: "Миний татвар хаашаа явдаг вэ? Тооцоолуур",
+  title: "Цалингийн татвар тооцоолуур: ХХОАТ, НДШ хаашаа явдаг вэ",
   alternates: { canonical: "/tax" },
-  description: "Цалингийн татвар, НӨАТ-аа оруулаад таны төлсөн мөнгө улсын төсөвт юунд зарцуулагддагийг 1 минутад харна. Үндэсний статистикийн хорооны албан тоогоор.",
+  description: "Цалингаа оруулаад ХХОАТ, НДШ, НӨАТ-аа тооцоол, тэр мөнгө улсын төсөвт юунд зарцуулагддагийг 1 минутад хар. Үндэсний статистикийн хорооны албан тоогоор, тооцоо зөвхөн таны төхөөрөмж дээр.",
 };
 
 async function Calculator() {
@@ -24,12 +26,31 @@ async function Calculator() {
   return <TaxReceiptCalculator shares={sharesFromSpending(economic.categories, year)} year={year} />;
 }
 
+const TAX_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      name: "Цалингийн татвар тооцоолуур",
+      url: absoluteUrl("/tax"),
+      description: "Сарын цалингаас ХХОАТ, НДШ, худалдан авалтаас НӨАТ-ыг тооцоолж, улсын төсвийн зардлын бүтцээр хуваана. Тооцоо хөтөч дотор хийгдэнэ.",
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Any",
+      inLanguage: "mn",
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "MNT" },
+    },
+    breadcrumbLd([{ name: "Цалингийн татвар тооцоолуур", path: "/tax" }]),
+  ],
+};
+
 export default function TaxPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(TAX_LD) }} />
       <PageHeader
-        eyebrow="🧾 Миний татвар"
-        title="Таны татвар юунд зарцуулагддаг вэ?"
+        eyebrow="🧾 Миний татвар · юунд зарцуулагддаг вэ"
+        title="Цалингийн татвар тооцоолуур"
         description={
           <>
             Сарын цалин, дэлгүүрт зарцуулдаг мөнгөө оруулаарай. Оруулсан тоо тань зөвхөн таны төхөөрөмж дээр тооцоологдоно, хаашаа ч илгээгдэхгүй. Төсвийн бүтэц:{" "}
