@@ -1,7 +1,5 @@
 "use client";
 
-import { Check } from "@untitledui/icons";
-import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 
 import { useLocalStorage } from "@/lib/local-store";
@@ -65,24 +63,5 @@ export function DigestProgress({ ids, edition }: { ids: number[]; edition: numbe
         </button>
       )}
     </div>
-  );
-}
-
-export function TrackedNumber({ id, n }: { id: number; n: number }) {
-  const [raw] = useLocalStorage(READ_KEY, "[]");
-  const read = parseIds(raw).has(id);
-  return (
-    <span aria-hidden className={cx("num-mono mt-0.5 w-7 shrink-0 text-lg leading-none", read ? "text-brand-secondary" : "text-tertiary")}>
-      {read ? <Check className="size-4" strokeWidth={2.5} /> : String(n).padStart(2, "0")}
-    </span>
-  );
-}
-
-export function TrackedLink({ id, ids, href, children }: { id: number; ids: number[]; href: string; children: React.ReactNode }) {
-  const { read, markRead } = useDigestRead(ids);
-  return (
-    <Link href={href} onClick={() => markRead([id])} className={cx("font-display text-md font-bold tracking-[-0.02em] hover:text-brand-secondary hover:underline", read.has(id) ? "text-tertiary" : "text-primary")}>
-      {children}
-    </Link>
   );
 }

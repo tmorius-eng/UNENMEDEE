@@ -15,7 +15,8 @@ import { KeyNumbers } from "@/components/iltod/key-numbers";
 import { Panel } from "@/components/iltod/panel";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
-import { STORY_BUTTON_PRIMARY } from "@/components/iltod/story-list";
+import { DigestBar } from "@/components/iltod/digest-bar";
+import { STORY_BUTTON_PRIMARY } from "@/components/iltod/story-buttons";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { archiveDateLabel, ubDateKey } from "@/lib/archive";
@@ -333,6 +334,8 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         )}
       </nav>
       <FollowCard />
+      {/* Opened from /digest: "← Тойм · n/N · Дараагийнх →" (client-only, this tab). */}
+      <DigestBar slug={article.slug} />
     </article>
   );
 }

@@ -40,7 +40,7 @@ async function WeekNumbers() {
 }
 
 async function Digests() {
-  const [editions, reviews] = await Promise.all([getDigests("12h", 14), getDigests("30d", 1)]);
+  const [editions, reviews] = await Promise.all([getDigests("12h", 14, true), getDigests("30d", 1, true)]);
   if (editions.length === 0 && reviews.length === 0) {
     return <Empty title="Тойм хараахан бэлэн болоогүй" description={`AI редактор ${digestWindowsLabel()} (Улаанбаатарын цагаар) шинэ тойм бэлтгэнэ.`} />;
   }
