@@ -68,7 +68,7 @@ function ResultMessage({ item, onPublish, publishing }: { item: Extract<ChatItem
         <Message from="assistant">
           <MessageContent>
             <p className="text-xs font-semibold text-tertiary uppercase">⚡ Гүнзгий шинжилгээ</p>
-            <Response className="prose prose-sm max-w-none dark:prose-invert">{r.deepMarkdown}</Response>
+            <Response className="prose max-w-none">{r.deepMarkdown}</Response>
           </MessageContent>
           <MessageAvatar src="/avatars/ai-tier2.svg" name="Gk" />
         </Message>

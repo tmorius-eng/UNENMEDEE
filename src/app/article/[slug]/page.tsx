@@ -297,7 +297,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
               ✏️ Редакцийн засвартай ({formatDateMn(article.editedAt)}). Доорх текстийг редактор зассан; SHA-256 хэш нь анх татсан эх текстэд хамаарна.
             </p>
           )}
-          <div className="prose max-w-none text-secondary dark:prose-invert">
+          <div className="prose max-w-none text-secondary">
             {paragraphs.slice(0, 60).map((p, i) => (
               <p key={i}>{p}</p>
             ))}

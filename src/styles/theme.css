@@ -112,7 +112,8 @@
     --color-signal: light-dark(#ffd400, #ffd166);
     --color-signal-ink: #1a1500;
     --color-signal-soft: light-dark(rgb(255 212 0 / 0.16), rgb(255 209 102 / 0.14));
-    --color-risk: light-dark(#d92d20, #f97066);
+    /* Text on risk-soft is 11 px: #d92d20 there was 4.0:1 (Lighthouse), error-700 is 5.4:1. */
+    --color-risk: light-dark(#b42318, #f97066);
     --color-risk-soft: light-dark(rgb(217 45 32 / 0.1), rgb(249 112 102 / 0.14));
     --color-brand-ink: light-dark(var(--color-brand-700), var(--color-brand-300));
     --color-brand-soft: light-dark(rgb(4 124 120 / 0.1), rgb(45 212 191 / 0.12));

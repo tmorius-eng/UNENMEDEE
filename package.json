@@ -40,7 +40,6 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "@react-stately/utils": "^3.12.1",
-    "@tailwindcss/typography": "^0.5.20",
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
@@ -94,9 +93,6 @@
     "node": "24.x"
   },
   "overrides": {
-    "@tailwindcss/typography": {
-      "postcss-selector-parser": "^7.1.6"
-    },
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
     },
