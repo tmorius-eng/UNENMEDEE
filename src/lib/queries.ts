@@ -832,6 +832,14 @@ export async function getTransparency(): Promise<TransparencyData> {
   });
 }
 
+/** What a digest story shows when it is opened in place on /digest (from the article row). */
+export interface DigestStory {
+  tldr: string;
+  summaryFallback: boolean;
+  originalUrl: string;
+  amounts: string[];
+}
+
 export interface DigestView {
   id: number;
   kind: string;
@@ -839,19 +847,37 @@ export interface DigestView {
   periodEnd: Date;
   title: string;
   intro: string;
-  items: DigestItem[];
+  /** `story` is attached only when asked (`withStories`) and the article still exists with a summary. */
+  items: (DigestItem & { story?: DigestStory })[];
   candidateCount: number;
   generatedBy: string;
   costUsd: number;
 }
 
-/** Latest AI digests, newest first. `kind` = "12h" editions or "30d" reviews. */
-export async function getDigests(kind: "12h" | "30d", limit = 10): Promise<DigestView[]> {
+/**
+ * Latest AI digests, newest first. `kind` = "12h" editions or "30d" reviews. `withStories` attaches
+ * each item's summary, amounts and source link (one extra query), so /digest can open a story in
+ * place instead of sending the reader to another page and back.
+ */
+export async function getDigests(kind: "12h" | "30d", limit = 10, withStories = false): Promise<DigestView[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("digests");
   return safe("getDigests", [], async () => {
-    const rows = await getDb().select().from(digests).where(eq(digests.kind, kind)).orderBy(desc(digests.periodEnd)).limit(limit);
+    const db = getDb();
+    const rows = await db.select().from(digests).where(eq(digests.kind, kind)).orderBy(desc(digests.periodEnd)).limit(limit);
+    const stories = new Map<number, DigestStory>();
+    const ids = [...new Set(rows.flatMap((d) => d.items.map((it) => it.articleId)))];
+    if (withStories && ids.length) {
+      const found = await db
+        .select({ id: articles.id, tldr: articles.tldrSummary, summaryFallback: articles.summaryFallback, originalUrl: articles.originalUrl, entities: articles.extractedEntities })
+        .from(articles)
+        .where(inArray(articles.id, ids));
+      for (const a of found) {
+        if (!a.tldr) continue;
+        stories.set(a.id, { tldr: a.tldr, summaryFallback: a.summaryFallback, originalUrl: a.originalUrl, amounts: a.entities?.amounts_mnt ?? [] });
+      }
+    }
     return rows.map((d) => ({
       id: d.id,
       kind: d.kind,
@@ -859,7 +885,10 @@ export async function getDigests(kind: "12h" | "30d", limit = 10): Promise<Diges
       periodEnd: d.periodEnd,
       title: d.title,
       intro: d.intro,
-      items: d.items,
+      items: d.items.map((it) => {
+        const story = stories.get(it.articleId);
+        return story ? { ...it, story } : it;
+      }),
       candidateCount: d.candidateCount,
       generatedBy: d.generatedBy,
       costUsd: Number(d.costUsd),
