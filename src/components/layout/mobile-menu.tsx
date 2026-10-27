@@ -18,7 +18,7 @@ export function MobileMenu() {
         {open ? <XClose className="size-[18px]" /> : <Menu02 className="size-[18px]" />}
       </button>
       {open && (
-        <div className="menu-enter absolute inset-x-0 top-full origin-top border-b border-line bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl">
+        <div data-popover className="menu-enter absolute inset-x-0 top-full origin-top border-b border-line bg-primary/95 px-4 py-3 shadow-lg backdrop-blur-xl">
           <Suspense fallback={<NavLinksFallback className="flex flex-col gap-0.5" onNavigate={() => setOpen(false)} />}>
             <NavLinks className="flex flex-col gap-0.5" onNavigate={() => setOpen(false)} />
           </Suspense>

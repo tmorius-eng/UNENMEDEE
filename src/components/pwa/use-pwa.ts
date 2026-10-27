@@ -21,8 +21,14 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-// The install prompt fires once, possibly before React mounts: keep it module-wide.
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
+// The install prompt fires once, possibly before React mounts, even before this chunk loads: the
+// root layout's inline script keeps such an early one in `window.__iltodBip`. Keep it module-wide.
+declare global {
+  interface Window {
+    __iltodBip?: BeforeInstallPromptEvent | null;
+  }
+}
+let deferredPrompt: BeforeInstallPromptEvent | null = typeof window !== "undefined" ? (window.__iltodBip ?? null) : null;
 const promptListeners = new Set<() => void>();
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (e) => {
@@ -71,6 +77,7 @@ export function usePwa() {
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     deferredPrompt = null;
+    window.__iltodBip = null;
     promptListeners.forEach((l) => l());
     return outcome === "accepted";
   }, []);

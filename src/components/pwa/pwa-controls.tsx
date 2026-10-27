@@ -10,17 +10,43 @@ import { HEADER_ICON_BUTTON } from "@/components/layout/header-styles";
 
 import { usePwa } from "./use-pwa";
 import { digestWindowsLabel } from "@/lib/edition";
+import { askDelay, DISMISS_KEY, INSTALLED_KEY, parseAskState, STEPS_KEY } from "@/lib/install-ask";
 
-const DISMISS_KEY = "iltod-install-dismissed-at";
-const DISMISS_DAYS = 14;
+/** An ignored strip slides away by itself after this long (counts as a ✕). */
+const AUTO_HIDE_MS = 20_000;
+/** Busy reader (a menu or sheet open, typing): try again this much later. */
+const BUSY_RETRY_MS = 30_000;
 
-function readDismissed(): boolean {
+function remember(key: string, value: string) {
   try {
-    const at = Number(localStorage.getItem(DISMISS_KEY) ?? 0);
-    return Date.now() - at < DISMISS_DAYS * 86_400_000;
+    localStorage.setItem(key, value);
   } catch {
-    return false;
+    /* private mode: the strip asks again on the next page */
   }
+}
+const rememberDismiss = () => remember(DISMISS_KEY, String(Date.now()));
+
+/** ms until the strip may show, null = never (installed). Storage errors read as "never closed". */
+function nextAsk(): number | null {
+  try {
+    return askDelay(parseAskState((k) => localStorage.getItem(k)), Date.now());
+  } catch {
+    return askDelay({ dismissedAt: 0, stepsAt: 0, installed: false }, Date.now());
+  }
+}
+
+/**
+ * Not now: another dialog or menu is open, the reader is typing, this is /admin, or the screen is
+ * wide (the strip is phones only; a phone turned back to portrait is asked on the next check).
+ */
+function readerBusy(): boolean {
+  const el = document.activeElement;
+  return (
+    location.pathname.startsWith("/admin") ||
+    window.matchMedia("(min-width: 768px)").matches ||
+    document.querySelector('[role="dialog"], [aria-modal="true"], [role="menu"], [data-popover]') !== null ||
+    (el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)))
+  );
 }
 
 function IosSteps() {
@@ -172,7 +198,14 @@ export function NotifyButton() {
   );
 }
 
-/** Phones only: invites to install the app (Android one tap, iOS instructions). */
+/**
+ * Phones only: invites to install the app (Android one tap, iOS instructions). Until the app is
+ * installed it comes back 5 minutes after every ✕ (also across pages and reloads), only while the
+ * tab is visible, so it never "fires" unseen; timing rules in `src/lib/install-ask.ts`. It stays
+ * out of the way: it waits while a menu or sheet is open or the reader is typing, and an ignored
+ * strip slides away after 20 s. Installed means never: Android stops offering the install (not
+ * eligible), and on iPhone the reader taps "Нэмчихсэн" in the steps sheet.
+ */
 export function InstallBanner() {
   const pwa = usePwa();
   const [visible, setVisible] = useState(false);
@@ -180,23 +213,55 @@ export function InstallBanner() {
   const eligible = !pwa.isStandalone && (pwa.canPromptInstall || pwa.isIOS);
 
   useEffect(() => {
-    if (!eligible || readDismissed()) return;
-    const t = setTimeout(() => setVisible(true), 4_000);
+    if (!eligible || visible || iosSheet) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const show = () => {
+      if (document.visibilityState !== "visible") return;
+      if (readerBusy()) t = setTimeout(show, BUSY_RETRY_MS);
+      else setVisible(true);
+    };
+    const arm = () => {
+      clearTimeout(t);
+      const wait = nextAsk();
+      if (wait === null || document.visibilityState !== "visible") return;
+      t = setTimeout(show, wait);
+    };
+    arm();
+    document.addEventListener("visibilitychange", arm);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", arm);
+    };
+  }, [eligible, visible, iosSheet]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => {
+      setVisible(false);
+      rememberDismiss();
+    }, AUTO_HIDE_MS);
     return () => clearTimeout(t);
-  }, [eligible]);
+  }, [visible]);
 
   const dismiss = () => {
     setVisible(false);
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch {
-      /* private mode: show again next visit */
-    }
+    rememberDismiss();
   };
 
   const onInstall = async () => {
-    if (pwa.isIOS) return setIosSheet(true);
-    if (await pwa.install()) setVisible(false);
+    setVisible(false);
+    if (pwa.isIOS) {
+      remember(STEPS_KEY, String(Date.now()));
+      setIosSheet(true);
+      return;
+    }
+    // A cancelled Android prompt counts as a ✕; an accepted one ends it (Chrome stops offering it).
+    if (!(await pwa.install())) rememberDismiss();
+  };
+
+  const installedOnIos = () => {
+    remember(INSTALLED_KEY, "1");
+    setIosSheet(false);
   };
 
   return (
@@ -208,7 +273,7 @@ export function InstallBanner() {
             <img src="/icons/icon-192.png" alt="" className="size-11 rounded-xl" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-primary">ИЛ ТОД апп</p>
-              <p className="truncate text-xs text-tertiary">Нүүр дэлгэцнээс нэг товшилтоор, шинэ мэдээний мэдэгдэлтэй</p>
+              <p className="line-clamp-2 text-xs text-tertiary">Нүүр дэлгэцнээс нэг товшилтоор, шинэ мэдээний мэдэгдэлтэй</p>
             </div>
             <button
               type="button"
@@ -224,7 +289,13 @@ export function InstallBanner() {
         </div>
       )}
       <Sheet open={iosSheet} onClose={() => setIosSheet(false)} title="iPhone-д суулгах">
-        <IosSteps />
+        <div className="flex flex-col gap-4">
+          <IosSteps />
+          <button type="button" onClick={installedOnIos} className="rounded-xl py-3 text-md font-semibold text-secondary ring-1 ring-primary ring-inset hover:bg-primary_hover">
+            ✓ Нүүр дэлгэцэнд нэмчихсэн
+          </button>
+          <p className="text-xs text-quaternary">Нэмсэн бол дарна уу: энэ санал дахиж гарахгүй.</p>
+        </div>
       </Sheet>
     </>
   );
