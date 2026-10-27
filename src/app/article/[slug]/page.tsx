@@ -201,9 +201,12 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
             </>
           )}
         </nav>
+        {/* On phones the source/time label always takes its own line: the server prints the full
+            date and the browser swaps in "7 цагийн өмнө", and when only the shorter text fitted
+            beside the badge the whole article jumped up by a line (PageSpeed CLS 0.126). */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <SourceBadge domain={article.sourceDomain} category={article.sourceCategory} size="md" />
-          <span className="label-mono normal-case text-tertiary">
+          <span className="label-mono basis-full normal-case text-tertiary sm:basis-auto">
             <Link href={`/source/${article.sourceDomain}`} prefetch={false} className="hover:text-primary hover:underline">
               {article.sourceName}
             </Link>{" "}
