@@ -35,7 +35,8 @@ export async function generateMetadata({ params }: PageProps<"/source/[domain]">
   const domain = domainParam((await params).domain);
   const hub = domain ? await getSourceHub(domain) : null;
   if (!hub) return { title: "Эх сурвалж олдсонгүй", robots: { index: false } };
-  const title = `${hub.source.name} — мэдээ, шийдвэр, мэдэгдэл`;
+  // People search an agency by its address too ("mpr gov", "emd gov" in Search Console).
+  const title = `${hub.source.name} (${hub.source.domain}) — мэдээ, шийдвэр`;
   const desc = description(hub.source);
   return {
     title,

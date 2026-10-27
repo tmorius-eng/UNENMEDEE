@@ -56,7 +56,7 @@ async function SourceTable() {
                   {group.map((s) => (
                     <tr key={s.id} className="hover:bg-primary_hover">
                       <td className="px-4 py-3 font-medium text-primary">
-                        {s.articleCount > 0 ? (
+                        {s.visibleCount > 0 ? (
                           <Link href={`/source/${s.domain}`} prefetch={false} className="hover:text-brand-secondary hover:underline">
                             {s.name}
                           </Link>

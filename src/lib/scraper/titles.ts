@@ -98,7 +98,9 @@ export function looksLikeNavigation(text: string): boolean {
 }
 
 const UNIT_TITLE = /(хэлтэс|тасаг|алба|газар|хороо|төв|нэгж)\s*$/iu;
-const UNIT_TOPIC_TITLE = /^(үндсэн\s+)?чиг үүрэг|бүтэц,?\s+зохион байгуулалт|хүний нөөцийн ил тод байдал/iu;
+// "… холбоотой асуулт хариулт" (crc.gov.mn's FAQ pages reached the feed in Oct 2026) is a help
+// page, not news; only a headline ENDING in it, so "асуулт хариултын уулзалт" stays news.
+const UNIT_TOPIC_TITLE = /^(үндсэн\s+)?чиг үүрэг|бүтэц,?\s+зохион байгуулалт|хүний нөөцийн ил тод байдал|асуулт[\s,-]*хариулт\s*$|^түгээмэл\s+асуулт/iu;
 const UNIT_BODY = /ЭРХЭМ ЗОРИЛГО|ЗОРИЛГО|ЗОРИЛТ|ТАНИЛЦУУЛГА|чиг үүрэг|бүтэц,?\s+зохион байгуулалт/u;
 
 /**

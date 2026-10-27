@@ -1,10 +1,5 @@
 import type { NextConfig } from "next";
 
-import { TOPICS } from "./src/lib/topics";
-
-// Feed filters that moved from "/?f=<key>" to static "/topic/<key>" pages.
-const TOPIC_KEYS = ["risk", "budget", "ministry", ...TOPICS.map((t) => t.key)];
-
 const nextConfig: NextConfig = {
   // The demo database (`npm run demo`) is loaded from node_modules at run time, never bundled.
   serverExternalPackages: ["@electric-sql/pglite"],
@@ -18,9 +13,6 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
-  async redirects() {
-    return [{ source: "/", has: [{ type: "query", key: "f", value: `(?<f>${TOPIC_KEYS.join("|")})` }], destination: "/topic/:f", permanent: true }];
-  },
   async headers() {
     return [
       {
