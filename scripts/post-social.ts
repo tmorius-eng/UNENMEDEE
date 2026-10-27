@@ -34,7 +34,7 @@ import { discordArticlePost, discordChannelId, discordDigestPost, type DiscordPo
 import { makeQuiz, type Quiz } from "@/lib/social/quiz";
 import { biggestAmount, isWeeklyDue, mostNamed, previousWeek, type WeeklyTop, weeklyShortText, weeklyText } from "@/lib/social/weekly";
 import { sharedShortNames } from "@/lib/officials/flags";
-import { currentState, needsRefresh, type TokenState } from "@/lib/social/token-state";
+import { currentState, needsRefresh, refreshSeverity, type TokenState } from "@/lib/social/token-state";
 import { PRODUCTION_URL } from "@/lib/site";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
@@ -135,7 +135,10 @@ async function storedToken(db: Db, key: string, envToken: string | undefined, re
       state = { ...state, token: await refresh(state.token), refreshedAt: new Date().toISOString() };
       console.log(`🔑 ${key} token refreshed (valid 60 more days).`);
     } catch (err) {
-      console.error(`::warning::${key} token refresh failed: ${err instanceof Error ? err.message : err}`);
+      // Loud once the stored token nears its 60-day expiry (src/lib/social/token-state.ts).
+      const severity = refreshSeverity(state);
+      console.error(`::${severity}::${key} token refresh failed: ${err instanceof Error ? err.message : err}`);
+      if (severity === "error") process.exitCode = 1;
     }
   }
   if (!dry && (!stored || stored.token !== state.token || stored.refreshedAt !== state.refreshedAt)) {
@@ -334,8 +337,11 @@ async function main() {
   // A Page token's /me is the page itself, so FB_PAGE_ID is optional; a user token is swapped for
   // the Page's own token (resolveFacebookPage).
   const fbPage = fbToken ? await resolveFacebookPage({ token: fbToken, pageId: process.env.FB_PAGE_ID?.trim() }).catch((err: unknown) => ({ error: String(err) })) : undefined;
-  if (fbPage && "error" in fbPage) console.error(`::error::${fbPage.error}`);
-  else if (fbPage) {
+  if (fbPage && "error" in fbPage) {
+    // A dead Page token (password change, lost admin role, app restriction) must show as a red step.
+    console.error(`::error::${fbPage.error}`);
+    process.exitCode = 1;
+  } else if (fbPage) {
     if (fbPage.fromUserToken)
       console.log("::warning::FB_PAGE_TOKEN is a user token (expires in about 60 days): posting with its Page token. Replace the secret with the never-expiring Page token, docs/FACEBOOK.md step 4.");
     platforms.push(facebook(fbPage.pageId, fbPage.token));

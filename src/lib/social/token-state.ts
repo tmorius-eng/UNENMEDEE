@@ -32,3 +32,15 @@ export function currentState(stored: TokenState | null, envToken: string | undef
 export function needsRefresh(state: TokenState, now = new Date()): boolean {
   return now.getTime() - new Date(state.refreshedAt).getTime() > REFRESH_AFTER_DAYS * 86_400_000;
 }
+
+/** A refresh failure is only a warning while the stored token is younger than this. */
+export const REFRESH_ERROR_AFTER_DAYS = 45;
+
+/**
+ * How loud a failed refresh should be: the token still has weeks left → "warning" (the next run
+ * tries again); past 45 days the 60-day expiry is close and the step turns red → "error", so the
+ * failure shows in the run list instead of being retried quietly until the platform dies.
+ */
+export function refreshSeverity(state: TokenState, now = new Date()): "warning" | "error" {
+  return now.getTime() - new Date(state.refreshedAt).getTime() > REFRESH_ERROR_AFTER_DAYS * 86_400_000 ? "error" : "warning";
+}

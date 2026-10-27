@@ -59,6 +59,8 @@ jobs:
       DEEPSEEK_PRICE_IN: ${{ vars.DEEPSEEK_PRICE_IN }}
       DEEPSEEK_PRICE_OUT: ${{ vars.DEEPSEEK_PRICE_OUT }}
       # Facebook page, Threads and Instagram posting (docs/FACEBOOK.md); all unset = the steps are skipped.
+      FB_GRAPH_VERSION: ${{ vars.FB_GRAPH_VERSION }}
+      IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
       FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
       FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
       THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
@@ -95,13 +97,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ""
           DISCORD_BOT_TOKEN: ""
           DISCORD_CHANNEL_ID: ""
-        run: npm ci
+        run: npm ci || (sleep 60 && npm ci)
 
       - name: Check required secrets
         run: |
           if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret (Settings → Secrets → Actions)."; exit 1; fi
 
       - name: Apply database migrations
+        id: migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
         run: npm run db:migrate
@@ -127,6 +130,10 @@ jobs:
         run: npm run budget:sync
 
       - name: Write the digest
+        # A failed sync above never stops the digest; a failed digest never stops the steps below
+        # (the pipeline may have written the edition already), but nothing runs on an old schema.
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        continue-on-error: true
         env:
           IN_KIND: ${{ inputs.kind || '12h' }}
           IN_FORCE: ${{ inputs.force || 'false' }}
@@ -139,20 +146,21 @@ jobs:
           fi
 
       - name: Notify subscribers about the new digest
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         continue-on-error: true
         run: npm run push:send -- --mode digest
 
       - name: Post the new digest to Facebook, Threads, Instagram, Telegram and Discord
-        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode digest
 
       - name: Daily Discord quiz poll (once a day)
-        if: env.DISCORD_BOT_TOKEN != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && env.DISCORD_BOT_TOKEN != '' }}
         continue-on-error: true
         run: npm run social:post -- --mode quiz
 
       - name: Weekly top list on Mondays (once a week)
-        if: env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != ''
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.TELEGRAM_BOT_TOKEN != '' || env.DISCORD_BOT_TOKEN != '') }}
         continue-on-error: true
         run: npm run social:post -- --mode weekly

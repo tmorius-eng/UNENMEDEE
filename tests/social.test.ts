@@ -237,3 +237,14 @@ describe("discord channel id", () => {
     assert.equal(discordChannelId("мэдээ"), undefined);
   });
 });
+
+describe("token refresh severity", () => {
+  it("warns while the stored token has weeks left, errors once the 60-day expiry is close", async () => {
+    const { refreshSeverity } = await import("@/lib/social/token-state");
+    const now = new Date("2026-10-27T00:00:00Z");
+    const daysAgo = (d: number) => ({ token: "t", seed: "s", refreshedAt: new Date(now.getTime() - d * 86_400_000).toISOString() });
+    assert.equal(refreshSeverity(daysAgo(8), now), "warning");
+    assert.equal(refreshSeverity(daysAgo(44), now), "warning");
+    assert.equal(refreshSeverity(daysAgo(46), now), "error");
+  });
+});
