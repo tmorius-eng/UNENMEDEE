@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // AVIF first: the logo mark (the only next/image) was a 7 KB WebP at 2x, flagged by Lighthouse.
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   turbopack: {
     rules: {
       "*.css": {

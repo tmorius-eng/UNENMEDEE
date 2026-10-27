@@ -24,7 +24,7 @@ export function ArticleEditor({ article }: { article: { id: number; title: strin
     extensions: [StarterKit.configure({ heading: { levels: [2, 3] } })],
     content: toHtml(article.content),
     immediatelyRender: false,
-    editorProps: { attributes: { class: "prose prose-sm max-w-none min-h-80 p-4 outline-none dark:prose-invert" } },
+    editorProps: { attributes: { class: "prose max-w-none min-h-80 p-4 outline-none" } },
     // Stored as clean text (CLAUDE.md rule #3): paragraphs separated by blank lines.
     onUpdate: ({ editor: e }) => setContent(e.getText({ blockSeparator: "\n\n" })),
   });

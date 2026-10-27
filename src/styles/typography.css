@@ -421,6 +421,41 @@
     }
 }
 
+/* Tables (Markdown in AI blocks). These were the only rules the @tailwindcss/typography plugin
+   still added over this file; the plugin was dropped to cut ~20 KB from every page's CSS. */
+.prose :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    width: 100%;
+    table-layout: auto;
+    margin-top: calc(var(--spacing) * 6);
+    margin-bottom: calc(var(--spacing) * 6);
+    font-size: 0.875em;
+    line-height: 1.7;
+    text-align: start;
+}
+.prose :where(thead):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    border-bottom: 1px solid var(--tw-prose-th-borders);
+}
+.prose :where(tbody tr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    border-bottom: 1px solid var(--tw-prose-td-borders);
+}
+.prose :where(th):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--tw-prose-headings);
+    font-weight: 600;
+    text-align: start;
+    vertical-align: bottom;
+    padding: 0 0.5em 0.5em;
+}
+.prose :where(td):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    vertical-align: baseline;
+    padding: 0.5em;
+}
+.prose :where(th:first-child, td:first-child):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    padding-inline-start: 0;
+}
+.prose :where(th:last-child, td:last-child):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    padding-inline-end: 0;
+}
+
 /* Remove top margin from first element */
 .prose > :first-child:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-top: 0;
