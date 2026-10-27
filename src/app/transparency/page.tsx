@@ -9,6 +9,7 @@ import { budgetConfig } from "@/lib/ai/limits";
 import { getPrice } from "@/lib/ai/pricing";
 import { formatNumber, formatUsd } from "@/lib/format";
 import { getSiteStats, getTransparency } from "@/lib/queries";
+import { LOG_KEEP_MONTHS } from "@/lib/retention";
 import { REPO_URL } from "@/lib/site";
 import type { AIProvider } from "@/lib/types";
 
@@ -67,7 +68,7 @@ async function Dashboard() {
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile icon={Server03} label="Серверийн зардал" value="$0.00" hint="Vercel Hobby + Supabase Free + үнэгүй автомат ажлын сервер" />
-        <Tile icon={CpuChip01} label="Нийт AI зардал" value={formatUsd(data.totals.costUsd)} hint={`${formatNumber(data.totals.calls)} дуудлага · ${formatNumber(data.totals.tokens)} токен`} />
+        <Tile icon={CpuChip01} label="Нийт AI зардал" value={formatUsd(data.totals.costUsd)} hint={`Сүүлийн ${LOG_KEEP_MONTHS} сард ${formatNumber(data.totals.calls)} дуудлага · ${formatNumber(data.totals.tokens)} токен`} />
         <Tile icon={Database01} label="Уншсан төрийн хуудас" value={formatNumber(stats.articles)} hint={`${formatNumber(stats.analyzed)} нь AI-аар шүүгдсэн`} />
         <Tile
           icon={ShieldTick}
@@ -79,7 +80,7 @@ async function Dashboard() {
 
       <Panel
         title="Өдөр бүрийн төлбөртэй AI зардал"
-        description="Сүүлийн 30 хоног, токен бүрийн бодит үнээр. Үнэгүй AI (Groq, NVIDIA, Ollama) $0 тул графикт биш, доорх хүснэгтэд харагдана."
+        description={`Сүүлийн 30 хоног, токен бүрийн бодит үнээр. Үнэгүй AI (Groq, NVIDIA, Ollama) $0 тул графикт биш, доорх хүснэгтэд (сүүлийн ${LOG_KEEP_MONTHS} сар) харагдана.`}
       >
         {data.dailySpend.length ? (
           <DailySpendChart data={data.dailySpend} />

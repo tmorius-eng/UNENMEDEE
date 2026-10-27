@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 import type { DB } from "@/db";
-import { articles, sources } from "@/db/schema";
+import { articles, seenUrls, sources } from "@/db/schema";
 import { contentHash, slugify, truncate } from "@/lib/text";
 
 import type { ArticleSink } from "./crawl";
@@ -30,19 +30,23 @@ export function createDbSink(db: DB, options: SinkOptions = {}): ArticleSink {
   return {
     async filterNewUrls(urls) {
       if (urls.length === 0) return new Set();
-      const existing = await db
-        .select({ url: articles.originalUrl })
-        .from(articles)
-        .where(inArray(articles.originalUrl, urls));
-      const known = new Set(existing.map((r) => r.url));
+      // seen_urls holds the URLs of rows the retention job deleted (src/lib/retention.ts).
+      const [existing, deleted] = await Promise.all([
+        db.select({ url: articles.originalUrl }).from(articles).where(inArray(articles.originalUrl, urls)),
+        db.select({ url: seenUrls.originalUrl }).from(seenUrls).where(inArray(seenUrls.originalUrl, urls)),
+      ]);
+      const known = new Set([...existing, ...deleted].map((r) => r.url));
       return new Set(urls.filter((u) => !known.has(u)));
     },
 
     async save(source: SourceRef, item: ScrapedItem) {
       // Hash the full cleaned text BEFORE any LLM call (CLAUDE.md rule #2).
       const hash = contentHash(item.text);
-      const dup = await db.select({ id: articles.id }).from(articles).where(eq(articles.contentHash, hash)).limit(1);
-      if (dup.length) return "duplicate";
+      const [dup, deletedDup] = await Promise.all([
+        db.select({ id: articles.id }).from(articles).where(eq(articles.contentHash, hash)).limit(1),
+        db.select({ url: seenUrls.originalUrl }).from(seenUrls).where(eq(seenUrls.contentHash, hash)).limit(1),
+      ]);
+      if (dup.length || deletedDup.length) return "duplicate";
       let title = item.title;
       let siteTitle = isGenericTitle(title, [source.name]);
       if (!siteTitle && !REPEATING_TITLES.has(source.domain)) {

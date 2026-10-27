@@ -11,6 +11,7 @@ import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
 import { toPrefixQuery } from "@/lib/search";
 import { FEED_MIN_IMPORTANCE, INDEXED_DOMAINS } from "@/lib/seo";
 import { SOURCE_SEEDS } from "@/lib/sources";
+import { LOG_KEEP_MONTHS, PRUNE_STATE_KEY } from "@/lib/retention";
 import { ubMidnight } from "@/lib/ticker";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
 import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
@@ -607,6 +608,18 @@ export async function getSitemapArticles(limit = 1000, indexableOnly = false): P
   });
 }
 
+/** Totals of the rows `db:prune` deleted, from its `prune_state` (0 when it never deleted anything). */
+export function deletedTotals(value: string | undefined): { articles: number; analyzed: number } {
+  if (!value) return { articles: 0, analyzed: 0 };
+  try {
+    const s = JSON.parse(value) as { articlesDeletedTotal?: unknown; analyzedDeletedTotal?: unknown };
+    const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+    return { articles: n(s.articlesDeletedTotal), analyzed: n(s.analyzedDeletedTotal) };
+  } catch {
+    return { articles: 0, analyzed: 0 };
+  }
+}
+
 export interface SiteStats {
   activeSources: number;
   articles: number;
@@ -635,7 +648,7 @@ export async function getSiteStats(): Promise<SiteStats> {
     monthStart.setUTCDate(1);
     monthStart.setUTCHours(0, 0, 0, 0);
     const todayStart = new Date(ubMidnight(Date.now()));
-    const [[src], [art], [clu], [cost], [recent]] = await Promise.all([
+    const [[src], [art], [clu], [cost], [recent], [pruned]] = await Promise.all([
       db.select({ n: count() }).from(sources).where(eq(sources.isActive, true)),
       db
         .select({
@@ -653,11 +666,14 @@ export async function getSiteStats(): Promise<SiteStats> {
         })
         .from(articles)
         .where(and(eq(articles.isPublished, true), sql`coalesce(${articles.importanceScore}, 100) >= ${FEED_MIN_IMPORTANCE}`)),
+      // Rows the retention job deleted were still read (and many analysed): the counters keep them.
+      db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, PRUNE_STATE_KEY)).limit(1),
     ]);
+    const deleted = deletedTotals(pruned?.value);
     return {
       activeSources: src.n,
-      articles: art.total,
-      analyzed: art.analyzed,
+      articles: art.total + deleted.articles,
+      analyzed: art.analyzed + deleted.analyzed,
       flagged: art.flagged,
       clusters: clu.n,
       aiCostThisMonthUsd: Number(cost.usd),
@@ -744,8 +760,11 @@ export async function getTransparency(): Promise<TransparencyData> {
   return safe("getTransparency", empty, async () => {
     const db = getDb();
     const since = new Date(Date.now() - 30 * 86_400_000);
+    // Call logs are kept LOG_KEEP_MONTHS (db:prune); the per-provider table covers exactly that window.
+    const logsSince = new Date();
+    logsSince.setUTCMonth(logsSince.getUTCMonth() - LOG_KEEP_MONTHS);
     const day = sql<string>`to_char(${aiUsageLogs.createdAt} at time zone 'Asia/Ulaanbaatar', 'YYYY-MM-DD')`;
-    const [daily, providers, ledger] = await Promise.all([
+    const [daily, providers, ledger, [allTime]] = await Promise.all([
       db
         .select({ day, provider: aiUsageLogs.provider, usd: sql<string>`sum(${aiUsageLogs.estimatedCostUsd})` })
         .from(aiUsageLogs)
@@ -761,8 +780,11 @@ export async function getTransparency(): Promise<TransparencyData> {
           costUsd: sql<string>`coalesce(sum(${aiUsageLogs.estimatedCostUsd}), 0)`,
         })
         .from(aiUsageLogs)
+        .where(gte(aiUsageLogs.createdAt, logsSince))
         .groupBy(aiUsageLogs.provider),
       db.select().from(transparencyLedger).orderBy(desc(transparencyLedger.month)).limit(12),
+      // The ledger keeps every month's AI total for good, also after its call logs are pruned.
+      db.select({ usd: sql<string>`coalesce(sum(${transparencyLedger.aiCostUsd}), 0)` }).from(transparencyLedger),
     ]);
     const days = new Map<string, { day: string; deepseek: number; grok: number }>();
     for (const r of daily) {
@@ -790,7 +812,8 @@ export async function getTransparency(): Promise<TransparencyData> {
         notes: l.notes,
       })),
       totals: {
-        costUsd: byProvider.reduce((s, p) => s + p.costUsd, 0),
+        // All-time spend: the ledger, unless this month's ledger sync is behind the logs.
+        costUsd: Math.max(Number(allTime?.usd ?? 0), byProvider.reduce((s, p) => s + p.costUsd, 0)),
         calls: byProvider.reduce((s, p) => s + p.calls, 0),
         tokens: byProvider.reduce((s, p) => s + p.promptTokens + p.completionTokens, 0),
       },

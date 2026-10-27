@@ -1,4 +1,4 @@
-import { gte, sql } from "drizzle-orm";
+import { eq, gte, sql } from "drizzle-orm";
 
 import type { DB } from "@/db";
 import { aiUsageLogs, transparencyLedger } from "@/db/schema";
@@ -34,10 +34,25 @@ export function monthKey(d: Date = new Date()): string {
 }
 
 /**
+ * Whether a month's AI spend can still be recomputed from ai_usage_logs. The retention job deletes
+ * logs after 13 months (`LOG_KEEP_MONTHS`), so only the last 12 months are complete; older months
+ * keep the total already stored in the ledger.
+ */
+export function monthRecomputable(month: string, now: Date = new Date()): boolean {
+  const oldest = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+  return month >= monthKey(oldest);
+}
+
+/**
  * Recomputes this month's AI spend from ai_usage_logs and upserts it into the ledger.
- * Idempotent: safe to run after every batch.
+ * Idempotent: safe to run after every batch. A month whose logs may be pruned keeps its stored
+ * total (an admin edit of an old ledger row must not shrink its AI cost to the logs that are left).
  */
 export async function syncLedgerAiCost(db: DB, month: string = monthKey()): Promise<number> {
+  if (!monthRecomputable(month)) {
+    const [stored] = await db.select({ usd: transparencyLedger.aiCostUsd }).from(transparencyLedger).where(eq(transparencyLedger.month, month)).limit(1);
+    return Number(stored?.usd ?? 0);
+  }
   const [row] = await db
     .select({ total: sql<string>`coalesce(sum(${aiUsageLogs.estimatedCostUsd}), 0)` })
     .from(aiUsageLogs)

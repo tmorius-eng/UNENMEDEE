@@ -1,14 +1,15 @@
 /**
- * Keeps the free 500 MB database from filling up: articles older than RETENTION_DAYS keep their
- * title, AI summary, facts, entities, source link and SHA-256 hash, but the body is cut to an
- * EXCERPT_CHARS excerpt (the article page says so and links the original). Postgres reuses the
- * freed space through autovacuum, so the database stops growing at roughly one retention window.
+ * Keeps the free 500 MB database from filling up (`src/lib/retention.ts` has the rules and the
+ * size ladder): old article bodies are cut to an excerpt, unpublished rows older than 90 days are
+ * deleted (their URL and hash stay in seen_urls so the scraper skips them), old AI call logs go,
+ * and past 420 MB minor stories older than two years go too. The run is recorded in
+ * app_settings `prune_state` (the watchdog checks it ran).
  *
  * It also stores headlines still in capitals in sentence case (`unshoutTitle`, which the scraper
  * applies to new articles since Oct 2026); slugs stay, so every URL keeps working.
  *
  *   npm run db:prune                 # RETENTION_DAYS=180 by default
- *   npm run db:prune -- --dry-run
+ *   npm run db:prune -- --dry-run    # counts only, nothing changes
  */
 import "dotenv/config";
 import { parseArgs } from "node:util";
@@ -16,11 +17,11 @@ import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
+import { DEFAULT_RETENTION_DAYS, EXCERPT_CHARS, OLD_STORY_DAYS, runRetention, SEEN_URL_KEEP_DAYS, LOG_KEEP_MONTHS } from "@/lib/retention";
 import { unshoutTitle } from "@/lib/scraper/titles";
 
 const { values } = parseArgs({ options: { "dry-run": { type: "boolean", default: false } } });
-const RETENTION_DAYS = Math.max(30, Number(process.env.RETENTION_DAYS ?? 180));
-const EXCERPT_CHARS = 600;
+const configured = Number(process.env.RETENTION_DAYS || DEFAULT_RETENTION_DAYS);
 
 async function main() {
   if (!hasDatabase()) {
@@ -29,14 +30,16 @@ async function main() {
     return;
   }
   const db = getDb();
+  const dryRun = values["dry-run"];
   await fixShoutingTitles(db);
-  const where = sql`content_pruned_at is null and coalesce(published_at, created_at) < now() - make_interval(days => ${RETENTION_DAYS}) and length(clean_content) > ${EXCERPT_CHARS}`;
-  const [{ n, bytes }] = (await db.execute(sql`select count(*)::int as n, coalesce(sum(length(clean_content)), 0)::bigint as bytes from articles where ${where}`)).rows as { n: number; bytes: string }[];
-  console.log(`✂️  ${n} article(s) older than ${RETENTION_DAYS} days to cut to ${EXCERPT_CHARS} characters (~${Math.round(Number(bytes) / 1024)} KB of text).`);
-  if (values["dry-run"] || n === 0) return;
-  await db.execute(sql`update articles set clean_content = left(clean_content, ${EXCERPT_CHARS}), content_pruned_at = now() where ${where}`);
-  const [{ size }] = (await db.execute(sql`select pg_size_pretty(pg_database_size(current_database())) as size`)).rows as { size: string }[];
-  console.log(`✓ Done. Database size: ${size} (space is reused after autovacuum).`);
+  const s = await runRetention(db, { configuredDays: configured, dryRun });
+  const verb = dryRun ? "would" : "did";
+  console.log(`🗄️  Database ${s.dbMbBefore} MB → bodies after ${s.plan.bodyDays} d, unpublished rows after ${s.plan.unpublishedDays} d${s.plan.deleteOldStories ? ", old minor stories too (past 420 MB)" : ""}.`);
+  console.log(`✂️  ${verb} cut ${s.bodiesCut} article bodies to ${EXCERPT_CHARS} characters.`);
+  console.log(`🗑️  ${verb} delete ${s.unpublishedDeleted} unpublished rows (URL + hash kept in seen_urls).`);
+  if (s.plan.deleteOldStories) console.log(`::warning::${verb} delete ${s.oldStoriesDeleted} minor stories older than ${OLD_STORY_DAYS} days: the database is past 420 MB.`);
+  console.log(`🧹 ${verb} forget ${s.seenUrlsPruned} seen URLs older than ${SEEN_URL_KEEP_DAYS} days and ${s.logsDeleted} AI call logs older than ${LOG_KEEP_MONTHS} months.`);
+  if (!dryRun) console.log(`✓ Done. Database ${s.dbMbAfter} MB (freed space is reused after autovacuum).`);
 }
 
 async function fixShoutingTitles(db: ReturnType<typeof getDb>) {
