@@ -29,6 +29,10 @@ Useful details: the URL or file, steps to reproduce, and what an attacker could 
   environment variables; `.env*` files are git-ignored (only `.env.example` is committed).
 - Workflows run with read-only `GITHUB_TOKEN` permissions, actions are pinned to commit
   SHAs, and Dependabot proposes updates weekly.
+- The weekly database backup (`backup.yml`, `docs/BACKUP.md`) is encrypted with `age` to the
+  owner's public key before it leaves the job; the private key never touches GitHub. Artifacts of
+  a public repository are downloadable by any signed-in user, so nothing else is uploaded, and the
+  log prints row counts only.
 - Paid AI providers stop at a monthly USD cap (`AI_MONTHLY_BUDGET_USD`), so a leaked or
   abused key cannot run up an unbounded bill. Every call is logged on `/transparency`.
 

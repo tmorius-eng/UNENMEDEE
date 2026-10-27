@@ -135,7 +135,7 @@ GitHub Actions (08:07 and 20:07 Ulaanbaatar)
  ├─ push:send / social:post                Web Push + Facebook, Instagram, Threads, Telegram, Discord (docs/FACEBOOK.md)
  └─ db:prune                               old bodies → excerpts, old unpublished rows deleted (bounded DB)
 Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover, sources:recheck (edited or deleted posts).
-Daily: watchdog, keepalive, Vercel deployment cleanup.
+Daily: watchdog, keepalive, Vercel deployment cleanup. Weekly: encrypted database backup (`docs/BACKUP.md`).
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
 ```
 
@@ -154,7 +154,7 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 | `src/lib/places.ts`, `src/lib/promises/` | Aimags, districts and their constituencies; the Government action programme |
 | `src/lib/seo.ts`, `src/lib/structured-data.ts`, `src/lib/archive.ts` | Which pages are indexed, JSON-LD builders, the day archive |
 | `src/app/` | Pages (see the table above) and `/admin` |
-| `.github/workflows/` | Pipeline, digest + data sync, officials, discovery, source re-check, social posts, watchdog, keepalive, Vercel cleanup, maintenance, CI |
+| `.github/workflows/` | Pipeline, digest + data sync, officials, discovery, source re-check, social posts, watchdog, keepalive, backup, Vercel cleanup, maintenance, CI |
 
 ### Audit it yourself
 

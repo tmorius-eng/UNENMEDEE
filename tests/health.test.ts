@@ -94,6 +94,13 @@ describe("watchdog rules", () => {
     }
   });
 
+  it("asks for the backup key until it is set", () => {
+    const missing = evaluateHealth(healthy(), { ...CONFIG, backupConfigured: false }, NOW);
+    assert.equal(missing.length, 1);
+    assert.match(missing[0], /BACKUP_AGE_PUBLIC_KEY/);
+    assert.deepEqual(evaluateHealth(healthy(), { ...CONFIG, backupConfigured: true }, NOW), []);
+  });
+
   it("a platform that is not set up is never reported", () => {
     assert.deepEqual(only((s) => (s.social!.telegram!.hoursSinceOk = null)), []);
     assert.deepEqual(only((s) => (s.tokens!.instagram = daysAgo(50))), []);
