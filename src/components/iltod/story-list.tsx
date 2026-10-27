@@ -47,6 +47,7 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
   const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
   const amount = largestAmount(s.amounts);
   const share = lead ? null : perPersonLine(s.amounts);
+  const Heading = lead ? "h2" : "h3";
   return (
     <li key={s.id} className={lead ? "pt-6 pb-6" : "py-5"}>
       <div className="flex items-start gap-4">
@@ -67,25 +68,28 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
           </p>
           {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place.
               The view-transition name is shared with the article's <h1>, so the headline morphs there. */}
-          <ViewTransition name={`hl-${s.slug}`}>
-            <a
-              href={`/article/${s.slug}`}
-              onClick={(e) => {
-                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                e.preventDefault();
-                onOpen(s.id);
-              }}
-              aria-expanded={isOpen}
-              className={cx(
-                "mt-2 block w-full cursor-pointer text-left transition-colors",
-                lead ? "headline text-[1.75rem] md:text-[2.5rem]" : "story-headline text-balance",
-                // Mouse hover: a 2 px brand underline (Tailwind's hover: variant is gated on (hover: hover)).
-                isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary hover:underline hover:decoration-[var(--color-bg-brand-solid)] hover:decoration-2 hover:underline-offset-4",
-              )}
-            >
-              {s.title}
-            </a>
-          </ViewTransition>
+          {/* A heading per story (h2 for the lead, h3 for rows): the page gets a real outline. */}
+          <Heading className="mt-2">
+            <ViewTransition name={`hl-${s.slug}`}>
+              <a
+                href={`/article/${s.slug}`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onOpen(s.id);
+                }}
+                aria-expanded={isOpen}
+                className={cx(
+                  "block w-full cursor-pointer text-left transition-colors",
+                  lead ? "headline text-[1.75rem] md:text-[2.5rem]" : "story-headline text-balance",
+                  // Mouse hover: a 2 px brand underline (Tailwind's hover: variant is gated on (hover: hover)).
+                  isRead && !isOpen ? "text-tertiary" : "text-primary hover:text-brand-secondary hover:underline hover:decoration-[var(--color-bg-brand-solid)] hover:decoration-2 hover:underline-offset-4",
+                )}
+              >
+                {s.title}
+              </a>
+            </ViewTransition>
+          </Heading>
           {teaser && !isOpen && <p className={cx("mt-2 text-secondary", lead ? "line-clamp-3 text-md" : "line-clamp-2 text-sm")}>{teaser}</p>}
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="label-mono text-tertiary">

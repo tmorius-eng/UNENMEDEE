@@ -20,7 +20,8 @@ import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { placeGenitive, placeOfDomain } from "@/lib/places";
-import { type ArticleDetail, getArticleBySlug, getCluster, getRecentSlugs } from "@/lib/queries";
+import { linkPeople } from "@/lib/officials/links";
+import { type ArticleDetail, type FeedFilter, getArticleBySlug, getCluster, getPoliticians, getRecentSlugs, getTopicNeighbours } from "@/lib/queries";
 import { absoluteUrl, jsonLd, safeHttpUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import { topicFor } from "@/lib/topics";
 
@@ -122,12 +123,45 @@ async function Related({ clusterId, currentId }: { clusterId: number; currentId:
   );
 }
 
+/** "Энэ сэдвийн сүүлийн мэдээ": crawlable links to the topic's newest stories and its hub. */
+async function TopicNeighbours({ filter, label, excludeId, clusterId }: { filter: FeedFilter; label?: string; excludeId: number; clusterId: number | null }) {
+  const items = await getTopicNeighbours(filter, excludeId, clusterId, 5);
+  if (items.length === 0) return null;
+  const hub = filter === "all" ? "/" : `/topic/${filter}`;
+  return (
+    <Panel
+      title={label ? `${label} · сүүлийн мэдээ` : "Сүүлийн мэдээ"}
+      note={
+        <Link href={hub} prefetch={false} className="font-semibold text-brand-secondary hover:underline">
+          Бүгдийг үзэх →
+        </Link>
+      }
+    >
+      <ul className="divide-y divide-line-soft">
+        {items.map((a) => (
+          <li key={a.id} className="flex flex-col gap-1 py-3 first:pt-0">
+            <Link href={`/article/${a.slug}`} prefetch={false} className="story-headline text-lg text-primary hover:text-brand-secondary md:text-lg">
+              {a.title}
+            </Link>
+            <span className="label-mono normal-case text-tertiary">
+              {a.sourceName} · <TimeAgo date={a.publishedAt} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["params"] }) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
   // Local stories link to their aimag / district page ("Ховд аймгийн бүх мэдээ →").
   const place = article.sourceCategory === "local" ? placeOfDomain(article.sourceDomain) : undefined;
+  const topic = topicFor(article.sourceDomain, article.sourceCategory, article.topic);
+  // Named people link to their MP profile when the short name is one active member's.
+  const people = article.entities.people.length ? linkPeople(article.entities.people, await getPoliticians()) : [];
 
   const dateUnknown = article.scrapeMeta?.date_unknown === true;
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
@@ -139,9 +173,28 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       <span aria-hidden className="reading-progress" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd(article)) }} />
       <header className="flex flex-col gap-4">
-        <Link href="/" className="label-mono flex w-fit items-center gap-1.5 text-tertiary hover:text-primary">
-          <ArrowLeft className="size-3.5" /> Бүх мэдээ
-        </Link>
+        {/* Visible breadcrumb (the same trail as the BreadcrumbList JSON-LD): crawlable links up to the hubs. */}
+        <nav aria-label="Замын мөр" className="label-mono flex flex-wrap items-center gap-x-2 gap-y-1 text-tertiary">
+          <Link href="/" className="flex items-center gap-1.5 hover:text-primary">
+            <ArrowLeft className="size-3.5" /> Нүүр
+          </Link>
+          {topic.key !== "other" && (
+            <>
+              <span aria-hidden>›</span>
+              <Link href={`/topic/${topic.key}`} prefetch={false} className={`hover:text-primary ${topic.color}`}>
+                {topic.label}
+              </Link>
+            </>
+          )}
+          {place && (
+            <>
+              <span aria-hidden>›</span>
+              <Link href={`/place/${place.slug}`} prefetch={false} className="hover:text-primary">
+                {place.name}
+              </Link>
+            </>
+          )}
+        </nav>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <SourceBadge domain={article.sourceDomain} category={article.sourceCategory} size="md" />
           <span className="label-mono normal-case text-tertiary">
@@ -190,21 +243,34 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       {(article.entities.people.length > 0 || article.entities.orgs.length > 0) && (
         <Panel title="Нэр, байгууллага" note="AI ялгасан">
           <div className="flex flex-col gap-3">
-            {[
-              { label: "Хүмүүс", items: article.entities.people },
-              { label: "Байгууллагууд", items: article.entities.orgs },
-            ]
-              .filter((g) => g.items.length)
-              .map((g) => (
-                <div key={g.label} className="flex flex-wrap items-center gap-1.5">
-                  <span className="label-mono mr-1 text-tertiary">{g.label}</span>
-                  {g.items.map((p) => (
-                    <Chip key={p} size="md" className="font-sans tracking-normal">
-                      {p}
+            {people.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="label-mono mr-1 text-tertiary">Хүмүүс</span>
+                {people.map((p) =>
+                  p.id !== null ? (
+                    <Link key={p.name} href={`/officials/${p.id}`} prefetch={false} title="УИХ-ын гишүүний хөрөнгө, ирц, мэдээ">
+                      <Chip tone="brand" size="md" className="font-sans tracking-normal hover:underline">
+                        {p.name} →
+                      </Chip>
+                    </Link>
+                  ) : (
+                    <Chip key={p.name} size="md" className="font-sans tracking-normal">
+                      {p.name}
                     </Chip>
-                  ))}
-                </div>
-              ))}
+                  ),
+                )}
+              </div>
+            )}
+            {article.entities.orgs.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="label-mono mr-1 text-tertiary">Байгууллагууд</span>
+                {article.entities.orgs.map((o) => (
+                  <Chip key={o} size="md" className="font-sans tracking-normal">
+                    {o}
+                  </Chip>
+                ))}
+              </div>
+            )}
           </div>
         </Panel>
       )}
@@ -239,6 +305,9 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <Related clusterId={article.clusterId} currentId={article.id} />
         </Suspense>
       )}
+      <Suspense fallback={null}>
+        <TopicNeighbours filter={(topic.key === "other" ? "all" : topic.key) as FeedFilter} label={topic.key === "other" ? undefined : topic.label} excludeId={article.id} clusterId={article.clusterId} />
+      </Suspense>
       {place && (
         <Link href={`/place/${place.slug}`} prefetch={false} className="w-fit text-sm font-semibold text-brand-secondary hover:underline">
           {placeGenitive(place)} бүх мэдээ →
