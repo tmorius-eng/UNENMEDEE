@@ -15,7 +15,7 @@
 Сайтыг ажиллуулдаг бүх зүйл энэ репод байна:
 
 - вэб сайт (Next.js),
-- 95+ төрийн сайтаас мэдээ цуглуулагч,
+- 130 гаруй төрийн сайтаас цаг тутам мэдээ цуглуулагч,
 - AI шинжилгээ, AI-д өгдөг заавар ([`src/lib/ai/prompts.ts`](src/lib/ai/prompts.ts)),
 - бүх автомат ажил ([`.github/workflows/`](.github/workflows)), тэдгээрийн бүртгэл [Actions](https://github.com/tmorius-eng/UNENMEDEE/actions) хэсэгт нээлттэй.
 
@@ -34,17 +34,27 @@
 
 | Хуудас | Юу харуулдаг |
 |---|---|
-| `/` | Сүүлийн мэдээ, сэдвээр (`/topic/…`), нэг сэдэвт нэг мөр, AI хураангуй |
+| `/` | Сүүлийн мэдээ, сэдвээр (`/topic/…`), нэг сэдэвт нэг мөр, AI хураангуй, Монголбанкны 4 гол тоо |
 | `/digest` | Өдөрт 2 удаа AI редакторын сонгосон 10 чухал мэдээ, долоо хоногийн тоо |
+| `/archive`, `/archive/<огноо>` | Өдөр бүрийн бүх мэдээ, сэдвээр нь (сүүлийн 60 хоног) |
+| `/source/<домэйн>` | Нэг яам, агентлаг, аймгийн сайтын сүүлийн мэдээ |
+| `/place/<аймаг>` | Аймаг, дүүргийн мэдээ ба тойргийн УИХ-ын гишүүд |
 | `/laws` | legalinfo.mn-д шинээр гарсан хууль, тогтоол, товч тайлбартай |
 | `/officials` | УИХ-ын гишүүд: хөрөнгө орлогын мэдүүлэг (ХАСХОМ), ирц, мэдээнд дурдагдсан нь, "Миний гишүүн" |
 | `/officials/companies` | Төрийн өмчит компаниудын орлого, зардал, ашиг, цалингийн сан (Шилэн данс) |
+| `/promises` | Засгийн газрын 2024–2028 оны үйл ажиллагааны хөтөлбөрийн 620 зорилт, эх текстээр |
 | `/budget` | Улсын төсөв 1990 оноос, зарлага, орлого, өр, аудитын дүгнэлт |
-| `/tax` | "Миний татвар": таны татвар юунд зарцуулагдсан бэ |
-| `/data` | Монголбанкны ханш, инфляци, opendata.mn-ийн өгөгдөл |
+| `/tax` | Цалингийн татвар тооцоолуур: ХХОАТ, НДШ, НӨАТ юунд зарцуулагддаг вэ |
+| `/data` | Монголбанкны ханш, инфляц, бодлогын хүү, opendata.mn-ийн өгөгдөл |
+| `/changes` | Төрийн сайт нийтэлснийхээ дараа засварласан, устгасан мэдээ |
+| `/my` | Таны дагасан сэдэв, аймаг (бүртгэлгүй, зөвхөн таны төхөөрөмжид) |
 | `/search` | Мэдээ, гишүүдээс хайх |
 | `/transparency` | AI дуудлага бүрийн токен, долларын зардал, орлого |
 | `/method` | Арга зүй: AI яаж ажилладаг, эрсдэлийн оноо, AI-ийн заавар |
+
+## Дагах
+
+Тойм, чухал мэдээ автоматаар эдгээр сувагт гардаг: [Facebook](https://www.facebook.com/profile.php?id=61595785044734), [Instagram](https://www.instagram.com/iltodmedee.mn/), [Threads](https://www.threads.com/@iltodmedee.mn), [Discord](https://iltodmedee.mn/discord) (сувгийг өөрийн server-тээ Follow хийх, `/toim` `/haih` `/aimag` командууд), [RSS](https://iltodmedee.mn/feed.xml). Сайт дээрх 🔔 товчоор утсандаа мэдэгдэл авна.
 
 ## AI түлхүүр яаж хадгалагддаг вэ
 
@@ -81,7 +91,7 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 
 - **Эх сурвалж санал болгох:** [issue нээх](https://github.com/tmorius-eng/UNENMEDEE/issues/new/choose) → "Эх сурвалж санал болгох". Эсвэл [`src/lib/sources.ts`](src/lib/sources.ts)-д нэмээд PR илгээнэ. JSON API-тай сайтад [`src/lib/scraper/adapters/`](src/lib/scraper/adapters)-д adapter бичнэ.
 - **Алдаа мэдэгдэх:** AI хураангуй, тоо буруу байвал эх сурвалжийн холбоосыг хавсаргаад issue нээнэ үү.
-- **Код:** PR бүр `npm run check` (typecheck + lint + 150+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Алхам алхмаар заавар: [CONTRIBUTING.md](CONTRIBUTING.md). Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
+- **Код:** PR бүр `npm run check` (typecheck + lint + 330+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Алхам алхмаар заавар: [CONTRIBUTING.md](CONTRIBUTING.md). Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
 
 ## Холбоо барих
 
@@ -108,9 +118,9 @@ The full technical write-up, with diagrams, the data model, algorithms and desig
 
 ```
 GitHub Actions (hourly, free on public repos)
- ├─ npm run scrape          95+ seeded sources, least-recently-scraped first, 30-min budget
+ ├─ npm run scrape          130+ sources (curated + discovered), least-recently-scraped first, 30-min budget
  │   ├─ JSON APIs / feeds   opendata.gov.mn, parliament.mn, legalinfo.mn, police.gov.mn, mongolia.gov.mn RSS
- │   ├─ HTTP pass (Crawlee) WordPress REST API → RSS → scored link harvesting → Readability
+ │   ├─ HTTP pass (Crawlee) robots.txt (8 hosts at a time) → WordPress REST API → RSS → link harvesting → Readability
  │   └─ Browser pass        headless Chromium only for JavaScript-rendered sites
  │      → SHA-256 dedup → clean text only → articles
  └─ npm run ai:process
@@ -122,9 +132,10 @@ GitHub Actions (hourly, free on public repos)
 GitHub Actions (08:07 and 20:07 Ulaanbaatar)
  ├─ data:sync / macro:sync / budget:sync   opendata.mn, Mongolbank, NSO, Шилэн данс, World Bank, audit.mn
  ├─ digest                                 rank the last 12 h without AI → editor model picks 10 → /digest
- ├─ push:send / social:post                Web Push + the Facebook page (docs/FACEBOOK.md)
+ ├─ push:send / social:post                Web Push + Facebook, Instagram, Threads, Telegram, Discord (docs/FACEBOOK.md)
  └─ db:prune                               bodies older than 180 days become 600-char excerpts
-Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover. Daily: watchdog. Monthly: keepalive.
+Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover, sources:recheck (edited or deleted posts).
+Daily: watchdog, Vercel deployment cleanup. Monthly: keepalive.
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.
 ```
 
@@ -139,8 +150,11 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 | `src/lib/ai/` | Provider router with cost logging, budget guard, prompts, schemas, clustering, digest |
 | `src/lib/officials/`, `budget/`, `soe/`, `mongolbank/`, `opendata-mn/` | Civic-data clients and parsers (each unit-tested on saved fixtures) |
 | `src/lib/queries.ts` | Cached read model for the public site |
+| `src/lib/social/` | Facebook, Instagram, Threads, Telegram and Discord posting, the Messenger and Discord bots |
+| `src/lib/places.ts`, `src/lib/promises/` | Aimags, districts and their constituencies; the Government action programme |
+| `src/lib/seo.ts`, `src/lib/structured-data.ts`, `src/lib/archive.ts` | Which pages are indexed, JSON-LD builders, the day archive |
 | `src/app/` | Pages (see the table above) and `/admin` |
-| `.github/workflows/` | Pipeline, digest + data sync, officials, discovery, watchdog, keepalive, CI |
+| `.github/workflows/` | Pipeline, digest + data sync, officials, discovery, source re-check, social posts, watchdog, keepalive, Vercel cleanup, maintenance, CI |
 
 ### Audit it yourself
 
@@ -153,14 +167,15 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 ### Honest limits
 
 - Free GitHub Actions minutes require a public repository; an hourly pipeline needs far more than a private repo's free quota.
-- Some sites block cloud IPs or sit behind a Cloudflare browser challenge (tender.gov.mn, president.mn). They fail gracefully and back off; we never try to get around Cloudflare.
+- Some sites block cloud IPs or sit behind a Cloudflare browser challenge (tender.gov.mn, president.mn), and a few cannot be reached from outside Mongolia at all (mof.gov.mn, ulaanbaatar.mn, customs.gov.mn). They fail gracefully and back off; we never try to get around Cloudflare.
+- About a third of the stories are minor notices (trainings, events, dataset listings). They stay on the site but are `noindex` and out of the sitemaps, so search engines see the substantial ones.
 - AI output can be wrong. Summaries name the model that wrote them, and every page links the official source.
 
 ### Contributing
 
 ```bash
 npm run demo    # the full site on real sample data (PGlite, no database server, no API keys)
-npm run check   # typecheck + lint + 150+ unit tests (no secrets needed)
+npm run check   # typecheck + lint + 330+ unit tests (no secrets needed)
 npm run build   # must pass without DATABASE_URL
 ```
 

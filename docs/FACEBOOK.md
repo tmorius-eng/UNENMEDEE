@@ -1,13 +1,19 @@
-# Facebook, Threads, Instagram-д автоматаар нийтлэх
+# Facebook, Threads, Instagram, Telegram, Discord-д автоматаар нийтлэх
 
 Pipeline (`autonomous-news-pipeline.yml`, цаг тутам), `news-digest.yml` болон гараар ажиллуулах
-`social-post.yml` дараах хоёрыг ИЛ ТОД МЭДЭЭ-ийн Facebook хуудас, Threads, Instagram-д нийтэлнэ
-(`npm run social:post`, `scripts/post-social.ts`):
+`social-post.yml` дараахыг ИЛ ТОД МЭДЭЭ-ийн Facebook хуудас, Threads, Instagram, Telegram суваг,
+Discord announcement сувагт нийтэлнэ (`npm run social:post`, `scripts/post-social.ts`):
 
 - **Тойм** (`--mode digest`): өглөө/оройн шинэ тойм бүр, эхний 5 гарчиг + `/digest` холбоос.
 - **Чухал мэдээ** (`--mode news`): сүүлийн 24 цагт нийтлэгдсэн, огноотой, AI товчилсон, ач холбогдол
   ≥ 75 (`FB_IMPORTANCE_MIN`) эсвэл эрсдэлийн тэмдэгтэй мэдээ. Нэг удаад 1 (`FB_NEWS_PER_RUN`),
   24 цагт ихдээ 4 (`FB_NEWS_PER_DAY`), нэг сэдвийн (cluster) мэдээг нэг л удаа.
+- **Өдрийн асуулт** (`--mode quiz`, зөвхөн Discord): гарчигтаа ₮ дүнтэй чухал мэдээгээр "хэд вэ?" poll,
+  хариулт нь spoiler дотор, 20 цагт нэгээс илүүгүй.
+- **7 хоногийн жагсаалт** (`--mode weekly`, Даваа гаригт): хамгийн том ₮ дүн, олон сайтын мэдээлсэн сэдэв,
+  хамгийн олон мэдээнд нэр нь гарсан гишүүн, шинэ хууль, нийт тоо. Instagram-аас бусад сувагт.
+
+Энэ бүгд дүрмээр хийгддэг, AI ашигладаггүй (зөвхөн тоймын гарчиг, "яагаад чухал" нь AI редакторынх).
 
 Пост бүр манай 1080×1350 "hook" карттай (`/ig-image`, `hookCard` in `src/lib/og.tsx`): Facebook-т
 зурагтай пост (`/{page}/photos`, холбоос текстэнд; зураггүй үед л `/feed` холбоосны пост), Threads-д
