@@ -1,8 +1,9 @@
-import { and, count, desc, eq, gte, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
 import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { ubDateKey, ubDayBounds } from "@/lib/archive";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
 import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
@@ -265,6 +266,118 @@ export async function getPlaceFeed(domains: string[], limit = 40): Promise<Artic
       .limit(limit);
     return rows.map(toListItem);
   });
+}
+
+export interface DayArchive {
+  stories: ArticleListItem[];
+  /** The nearest earlier / later Ulaanbaatar day that has stories (null = none). */
+  prev: string | null;
+  next: string | null;
+}
+
+/** Ulaanbaatar calendar day of published_at, "yyyy-mm-dd" (UTC+8, no DST). */
+const UB_DAY = sql<string>`to_char((${articles.publishedAt} at time zone 'UTC') + interval '8 hours', 'YYYY-MM-DD')`;
+
+/**
+ * Every published story of one Ulaanbaatar day (/archive/<date>), oldest first, no importance
+ * cut-off: the archive is the crawlable path to stories that left the feeds.
+ */
+export async function getDayArchive(date: string): Promise<DayArchive> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  return safe("getDayArchive", { stories: [], prev: null, next: null }, async () => {
+    const db = getDb();
+    const [start, end] = ubDayBounds(date).map((t) => new Date(t));
+    const [rows, [before], [after]] = await Promise.all([
+      db
+        .select(listColumns)
+        .from(articles)
+        .innerJoin(sources, eq(articles.sourceId, sources.id))
+        .where(and(visible, gte(articles.publishedAt, start), lt(articles.publishedAt, end)))
+        .orderBy(articles.publishedAt, articles.id)
+        .limit(400),
+      db.select({ at: sql<Date | null>`max(${articles.publishedAt})`.mapWith(articles.publishedAt) }).from(articles).where(and(visible, lt(articles.publishedAt, start))),
+      db.select({ at: sql<Date | null>`min(${articles.publishedAt})`.mapWith(articles.publishedAt) }).from(articles).where(and(visible, gte(articles.publishedAt, end))),
+    ]);
+    return {
+      stories: rows.map(toListItem),
+      prev: before?.at ? ubDateKey(new Date(before.at).getTime()) : null,
+      next: after?.at ? ubDateKey(new Date(after.at).getTime()) : null,
+    };
+  });
+}
+
+export interface ArchiveDay {
+  date: string;
+  stories: number;
+  /** Newest change on that day (sitemap lastModified). */
+  lastModified: Date;
+}
+
+/** Days of the last `days` with published stories, newest first (/archive, sitemap, feed footers). */
+export async function getArchiveDays(days = 60): Promise<ArchiveDay[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  return safe("getArchiveDays", [], async () => {
+    const rows = await getDb()
+      .select({
+        date: UB_DAY,
+        stories: sql<number>`count(*)::int`,
+        lastModified: sql<Date>`max(greatest(${articles.createdAt}, coalesce(${articles.editedAt}, ${articles.createdAt})))`.mapWith(articles.createdAt),
+      })
+      .from(articles)
+      .where(and(visible, isNotNull(articles.publishedAt), sql`${articles.publishedAt} >= now() - make_interval(days => ${days})`))
+      .groupBy(UB_DAY)
+      .orderBy(desc(UB_DAY));
+    return rows.map((r) => ({ date: r.date, stories: Number(r.stories), lastModified: r.lastModified }));
+  });
+}
+
+export interface SourceHub {
+  name: string;
+  domain: string;
+  category: SourceCategory;
+  isActive: boolean;
+}
+
+/** One source's page (/source/<domain>): the source and its newest published stories. */
+export async function getSourceHub(domain: string, limit = 40): Promise<{ source: SourceHub; stories: ArticleListItem[] } | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  const seed = SOURCE_SEEDS.find((s) => s.domain === domain);
+  const fallback = seed ? { source: { name: seed.name, domain: seed.domain, category: seed.category, isActive: true }, stories: [] } : null;
+  return safe("getSourceHub", fallback, async () => {
+    const db = getDb();
+    const [source] = await db.select({ id: sources.id, name: sources.name, domain: sources.domain, category: sources.category, isActive: sources.isActive }).from(sources).where(eq(sources.domain, domain)).limit(1);
+    if (!source) return null;
+    const rows = await db
+      .select(listColumns)
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(and(visible, eq(articles.sourceId, source.id)))
+      .orderBy(desc(articles.publishedAt), desc(articles.id))
+      .limit(limit);
+    return { source: { name: source.name, domain: source.domain, category: source.category, isActive: source.isActive }, stories: rows.map(toListItem) };
+  });
+}
+
+/** Sources with at least one published story, for the sitemap and prerendering. */
+export async function getSourceHubDomains(): Promise<{ domain: string; lastModified: Date }[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("articles");
+  return safe("getSourceHubDomains", [], () =>
+    getDb()
+      .select({ domain: sources.domain, lastModified: sql<Date>`max(${articles.createdAt})`.mapWith(articles.createdAt) })
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(visible)
+      .groupBy(sources.domain)
+      .orderBy(sources.domain),
+  );
 }
 
 export interface ClusterListItem {

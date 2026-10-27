@@ -18,6 +18,7 @@ import { ShareButton } from "@/components/iltod/share-button";
 import { STORY_BUTTON_PRIMARY } from "@/components/iltod/story-list";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import { aiModelLabel } from "@/lib/ai/model-label";
+import { archiveDateLabel, ubDateKey } from "@/lib/archive";
 import { formatDateMn, tldrSentences } from "@/lib/format";
 import { placeGenitive, placeOfDomain } from "@/lib/places";
 import { linkPeople } from "@/lib/officials/links";
@@ -164,6 +165,7 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
   const people = article.entities.people.length ? linkPeople(article.entities.people, await getPoliticians()) : [];
 
   const dateUnknown = article.scrapeMeta?.date_unknown === true;
+  const day = !dateUnknown && article.publishedAt ? ubDateKey(new Date(article.publishedAt).getTime()) : null;
   const paragraphs = article.cleanContent.split(/\n{2,}|\n/).filter((p) => p.trim().length > 0);
   const summaryTitle = article.summaryFallback ? "Хураангуй · эх текстийн эхний өгүүлбэрүүд" : article.sourceDomain === "opendata.gov.mn" ? "Хураангуй · дүрмээр гаргасан" : "AI хураангуй";
   const summaryNote = article.summaryFallback ? "AI ажиллаагүй" : article.sourceDomain === "opendata.gov.mn" ? "AI ашиглаагүй" : article.tier1Model ? aiModelLabel(article.tier1Model) : undefined;
@@ -198,7 +200,10 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <SourceBadge domain={article.sourceDomain} category={article.sourceCategory} size="md" />
           <span className="label-mono normal-case text-tertiary">
-            {article.sourceName} ·{" "}
+            <Link href={`/source/${article.sourceDomain}`} prefetch={false} className="hover:text-primary hover:underline">
+              {article.sourceName}
+            </Link>{" "}
+            ·{" "}
             {dateUnknown ? <span title={`Эх хуудсанд огноо байхгүй. ${formatDateMn(article.createdAt)}-нд цуглуулсан.`}>Огноо тодорхойгүй</span> : <TimeAgo date={article.publishedAt} />}
           </span>
         </div>
@@ -308,11 +313,22 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       <Suspense fallback={null}>
         <TopicNeighbours filter={(topic.key === "other" ? "all" : topic.key) as FeedFilter} label={topic.key === "other" ? undefined : topic.label} excludeId={article.id} clusterId={article.clusterId} />
       </Suspense>
-      {place && (
-        <Link href={`/place/${place.slug}`} prefetch={false} className="w-fit text-sm font-semibold text-brand-secondary hover:underline">
-          {placeGenitive(place)} бүх мэдээ →
+      {/* Hubs this story belongs to: its place, its source and its day (crawlable paths both ways). */}
+      <nav aria-label="Холбоотой хуудсууд" className="flex flex-col gap-2 text-sm font-semibold text-brand-secondary">
+        {place && (
+          <Link href={`/place/${place.slug}`} prefetch={false} className="w-fit hover:underline">
+            {placeGenitive(place)} бүх мэдээ →
+          </Link>
+        )}
+        <Link href={`/source/${article.sourceDomain}`} prefetch={false} className="w-fit hover:underline">
+          {article.sourceName}: бүх мэдээ →
         </Link>
-      )}
+        {day && (
+          <Link href={`/archive/${day}`} prefetch={false} className="w-fit hover:underline">
+            {archiveDateLabel(day)} бүх мэдээ →
+          </Link>
+        )}
+      </nav>
       <FollowCard />
     </article>
   );

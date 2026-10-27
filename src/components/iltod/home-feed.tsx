@@ -9,6 +9,7 @@ import { type TopicSeo, topicSeo } from "@/lib/topic-seo";
 import { findTopic, type Topic } from "@/lib/topics";
 import { cx } from "@/utils/cx";
 
+import { ArchiveLinks } from "./archive-links";
 import { Empty } from "./empty";
 import { FollowTopicButton } from "./follow-topic";
 import { IntroStrip } from "./intro-strip";
@@ -155,6 +156,7 @@ export async function HomeFeed({ filter }: { filter: FeedFilter }) {
           />
         )}
       </div>
+      <ArchiveLinks />
       <TopicBar active={filter} placement="bottom" />
     </div>
   );

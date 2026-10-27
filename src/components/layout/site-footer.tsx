@@ -42,6 +42,9 @@ export function SiteFooter() {
           <Link className={footerLink} href="/clusters">
             Олон эх сурвалжид гарсан сэдвүүд
           </Link>
+          <Link className={footerLink} href="/archive">
+            Архив
+          </Link>
           <Link className={footerLink} href="/sources">
             Хянаж буй бүх эх сурвалж
           </Link>

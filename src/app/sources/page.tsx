@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
@@ -54,7 +55,15 @@ async function SourceTable() {
                 <tbody className="divide-y divide-line-soft">
                   {group.map((s) => (
                     <tr key={s.id} className="hover:bg-primary_hover">
-                      <td className="px-4 py-3 font-medium text-primary">{s.name}</td>
+                      <td className="px-4 py-3 font-medium text-primary">
+                        {s.articleCount > 0 ? (
+                          <Link href={`/source/${s.domain}`} prefetch={false} className="hover:text-brand-secondary hover:underline">
+                            {s.name}
+                          </Link>
+                        ) : (
+                          s.name
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <a href={`https://${s.domain}`} target="_blank" rel="noreferrer" className="text-brand-secondary hover:underline">
                           {s.domain}
