@@ -48,6 +48,10 @@ Useful details: the URL or file, steps to reproduce, and what an attacker could 
   data must be http(s) (`safeHttpUrl`). Text sent to AI models is wrapped in `<article_text>` tags
   and every prompt says to ignore instructions inside it (indirect prompt injection); the output is
   validated with zod, and the "high risk" flag is computed by our code, not taken from the model.
+- **Webhooks.** `/api/messenger` accepts a POST only with Meta's `X-Hub-Signature-256` (HMAC of the
+  raw body with the app secret) and compares its verify token in constant time; `/api/discord` checks
+  Discord's Ed25519 signature on every request. Replies are built from our own data, never by a model,
+  and incoming messages are not stored.
 - **Admin URL fetching.** URLs typed into the admin go through an SSRF guard (http(s) on 80/443,
   every redirect re-checked, private and metadata IPs refused).
 - **Browser.** `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy, a permissions policy,

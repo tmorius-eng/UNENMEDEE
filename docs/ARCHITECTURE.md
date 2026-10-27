@@ -12,6 +12,7 @@ part is optional AI, capped at $3 a month.
 - [Civic data](#civic-data)
 - [Web app and rendering](#web-app-and-rendering)
 - [Push notifications](#push-notifications)
+- [Social channels](#social-channels)
 - [Security model](#security-model)
 - [Running unattended](#running-unattended)
 - [Testing](#testing)
@@ -45,8 +46,12 @@ database is the only shared state between the two halves.
 | Digest + data | 08:07, 20:07 Ulaanbaatar | `digest`, `data:sync`, `macro:sync`, `budget:sync`, `db:prune` | `digests`, `open_datasets`, `indicator_snapshots` |
 | Officials | weekly | `officials:sync` | `politicians`, `asset_declarations` |
 | Source discovery | weekly | `sources:discover` | `sources` |
+| Source re-check | weekly | `sources:recheck` | `articles.source_status`, `source_diff` |
+| Social posts | after each pipeline / digest run | `social:post` (news, digest, quiz, weekly) | `social_posts` |
 | Watchdog | daily | `npm run health` | a GitHub issue when something is stale |
+| Vercel cleanup | daily | `vercel:cleanup` | deletes old Vercel deployments (10 GB Hobby storage) |
 | Keepalive | monthly | GitHub API | re-enables scheduled workflows |
+| Maintenance | manual | `refetch-dates`, `recluster`, `ai-sample` | repairs, dry run by default |
 | CI | every PR | `npm run check`, `npm run build`, dependency review, CodeQL | nothing |
 
 ## Data model
@@ -65,8 +70,8 @@ migrations in [`drizzle/`](../drizzle) (`IF NOT EXISTS` everywhere, so a rerun i
 | `open_datasets` | opendata.mn metadata and small computed highlights (never raw rows) |
 | `indicator_snapshots` | One JSON document per external source (`mongolbank`, `budget_nso`, `shilendans`, `soe_finance`, …) |
 | `push_subscriptions` | Web Push endpoints and followed MPs |
-| `social_posts` | What was posted to the Facebook page (one row per platform + digest/article, so nothing posts twice) |
-| `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account) |
+| `social_posts` | What was posted to Facebook, Instagram, Threads, Telegram and Discord (one row per platform + kind + item, so nothing posts twice) |
+| `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account, refreshed Threads/Instagram tokens, hidden declaration years) |
 | `transparency_ledger` | Income and costs shown on `/transparency` |
 
 Size budget: about 6 KB per article. Bodies older than 180 days are cut to a 600-character
@@ -81,7 +86,9 @@ minimum delay per host ([`http.ts`](../src/lib/scraper/http.ts)). The User-Agent
 The Crawlee crawler uses the same policy for every request it queues (not Crawlee's own check, which
 treated an unreachable robots.txt as "allowed"): per RFC 9309 a 5xx or unreachable robots.txt means
 nothing is crawled from that site in this run, and the largest Crawl-delay (up to 20 s) becomes the
-per-domain delay. Sites behind a Cloudflare browser challenge are marked inactive; we never try to get around it.
+per-domain delay. robots.txt files are read 8 hosts at a time, and a network error gets one more try
+after 3 s: one `Promise.all` over every source once made ~40 sources time out in the same second and
+start their back-off. Sites behind a Cloudflare browser challenge are marked inactive; we never try to get around it.
 
 **Order of attempts per source:**
 
@@ -106,7 +113,8 @@ SHA-256; an already-seen hash is skipped before any AI call, so duplicate press 
 headline is the first candidate (Readability, `og:title`, `<h1>`, `<title>`) that is not a section
 word, the site's name or abbreviation, or a title the same site already used this month; otherwise the
 first sentence of the text ([`titles.ts`](../src/lib/scraper/titles.ts)); headlines a site publishes in
-capitals are stored in sentence case, keeping abbreviations and initials. The date comes from meta
+capitals are stored in sentence case, keeping abbreviations and initials. Menu pages, "about this
+department" pages and help pages ("… асуулт хариулт") reached through news links are stored unpublished. The date comes from meta
 tags, JSON-LD, `<time>`, the URL, or a date printed between the headline and the body (dates in
 "related news" lists below the body are ignored). Machine dates without a time zone are Ulaanbaatar
 time; a `<time>` more than a year older than the newest one on the page is a stray stamp in the page
@@ -225,6 +233,8 @@ parser unit-tested against a saved real response in [`tests/fixtures`](../tests/
 | `/budget` | NSO PX-Web (JSON-stat 2.0), Шилэн данс, World Bank, audit.mn register | [`src/lib/budget`](../src/lib/budget) |
 | `/data`, home strip | Mongolbank JSON endpoints, opendata.mn API | [`src/lib/mongolbank`](../src/lib/mongolbank), [`src/lib/opendata-mn`](../src/lib/opendata-mn) |
 | `/tax` | NSO spending structure; all maths in the browser | [`src/lib/tax`](../src/lib/tax) |
+| `/promises` | The Government's 2024–2028 action programme (Word file from legalinfo.mn), verbatim | [`src/lib/promises`](../src/lib/promises) |
+| `/place/<slug>` | 21 aimags, the capital and 9 districts: their sites' news and their constituency's MPs | [`src/lib/places.ts`](../src/lib/places.ts) |
 
 Neutral markers for declarations (for example total assets +50 % year on year) are plain rules in
 [`flags.ts`](../src/lib/officials/flags.ts), shown with the numbers and labelled "анхаарах өөрчлөлт",
@@ -237,19 +247,33 @@ Next.js 16 App Router with **Cache Components** (`cacheComponents: true`):
 - All database reads are `'use cache'` functions in [`src/lib/queries.ts`](../src/lib/queries.ts) with
   `cacheLife` and `cacheTag`. Pages such as `/` and `/topic/<key>` are fully static and served from the
   CDN; they revalidate in the background.
-- Each query times out after 10 s and returns the empty state, so `next build` never hangs and the site
-  builds with no database at all (CI and contributors need no secrets).
+- Each query times out after 10 s. With no `DATABASE_URL`, or during `next build`, it returns the empty
+  state, so the site builds with no database at all (CI and contributors need no secrets). At run time
+  the error propagates instead: a failed `'use cache'` call is not cached, so a database blip costs one
+  request, never an hour of empty pages.
 - Per-reader state (read marks, streak, followed MPs, text size) lives in `localStorage` via
   `useSyncExternalStore`, so the server HTML never depends on the reader or the clock.
-- UI: Untitled UI React (React Aria + Tailwind CSS v4), ElevenLabs UI for AI message blocks, Recharts
-  with a table view for every chart.
-- Performance budget: the target is Lighthouse mobile ≥ 0.9 on the home page (~470 KiB transferred). Heavy libraries (markdown
-  renderer, charts, animation) are kept off the home bundle.
+- UI: the "Ledger" look (one paper surface, 1 px hairlines, Inter Display headlines, JetBrains Mono
+  numbers, the logo's teal and a yellow signal for ₮ amounts) on Untitled UI React (React Aria +
+  Tailwind CSS v4), ElevenLabs UI for AI message blocks, Recharts with a table view for every chart.
+  Animation is CSS (`@starting-style`, scroll-driven, view transitions) and respects reduced motion.
+- Performance budget: Lighthouse mobile ≥ 0.9 on the home page (measured 90–95, CLS 0). The home page
+  renders 20 stories and loads more on request; heavy libraries (markdown renderer, charts) stay off
+  the home bundle. Fonts are self-hosted subsets (Latin + Cyrillic + Ө Ү ₮).
 - SEO: per-page canonicals, `sitemap.xml`, a Google News sitemap, RSS, `NewsArticle` JSON-LD and
   generated OG images. Internal links keep every story reachable without JavaScript: an article links
   to its topic, place, source and day; `/archive/<yyyy-mm-dd>` lists every published story of an
   Ulaanbaatar day by topic (`/archive` indexes the last 60 days, the feeds link the last 7);
-  `/source/<domain>` lists one official site's newest 40 stories.
+  `/source/<domain>` lists one official site's newest 40 stories (its title names the domain, since
+  people search "mof gov").
+- Search intent: titles and H1s carry the words people type ("Валютын ханш, инфляц…", "Цалингийн
+  татвар тооцоолуур", "Д.Ганмаа (…) — хөрөнгө, орлого, ирц"). Page JSON-LD: `Dataset` (naming the
+  official publisher) on `/data` and `/budget`, `WebApplication` on `/tax`, `ItemList` on `/officials`,
+  `Person` on MP profiles, `CollectionPage` on topic, place, archive and source pages.
+- Thin pages: a story with low importance, no other source, no ₮ amount and not a legal act
+  ([`seo.ts`](../src/lib/seo.ts)) is `noindex, follow` and left out of the sitemaps; it stays on the
+  site, in the archive and in RSS. Old `/?f=<topic>` links redirect to `/topic/<topic>` in
+  [`proxy.ts`](../src/proxy.ts), which only runs when that parameter is present.
 
 Functions run in Vercel's `sin1` region, next to the Supabase database (ap-southeast-1).
 
@@ -261,7 +285,7 @@ pair stored in `app_settings`. After each pipeline run `push:send` sends at most
 alert when their MPs are named in the last 24 h. Subscriptions are public server actions with zod
 validation, a push-service host allowlist and per-IP / global rate limits.
 
-## Facebook page
+## Social channels
 
 After the push steps, `social:post` ([`scripts/post-social.ts`](../scripts/post-social.ts)) posts each new
 digest edition and at most one important story per run (four per day, one per cluster) to the site's
@@ -285,6 +309,12 @@ People who message the page get an automatic Messenger reply from `/api/messenge
 answer is built from our own data only (the latest digest or the top search results, with links), never
 from a language model. The route answers Meta with 200 at once and sends the reply afterwards (`after()`),
 and answers a redelivered message id once. Messages are not stored in the database.
+
+Telegram (Bot API, the same card and text) and Discord get the same posts. Discord posts go to an
+announcement channel and are crossposted, so any server can press **Follow** and receive them without
+adding a bot; a daily quiz poll (guess the ₮ amount in a real headline) and a Monday top list are
+rule-based, no AI. Discord slash commands (`/toim`, `/haih`, `/aimag`) arrive at `/api/discord` as
+signed HTTP requests (Ed25519), so nothing is hosted. Setup for every platform: [FACEBOOK.md](FACEBOOK.md).
 
 ## Security model
 
@@ -338,8 +368,9 @@ item is "now". The seed refuses any non-`pglite:` URL. Every page shows a "Де�
 
 Unit tests cover the parsers (each against a saved real response), the AI router fallbacks and budget
 guard (fake providers), clustering, ranking, search query building, tax maths and the declaration flags.
-Before UI work merges we run Playwright checks on phone and desktop widths and Lighthouse mobile against
-the deployed preview and production.
+Before UI work merges we run Playwright screenshots on phone and desktop widths and Lighthouse mobile
+against a demo build (branch previews are off to save Vercel's free deployment quota), then check
+production after the merge.
 
 ## Design decisions and trade-offs
 
