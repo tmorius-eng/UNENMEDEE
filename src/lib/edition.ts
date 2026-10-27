@@ -2,12 +2,21 @@
  * "ОРОЙН ТОЙМ · 21:40": the part of the day and the Ulaanbaatar time an edition was written, so a
  * late or missed run never shows a wrong "morning". Used by the home strip and the Facebook post.
  */
-export function editionLabel(d: { kind: string; periodEnd: Date | string }): string {
+/** An edition older than this gets its date in the label: "evening digest" alone would read as today's. */
+export const EDITION_DATE_AFTER_H = 18;
+
+export function editionLabel(d: { kind: string; periodEnd: Date | string }, now?: Date): string {
   if (d.kind === "30d") return "САРЫН ТОЙМ";
-  const ub = new Date(new Date(d.periodEnd).getTime() + 8 * 3_600_000);
+  const end = new Date(d.periodEnd);
+  const ub = new Date(end.getTime() + 8 * 3_600_000);
   const h = ub.getUTCHours();
   const part = h < 5 ? "ШӨНИЙН" : h < 11 ? "ӨГЛӨӨНИЙ" : h < 17 ? "ӨДРИЙН" : "ОРОЙН";
-  return `${part} ТОЙМ · ${String(h).padStart(2, "0")}:${String(ub.getUTCMinutes()).padStart(2, "0")}`;
+  const label = `${part} ТОЙМ · ${String(h).padStart(2, "0")}:${String(ub.getUTCMinutes()).padStart(2, "0")}`;
+  // When the digest job has stopped, the strip must not keep presenting an old edition as today's.
+  if (now && now.getTime() - end.getTime() > EDITION_DATE_AFTER_H * 3_600_000) {
+    return `${label} · ${String(ub.getUTCDate()).padStart(2, "0")}.${String(ub.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+  return label;
 }
 
 /**

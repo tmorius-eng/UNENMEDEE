@@ -56,6 +56,8 @@ export interface ArticleListItem {
   importanceScore: number | null;
   /** The source page printed no date (`scrape_meta.date_unknown`): publishedAt is when we found it. */
   dateUnknown: boolean;
+  /** No AI answered: `tldr` is the article's own first sentences (`summary_fallback`), not an AI summary. */
+  summaryFallback: boolean;
 }
 
 /**
@@ -107,6 +109,7 @@ const listColumns = {
   importanceScore: articles.importanceScore,
   clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
   dateUnknown: sql<boolean>`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false)`,
+  summaryFallback: articles.summaryFallback,
 };
 
 type ListRow = {
@@ -129,6 +132,7 @@ type ListRow = {
   importanceScore: number | null;
   clusterSize: number | null;
   dateUnknown: boolean;
+  summaryFallback: boolean;
 };
 
 function toListItem(r: ListRow): ArticleListItem {
@@ -152,6 +156,7 @@ function toListItem(r: ListRow): ArticleListItem {
     importanceScore: r.importanceScore,
     clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
     dateUnknown: r.dateUnknown === true,
+    summaryFallback: r.summaryFallback === true,
   };
 }
 
@@ -696,6 +701,8 @@ export interface SourceHealth {
   articleCount: number;
   /** Published, summarized stories: what its /source/<domain> page lists (0 = empty, noindex). */
   visibleCount: number;
+  /** Whole days since the last scrape attempt, computed with the cached query (null = never). */
+  staleDays: number | null;
 }
 
 export async function getSources(): Promise<SourceHealth[]> {
@@ -713,6 +720,7 @@ export async function getSources(): Promise<SourceHealth[]> {
     consecutiveFailures: 0,
     articleCount: 0,
     visibleCount: 0,
+    staleDays: null,
   }));
   return safe("getSources", fallback, async () => {
     const db = getDb();
@@ -733,6 +741,7 @@ export async function getSources(): Promise<SourceHealth[]> {
         category: sources.category,
         isActive: sources.isActive,
         lastScrapedAt: sources.lastScrapedAt,
+        staleDays: sql<number | null>`floor(extract(epoch from now() - ${sources.lastScrapedAt}) / 86400)::int`,
         lastError: sources.lastError,
         consecutiveFailures: sources.consecutiveFailures,
         articleCount: sql<number>`coalesce(${counts.n}, 0)::int`,

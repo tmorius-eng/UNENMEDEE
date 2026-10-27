@@ -26,6 +26,13 @@ function Status({ s }: { s: SourceHealth }) {
         Хандаж чадсангүй ×{s.consecutiveFailures}
       </BadgeWithDot>
     );
+  // A source the rotation has not reached for a week is not "fine": the scraper may have stopped.
+  if (s.staleDays !== null && s.staleDays > 7)
+    return (
+      <BadgeWithDot type="pill-color" color="gray" size="sm">
+        Удаан шалгаагүй ({s.staleDays} өдөр)
+      </BadgeWithDot>
+    );
   return <BadgeWithDot type="pill-color" color="success" size="sm">Хэвийн</BadgeWithDot>;
 }
 

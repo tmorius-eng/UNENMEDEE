@@ -93,6 +93,25 @@ API түлхүүрээ шалгах: `npm run ai:process -- --sample`. Өгөг�
 - **Алдаа мэдэгдэх:** AI хураангуй, тоо буруу байвал эх сурвалжийн холбоосыг хавсаргаад issue нээнэ үү.
 - **Код:** PR бүр `npm run check` (typecheck + lint + 330+ unit test) болон `npm run build` (нууц түлхүүргүй) давах ёстой. Алхам алхмаар заавар: [CONTRIBUTING.md](CONTRIBUTING.md). Архитектурын дүрэм [`CLAUDE.md`](CLAUDE.md)-д бий.
 
+## Эзэмшигчийн шалгах хуудас
+
+Сайт хүнгүйгээр ажиллана: мэдээ цаг тутам, тойм өдөрт хоёр удаа, УИХ-ын гишүүд долоо хоног бүр, сонгуулийн дараа ч өөрөө шинэчлэгдэнэ. Ямар нэг зүйл зогсвол **watchdog** GitHub issue нээж танд имэйл илгээнэ: мөр бүр юу зогссон, аль secret/хуудсыг засахыг хэлнэ. Хүний гар шаардлагатай цорын ганц зүйлс:
+
+| Хэзээ | Юу хийх |
+|---|---|
+| Одоо, нэг удаа | `age-keygen`-ээр нөөцийн түлхүүр үүсгэж `BACKUP_AGE_PUBLIC_KEY` secret-д хийх ([docs/BACKUP.md](docs/BACKUP.md)). Чатад хуулсан Vercel токеныг хүчингүй болгох. |
+| Watchdog issue ирэхэд | Мөрийг уншаад заасан secret, хувьсагч, хуудсыг засах. Засагдмагц issue өөрөө хаагдана. |
+| Улиралд нэг удаа | Нөөц хуулбарыг нэг удаа тайлж шалгах (docs/BACKUP.md, 3-р алхам). Dependabot-ын PR-уудыг CI ногоон бол нэгтгэх. /admin-д сарын орлого (зар, хандив) оруулах: оруулаагүй сар «бүртгээгүй» гэж харагдана. |
+| Жил бүр | Porkbun домэйн сунгалт. Meta Data Use Checkup. `VERCEL_TOKEN`-ийг шинэчлэх. Watchdog сануулбал `POPULATION`, `RATES_CHECKED`, `GOVERNMENTS_VERIFIED_THROUGH`-ийг шинэчлэх. |
+| Засгийн газар солигдоход | `src/lib/budget/governments.ts`-д шинэ Ерөнхий сайдыг нэмж `GOVERNMENTS_VERIFIED_THROUGH`-ийг шилжүүлэх. Түүнээс өмнө /budget шинэ онд «—» гэж үнэнээр нь харуулна. |
+| 2027-10 | audit.mn-ийн `certs/rapidssl-tls-rsa-ca-g1.pem` 2027-11-02-нд дуусна (watchdog 60 хоногийн өмнө сануулна). |
+| 2028-04 | Node 24-ийн дэмжлэг дуусна: workflow-ууд болон Vercel дээр `node-version`-ийг ахиулах. |
+| 2028-06 УИХ-ын сонгууль | Юу ч хийх шаардлагагүй: шинэ гишүүд дараагийн sync-ээр орж, тойргийн нэр өөрчлөгдсөн ч аймгийн хуудсууд гишүүдээ олно. Watchdog идэвхтэй гишүүн 100-аас цөөн эсвэл гишүүнгүй аймаг гарвал хэлнэ. |
+| 2028-07 | Шинэ Засгийн газрын хөтөлбөр батлагдсаны дараа `npm run promises:import`. Тэр хүртэл /promises «өмнөх хөтөлбөр» гэж бичнэ. |
+| Ерөнхийлөгчийн сонгууль | Юу ч хийх шаардлагагүй: сайтын аль ч хэсэг Ерөнхийлөгчөөс хамаардаггүй. |
+| Supabase төсөл алдагдвал | Шинэ төсөл → secret-ууд → `db:migrate` → `db:restore` (docs/BACKUP.md). VAPID түлхүүрийг хэзээ ч шинээр бүү үүсгэ. |
+| Сошиал токен дуусвал | Шинэ токеныг secret-д хийхэд хадгалагдсан токеныг өөрөө солино ([docs/FACEBOOK.md](docs/FACEBOOK.md)). |
+
 ## Холбоо барих
 
 Сайттай холбоотой санал хүсэлт, алдаа, шинэ эх сурвалж, хамтын ажиллагаа, хэвлэл мэдээллийн асуудлаар **[info@iltodmedee.mn](mailto:info@iltodmedee.mn)** хаягаар бичээрэй. Кодын алдаа, санааг [issue](https://github.com/tmorius-eng/UNENMEDEE/issues) болгон нээж болно.
@@ -170,6 +189,25 @@ Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site
 - Some sites block cloud IPs or sit behind a Cloudflare browser challenge (tender.gov.mn, president.mn), and a few cannot be reached from outside Mongolia at all (mof.gov.mn, ulaanbaatar.mn, customs.gov.mn). They fail gracefully and back off; we never try to get around Cloudflare.
 - About a third of the stories are minor notices (trainings, events, dataset listings). They stay on the site but are `noindex` and out of the sitemaps, so search engines see the substantial ones.
 - AI output can be wrong. Summaries name the model that wrote them, and every page links the official source.
+
+### Owner checklist
+
+The site runs unattended: news hourly, digests twice a day, MPs weekly (elections included). When anything stops, the **watchdog** opens a GitHub issue (emailed to the owner) naming what stopped and which secret or page to fix. The only manual items:
+
+| When | What |
+|---|---|
+| Now, once | Create the backup key with `age-keygen` and store the public key in `BACKUP_AGE_PUBLIC_KEY` (`docs/BACKUP.md`). Revoke the Vercel token that was pasted in chat. |
+| On a watchdog issue | Fix what its lines name; the issue closes itself once healthy. |
+| Quarterly | Decrypt one backup as a drill. Merge green Dependabot PRs. Enter monthly income in /admin (months left empty read "not entered"). |
+| Yearly | Renew the Porkbun domain, Meta Data Use Checkup, rotate `VERCEL_TOKEN`; update `POPULATION`, `RATES_CHECKED`, `GOVERNMENTS_VERIFIED_THROUGH` when the watchdog asks. |
+| New government | Add the Prime Minister in `governments.ts` and move `GOVERNMENTS_VERIFIED_THROUGH`; until then /budget shows "—" for unverified years. |
+| 2027-10 | `certs/rapidssl-tls-rsa-ca-g1.pem` (audit.mn) expires 2027-11-02; the watchdog warns 60 days ahead. |
+| 2028-04 | Node 24 reaches end of life: bump `node-version` in the workflows and on Vercel. |
+| June 2028 election | Nothing: new MPs arrive with the next sync and place pages match redrawn constituencies; the watchdog flags fewer than 100 active MPs or a place without MPs. |
+| July 2028 | Run `npm run promises:import` once the new programme is approved; /promises says "previous programme" meanwhile. |
+| Presidential election | Nothing: no part of the site depends on the President. |
+| Supabase project lost | New project → secrets → `db:migrate` → `db:restore` (`docs/BACKUP.md`); never regenerate the VAPID keys. |
+| A social token dies | Put a new token in its secret; the stored one is replaced (`docs/FACEBOOK.md`). |
 
 ### Contributing
 

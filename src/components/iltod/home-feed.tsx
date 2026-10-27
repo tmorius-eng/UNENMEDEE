@@ -35,6 +35,13 @@ async function todayMn(): Promise<string> {
   return `${WEEKDAYS[ub.getUTCDay()]}, ${ub.getUTCMonth() + 1}-р сарын ${ub.getUTCDate()}`;
 }
 
+/** The digest strip's label with the hourly cached clock: an edition over 18 h old shows its date. */
+async function stripLabel(kind: string, periodEnd: string): Promise<string> {
+  "use cache";
+  cacheLife("hours");
+  return editionLabel({ kind, periodEnd }, new Date());
+}
+
 /** One entry per story: the same event from several sources is shown once. */
 function onePerStory(items: ArticleListItem[]): ArticleListItem[] {
   const seen = new Set<number>();
@@ -98,7 +105,7 @@ async function Masthead({ stats, digest, seo, topic }: { stats: SiteStats; diges
           <span className="min-w-0 flex-1">
             <span className="label-mono flex items-center gap-2 text-brand-secondary">
               <span aria-hidden className="size-2 rounded-[2px] bg-brand-solid" />
-              {editionLabel(digest)}
+              {await stripLabel(digest.kind, new Date(digest.periodEnd).toISOString())}
             </span>
             <span className="mt-0.5 block truncate text-md font-semibold tracking-[-0.01em] text-primary">{digest.title}</span>
           </span>

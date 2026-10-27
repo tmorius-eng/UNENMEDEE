@@ -17,6 +17,7 @@ import { getIndicator } from "@/lib/queries";
 import { jsonLd } from "@/lib/site";
 import { breadcrumbLd, datasetLd } from "@/lib/structured-data";
 import { cx } from "@/utils/cx";
+import { DataAge } from "@/components/iltod/data-age";
 
 export const metadata: Metadata = {
   title: "Улсын төсөв 1990 оноос: орлого, зарлага, өр, аудит",
@@ -363,7 +364,7 @@ function Debt({ nso }: { nso: BudgetNsoSnapshot }) {
   );
 }
 
-function Shilendans({ s }: { s: ShilendansSnapshot }) {
+function Shilendans({ s, updatedAt }: { s: ShilendansSnapshot; updatedAt: Date }) {
   const catTotal = s.categories.reduce((a, c) => a + c.amount, 0);
   return (
     <Section
@@ -371,7 +372,7 @@ function Shilendans({ s }: { s: ShilendansSnapshot }) {
       title={`Шилэн данс: ${s.from.slice(0, 4)} онд хамгийн их төлбөр авсан 10 байгууллага`}
       source={
         <>
-          <SourceLink href={SHILENDANS_URL}>Шилэн данс</SourceLink> · {formatDateMn(s.from)} – {formatDateMn(s.to)}
+          <SourceLink href={SHILENDANS_URL}>Шилэн данс</SourceLink> · {formatDateMn(s.from)} – {formatDateMn(s.to)} · <DataAge at={updatedAt} staleDays={14} />
         </>
       }
     >
@@ -398,12 +399,16 @@ function Shilendans({ s }: { s: ShilendansSnapshot }) {
   );
 }
 
-function Audit({ a }: { a: AuditSnapshot }) {
+function Audit({ a, updatedAt }: { a: AuditSnapshot; updatedAt: Date }) {
   return (
     <Section
       id="audit"
       title="Үндэсний аудитын газрын сөрөг, татгалзсан, хязгаарлалттай дүгнэлтүүд"
-      source={<SourceLink href={AUDIT_URL}>audit.mn, аудитын тайлангийн сан</SourceLink>}
+      source={
+        <>
+          <SourceLink href={AUDIT_URL}>audit.mn, аудитын тайлангийн сан</SourceLink> · <DataAge at={updatedAt} staleDays={30} />
+        </>
+      }
     >
       <ul className="grid gap-3 md:grid-cols-3">
         {OPINIONS.map((o) => (
@@ -456,8 +461,8 @@ async function Budget() {
       {nso && <Spending nso={nso.data} />}
       {nso && <Revenue nso={nso.data} tax={tax?.data ?? null} />}
       {nso && <Debt nso={nso.data} />}
-      {shilendans && <Shilendans s={shilendans.data} />}
-      {audit && <Audit a={audit.data} />}
+      {shilendans && <Shilendans s={shilendans.data} updatedAt={shilendans.updatedAt} />}
+      {audit && <Audit a={audit.data} updatedAt={audit.updatedAt} />}
     </div>
   );
 }
