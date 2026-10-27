@@ -342,9 +342,13 @@ html {
         font-size: 1.5rem;
     }
 }
-/* Paragraphs wrap without orphans where the browser can (Chrome, Safari); others ignore it. */
-:where(p, .prose li) {
-    text-wrap: pretty;
+/* Paragraphs wrap without orphans where the browser can (Chrome, Safari); others ignore it.
+   In the base layer: unlayered, this shorthand beat Tailwind's `truncate` (it resets
+   text-wrap-mode to wrap), so a "truncate" paragraph wrapped onto several lines. */
+@layer base {
+    :where(p, .prose li) {
+        text-wrap: pretty;
+    }
 }
 html[data-text-size="lg"] {
     font-size: 112.5%;

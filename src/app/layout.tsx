@@ -77,6 +77,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* Before the first paint: hide the first-visit intro for readers who dismissed it (no layout shift). */}
         <script dangerouslySetInnerHTML={{ __html: "try{localStorage.getItem('iltod-intro')&&(document.documentElement.dataset.intro='seen')}catch(e){}" }} />
+        {/* Chrome's install offer can fire before any chunk runs (a fast, service-worker-controlled
+            load): keep it for use-pwa.ts, or the install strip never appears on Android. */}
+        <script dangerouslySetInnerHTML={{ __html: "addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__iltodBip=e});addEventListener('appinstalled',function(){window.__iltodBip=null})" }} />
       </head>
       <body className="flex min-h-full flex-col bg-primary text-primary">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(SITE_JSON_LD) }} />
