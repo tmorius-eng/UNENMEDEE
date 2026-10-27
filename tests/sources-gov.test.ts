@@ -84,3 +84,20 @@ describe("crawler error messages", () => {
     assert.ok(net.getDefaultAutoSelectFamilyAttemptTimeout() >= 3000);
   });
 });
+
+describe("mapLimit", () => {
+  it("keeps input order and never runs more than the limit at once", async () => {
+    const { mapLimit } = await import("@/lib/scraper/crawl");
+    let running = 0;
+    let peak = 0;
+    const out = await mapLimit([5, 1, 4, 2, 3], 2, async (n) => {
+      running += 1;
+      peak = Math.max(peak, running);
+      await new Promise((r) => setTimeout(r, n));
+      running -= 1;
+      return n * 10;
+    });
+    assert.deepEqual(out, [50, 10, 40, 20, 30]);
+    assert.equal(peak, 2);
+  });
+});
