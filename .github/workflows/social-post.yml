@@ -44,6 +44,8 @@ jobs:
         # Secrets only here: dependency install scripts never see them.
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FB_GRAPH_VERSION: ${{ vars.FB_GRAPH_VERSION }}
+          IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
           FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}

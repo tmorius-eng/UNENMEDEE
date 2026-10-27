@@ -66,6 +66,10 @@ jobs:
       DEEPSEEK_DAILY_MAX_CALLS: ${{ vars.DEEPSEEK_DAILY_MAX_CALLS }}
       AI_TIER1_CHAIN: ${{ vars.AI_TIER1_CHAIN }}
       AI_TIER2_CHAIN: ${{ vars.AI_TIER2_CHAIN }}
+      # Meta Graph API version for Facebook / Instagram posting (a version is retired ~2 years after
+      # release): bump the repository variable instead of editing code.
+      FB_GRAPH_VERSION: ${{ vars.FB_GRAPH_VERSION }}
+      IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
       # Optional repository variables (Settings → Variables): model ids and price overrides.
       DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
       GROK_MODEL: ${{ vars.GROK_MODEL || 'grok-4-fast' }}
@@ -119,7 +123,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ""
           DISCORD_BOT_TOKEN: ""
           DISCORD_CHANNEL_ID: ""
-        run: npm ci
+        # One retry: a registry hiccup must not cost an hour of news.
+        run: npm ci || (sleep 60 && npm ci)
 
       - name: Check required secrets
         run: |
@@ -134,12 +139,17 @@ jobs:
         run: npm run db:migrate
 
       - name: Cache Playwright Chromium
+        # The cache and the browser install are conveniences for the browser pass only: when either
+        # fails (cache service change, apt mirror down) the HTTP pass still runs, with --no-browser.
+        continue-on-error: true
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium (for JavaScript-rendered sites)
+        id: chromium
+        continue-on-error: true
         # Dependency install scripts never see a secret (a compromised package could send them out).
         env:
           DATABASE_URL: ""
@@ -161,17 +171,21 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Scrape government sources
+        # Runs whenever the schema is current, even if the Chromium install failed (HTTP pass only).
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         # Inputs go through env vars, never straight into the script (prevents injection).
         env:
           IN_SOURCES: ${{ inputs.sources }}
           IN_LIMIT: ${{ inputs.limit || '8' }}
           IN_DAYS: ${{ inputs.days }}
+          BROWSER_OK: ${{ steps.chromium.outcome == 'success' }}
         run: |
           case "$IN_LIMIT" in ''|*[!0-9]*) IN_LIMIT=8 ;; esac
           case "$IN_DAYS" in ''|*[!0-9]*) IN_DAYS="" ;; esac
           args=(--limit "$IN_LIMIT" --budget 30)
           if [ -n "$IN_DAYS" ]; then args=(--limit "$IN_LIMIT" --budget 50 --days "$IN_DAYS"); fi
           if [ -n "$IN_SOURCES" ]; then args+=(--source "$IN_SOURCES"); fi
+          if [ "$BROWSER_OK" != "true" ]; then echo "::warning::Chromium is not available: JavaScript-rendered sites are skipped this run."; args+=(--no-browser); fi
           npm run scrape -- "${args[@]}"
 
       - name: Analyze with AI (free providers first, paid ones within budget)
