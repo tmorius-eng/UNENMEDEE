@@ -2,6 +2,7 @@ import { ArrowRight } from "@untitledui/icons";
 import Link from "next/link";
 
 import type { MacroSnapshot, Point } from "@/lib/mongolbank/client";
+import { DataAge } from "@/components/iltod/data-age";
 import { getIndicator } from "@/lib/queries";
 import { SPARK_H, SPARK_W, sparkDelta, sparkPath } from "@/lib/spark";
 import { cx } from "@/utils/cx";
@@ -122,7 +123,10 @@ export async function MacroStrip({ compact = false }: { compact?: boolean }) {
     <section aria-label="Монголбанкны үзүүлэлт" className="flex flex-col gap-2">
       <Ledger cells={cells.filter((c): c is Cell => Boolean(c))} />
       <p className="flex items-center justify-between text-xs text-tertiary">
-        <span>Эх сурвалж: Монголбанк (mongolbank.mn) · муруй = сүүлийн үеийн хандлага</span>
+        <span>
+          Эх сурвалж: Монголбанк (mongolbank.mn) · <DataAge at={snap.updatedAt} staleDays={3} />
+          {!compact && " · муруй = сүүлийн үеийн хандлага"}
+        </span>
         {compact && (
           // No prefetch: /data pulls the chart library, which would load on every home visit.
           <Link href="/data" prefetch={false} className="flex items-center gap-1 font-semibold text-brand-secondary hover:underline">

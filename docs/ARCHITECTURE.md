@@ -372,6 +372,12 @@ The site is designed to keep publishing for months with nobody touching it:
   `gzip` and `age` with the owner's public key and uploads only the encrypted file as a 90-day artifact;
   `npm run db:restore` upserts it back (`docs/BACKUP.md`). The watchdog reports a missing key or a
   backup older than 10 days.
+- Stale data is visible instead of looking current: synced numbers print when they were fetched and turn
+  "хуучирсан" past their limit (`DataAge`: Mongolbank 3 days, Шилэн данс 14, audit.mn 30, opendata.mn 3);
+  the digest strip adds the date to an edition older than 18 h; after 6 h without a new story the header's
+  pulsing dot turns grey and the ticker says how long it has been quiet instead of promising the next
+  check; extractive fallbacks are labelled "Эх текстийн эхний өгүүлбэр · AI ажиллаагүй" in the story
+  list; `/sources` marks a source not tried for a week. All of it uses cached clocks, so pages stay static.
 - Retention pruning, the AI fallback and source back-off keep the free tiers within limits without
   manual work. A scrape or AI failure never skips the digest (with its rule-based fallback) or the
   pushes: every later pipeline step runs unless the run was cancelled or the migration failed.

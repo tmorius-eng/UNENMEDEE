@@ -16,6 +16,7 @@ import { breadcrumbLd, datasetLd } from "@/lib/structured-data";
 import type { DatasetHighlight, SeriesPoint } from "@/lib/types";
 import { cx } from "@/utils/cx";
 import { termLabel } from "@/lib/officials/terms";
+import { DataAge } from "@/components/iltod/data-age";
 
 export const metadata: Metadata = {
   title: "Валютын ханш, инфляц, бодлогын хүү — нээлттэй өгөгдөл",
@@ -34,7 +35,7 @@ function Panel({ dataset, title, children }: { dataset: OpenDataset; title: stri
         <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-primary">{title}</h2>
         <p className="text-xs text-tertiary">
           Эх сурвалж: {dataset.dataSource ?? "opendata.mn"} · {dataset.title}
-          {dataset.sourceUpdatedAt ? ` · шинэчлэгдсэн ${formatDateMn(dataset.sourceUpdatedAt)}` : ""} ·{" "}
+          {dataset.sourceUpdatedAt ? ` · эх сурвалж шинэчилсэн ${formatDateMn(dataset.sourceUpdatedAt)}` : ""} · <DataAge at={dataset.syncedAt} staleDays={3} /> ·{" "}
           <a href={dataset.pageUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-secondary hover:underline">
             opendata.mn
           </a>{" "}

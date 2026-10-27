@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { SearchLg } from "@untitledui/icons";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -14,11 +15,29 @@ import { NavLinks, NavLinksFallback } from "./nav-links";
 import { SocialLinks } from "./social-links";
 import { TextSizeToggle } from "./text-size-toggle";
 import { ThemeToggle } from "./theme-toggle";
+import { FEED_QUIET_HOURS, hoursSince } from "@/lib/stale";
+
+/** Hours since the newest feed story, from a cached clock (the header is on every static page). */
+async function quietHours(lastArticleAt: string | null): Promise<number> {
+  "use cache";
+  cacheLife("minutes");
+  return hoursSince(lastArticleAt, new Date());
+}
 
 async function LiveStatus() {
   // Decorative: a database blip here must not take the whole page (the root layout) down.
   const stats = await getSiteStats().catch(() => null);
   if (!stats) return null;
+  // A pulsing "live" dot over a feed that stopped hours ago would claim something false.
+  const quiet = stats.lastArticleAt ? await quietHours(stats.lastArticleAt) : 0;
+  if (quiet > FEED_QUIET_HOURS) {
+    return (
+      <span className="label-mono flex items-center gap-2 text-tertiary">
+        <span className="inline-flex size-1.5 rounded-full bg-fg-quaternary" />
+        Сүүлийн мэдээ {quiet} цагийн өмнө · {stats.activeSources} эх сурвалж
+      </span>
+    );
+  }
   return (
     <span className="label-mono flex items-center gap-2 text-brand-secondary">
       <span className="relative flex size-1.5">

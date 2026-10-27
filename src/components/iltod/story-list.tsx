@@ -129,11 +129,18 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
 
       {isOpen && (
         <div className="panel-enter flex flex-col gap-4 pt-4">
-          <AIMessage compact tier="tier1" title="AI хураангуй" note="AI-ийн үнэлгээ, буруутгал биш">
-            <AIBullets items={tldrSentences(s.tldr)} />
-          </AIMessage>
+          {s.summaryFallback ? (
+            // No AI answered: the first sentences of the article itself, labelled as such, and no AI meter.
+            <AIMessage compact tier="tier1" title="Эх текстийн эхний өгүүлбэр" note="AI ажиллаагүй">
+              <AIBullets items={tldrSentences(s.tldr)} />
+            </AIMessage>
+          ) : (
+            <AIMessage compact tier="tier1" title="AI хураангуй" note="AI-ийн үнэлгээ, буруутгал биш">
+              <AIBullets items={tldrSentences(s.tldr)} />
+            </AIMessage>
+          )}
           <MoneyTags amounts={s.amounts} />
-          <SpinMeter neutrality={s.neutralityScore} />
+          {!s.summaryFallback && <SpinMeter neutrality={s.neutralityScore} />}
           <div className="flex flex-wrap gap-2">
             <Link href={`/article/${s.slug}`} className={STORY_BUTTON_PRIMARY}>
               Дэлгэрэнгүй{s.hasDeepAnalysis ? " ⚡" : ""} →
