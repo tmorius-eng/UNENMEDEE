@@ -218,6 +218,35 @@ export async function getFeed(filter: FeedFilter, limit = 30): Promise<ArticleLi
 }
 
 /**
+ * The newest stories of one feed (a topic key) for an article page's "Энэ сэдвийн сүүлийн мэдээ":
+ * the article itself and its cluster left out, the same importance cut-off as the feed. Gives every
+ * article page crawlable links to its neighbours (internal linking), not only to the nav.
+ */
+export async function getTopicNeighbours(filter: FeedFilter, excludeId: number, clusterId: number | null, limit = 5): Promise<ArticleListItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  return safe("getTopicNeighbours", [], async () => {
+    const rows = await getDb()
+      .select(listColumns)
+      .from(articles)
+      .innerJoin(sources, eq(articles.sourceId, sources.id))
+      .where(
+        and(
+          visible,
+          filterCondition(filter),
+          sql`coalesce(${articles.importanceScore}, 100) >= ${FEED_MIN_IMPORTANCE}`,
+          sql`${articles.id} <> ${excludeId}`,
+          clusterId === null ? undefined : sql`${articles.clusterId} is distinct from ${clusterId}`,
+        ),
+      )
+      .orderBy(desc(articles.publishedAt), desc(articles.id))
+      .limit(limit);
+    return rows.map(toListItem);
+  });
+}
+
+/**
  * A place's news (/place/<slug>): every published story from its official sites, newest first. No
  * importance cut-off: a district's own announcements are what its readers came for.
  */
