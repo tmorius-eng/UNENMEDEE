@@ -12,7 +12,7 @@ async function recentNews(): Promise<SitemapArticle[]> {
   cacheLife("minutes");
   cacheTag("articles");
   const cutoff = Date.now() - 2 * 86_400_000;
-  return (await getSitemapArticles(1000)).filter((a) => !a.dateUnknown && a.publishedAt && a.publishedAt.getTime() >= cutoff);
+  return (await getSitemapArticles(1000, true)).filter((a) => !a.dateUnknown && a.publishedAt && a.publishedAt.getTime() >= cutoff);
 }
 
 export async function GET() {

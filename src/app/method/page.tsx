@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/iltod/page-header";
 import { budgetConfig } from "@/lib/ai/limits";
 import { DIGEST_SYSTEM, TIER1_MAX_CHARS, TIER1_SYSTEM, TIER2_MAX_CHARS, TIER2_SYSTEM } from "@/lib/ai/prompts";
 import { CHANGED_BELOW, GONE_CHECKS, GONE_MIN_DAYS } from "@/lib/scraper/recheck";
+import { FEED_MIN_IMPORTANCE } from "@/lib/seo";
 import { REPO_URL, repoFile } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -39,6 +40,11 @@ const STEPS = [
     title: "6. Дахин шалгана",
     id: "recheck",
     text: `Сүүлийн 30 хоногийн мэдээг долоо хоног бүр эх хуудастай нь тулгана. Бидний хадгалсан өгүүлбэрийн ${Math.round(CHANGED_BELOW * 100)}%-иас бага нь хуудсанд үлдсэн эсвэл тоо өөрчлөгдсөн бол "өөрчлөгдсөн", хуудас ${GONE_CHECKS} удаа (${GONE_MIN_DAYS}+ өдрийн зайтай) нээгдэхгүй бол "устгагдсан" гэж тэмдэглэнэ. Сүлжээний алдаа хэзээ ч тооцогдохгүй.`,
+  },
+  {
+    title: "7. Эрэмбэлнэ",
+    id: "importance",
+    text: `AI мэдээ бүрт улсын хэмжээний ач холбогдлын оноо (0–100) өгнө. ${FEED_MIN_IMPORTANCE}-аас доош оноотой сургалт, баяр ёслол, өгөгдлийн жагсаалт зэрэг жижиг мэдээ нүүр хуудсанд гарахгүй ч архив, эх сурвалжийн хуудсанд үлдэнэ. Ийм мэдээг өөр сайт давтаагүй, ₮ дүн, хууль тогтоол дурдаагүй бол хайлтын системд санал болгохгүй (noindex).`,
   },
 ];
 
