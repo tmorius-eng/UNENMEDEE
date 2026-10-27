@@ -8,6 +8,8 @@
 export const SI_RATE = 0.115;
 /** Personal income tax (ХХОАТ) base rate, applied after НДШ. Reliefs and 2026 changes are not modelled. */
 export const PIT_RATE = 0.1;
+/** The day the rates above were last written against their source; the watchdog asks for a re-check yearly. */
+export const RATES_CHECKED = "2026-10-24";
 /** Shop prices include 10% VAT, so the VAT inside a price is price / 11. */
 export const VAT_SHARE_OF_PRICE = 1 / 11;
 

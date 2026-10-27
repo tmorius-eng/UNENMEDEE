@@ -6,6 +6,13 @@
  * Facts only: no status is computed here. A goal is "measurable" when its own text names a
  * number with a unit (MW, km, %, tonnes …); that is a property of the wording, not a verdict.
  */
+
+/**
+ * The programme covers the parliament's 2024–2028 term; the next one is approved after the
+ * June 2028 election. From this day the watchdog asks for `npm run promises:import`.
+ */
+export const PROGRAMME_END = "2028-07-01";
+
 export interface ProgrammeGoal {
   /** "1.1.2.3" */
   id: string;
