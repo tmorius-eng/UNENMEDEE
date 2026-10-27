@@ -1,0 +1,198 @@
+/**
+ * The watchdog's rules (`npm run health`, `.github/workflows/watchdog.yml`). Pure: the script
+ * collects a snapshot from the database, GitHub and the live site, this decides what is wrong.
+ * Every line names what stopped and where to look, in Mongolian, because it becomes a GitHub
+ * issue that is emailed to the owner. A section that could not be collected is `undefined` and
+ * its rules are skipped (the collector's own error is reported instead), so one failing query
+ * never hides the other problems.
+ */
+
+export const DB_LIMIT_MB = 500;
+
+/** Snapshots `budget:sync` / `macro:sync` must keep fresh, with how old each may get (hours). */
+export const INDICATOR_MAX_AGE_H: Record<string, number> = {
+  mongolbank: 72,
+  budget_nso: 14 * 24,
+  shilendans: 14 * 24,
+  worldbank_tax: 14 * 24,
+  audit_opinions: 14 * 24,
+  soe_finance: 14 * 24,
+};
+
+export const SOCIAL_PLATFORMS = ["facebook", "threads", "instagram", "telegram", "discord"] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
+
+const DAY_MS = 86_400_000;
+
+export interface CoreSnapshot {
+  hoursSinceArticle: number | null;
+  hoursSinceAi: number | null;
+  hoursSinceDigest: number | null;
+  /** Published rows still waiting for an AI summary. */
+  aiBacklog: number;
+  activeSources: number;
+  failingSources: number;
+  pushSubs: number;
+  pushFailing: number;
+  /** Hours since any subscription last got a push through (null = never). */
+  hoursSincePushSuccess: number | null;
+  dbMb: number;
+  /** Published rows of the last 24 h, and how many of them only got the extractive fallback. */
+  published24h: number;
+  fallback24h: number;
+  /** `generated_by` of the newest 12h digests, newest first. */
+  recentDigests: string[];
+  /** Days of the last 7 on which paid AI spend reached 90 % of the daily cap. */
+  paidCapDays: number;
+  /** Hours since the weekly source re-check last stamped an article (null = never ran). */
+  hoursSinceRecheck: number | null;
+}
+
+export interface OfficialsSnapshot {
+  hoursSinceSync: number | null;
+  active: number;
+}
+
+export interface SocialSnapshot {
+  /** Hours since this platform's last post with a real post id (null = none in the table). */
+  hoursSinceOk: number | null;
+  /** Rows of the last 7 days whose outcome was unknown (`post_id = 'unknown'`). */
+  unknown7d: number;
+}
+
+export interface NetworkSnapshot {
+  siteOk: boolean;
+  siteStatus: string;
+  feedOk: boolean;
+  /** Expiry of the certificate iltodmedee.mn serves (null = not read). */
+  siteCertValidTo: Date | null;
+  /** The security.txt `Expires` field (null = missing or unreadable). */
+  securityTxtExpires: Date | null;
+}
+
+export interface WorkflowSnapshot {
+  /** Workflows GitHub reports as not active (path + state), manual disables included. */
+  notActive: string[];
+  /** Scheduled workflows whose 3 newest scheduled runs all failed. */
+  failingSchedules: string[];
+}
+
+export interface HealthSnapshot {
+  core?: CoreSnapshot;
+  officials?: OfficialsSnapshot;
+  /** Hours since each indicator snapshot was written; a missing key is absent. */
+  indicators?: Record<string, number>;
+  opendataHours?: number | null;
+  social?: Partial<Record<SocialPlatform, SocialSnapshot>>;
+  /** `refreshedAt` of the stored 60-day tokens (null = no stored state). */
+  tokens?: { threads: Date | null; instagram: Date | null };
+  /** When the maintenance jobs last recorded a run (absent = the job does not exist yet). */
+  maintenance?: { pruneAt?: Date | null; backupAt?: Date | null };
+  network?: NetworkSnapshot;
+  workflows?: WorkflowSnapshot;
+  /** Expiry of the bundled intermediate certificate (`certs/*.pem`). */
+  bundledCerts?: { file: string; validTo: Date }[];
+}
+
+export interface HealthConfig {
+  /** Platforms whose secrets are set in the workflow (booleans only, never the secret). */
+  socialConfigured: Partial<Record<SocialPlatform, boolean>>;
+  /** Dated facts in the code that someone has to re-check by hand. */
+  dated: {
+    /** The Prime Minister list was last verified on this day (`GOVERNMENTS_VERIFIED_THROUGH`). */
+    governmentsVerified: string;
+    /** The 2024–2028 action programme ends (`PROGRAMME_END`). */
+    programmeEnd: string;
+    /** The year `POPULATION` counts (end of that year). */
+    populationYear: number;
+    /** The tax rates in `/tax` were last checked on this day (`RATES_CHECKED`). */
+    ratesChecked: string;
+  };
+}
+
+const daysSince = (iso: string | Date, now: Date) => (now.getTime() - new Date(iso).getTime()) / DAY_MS;
+const daysUntil = (d: Date, now: Date) => (d.getTime() - now.getTime()) / DAY_MS;
+const h = (v: number | null) => (v === null ? "хэзээ ч" : `${Math.round(v)} цаг`);
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+/** null (never happened) counts as older than any limit. */
+const olderThan = (v: number | null | undefined, limit: number) => v === null || (v !== undefined && v > limit);
+
+export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = new Date()): string[] {
+  const out: string[] = [];
+  const c = s.core;
+  if (c) {
+    if (olderThan(c.hoursSinceArticle, 26)) out.push(`Шинэ мэдээ ${h(c.hoursSinceArticle)} орж ирээгүй (autonomous-news-pipeline-ийн scrape алхмыг шалгах).`);
+    if (olderThan(c.hoursSinceAi, 36)) out.push(`AI хураангуй ${h(c.hoursSinceAi)} гараагүй (AI түлхүүр, лимит шалгах). Хүлээгдэж буй: ${c.aiBacklog}.`);
+    if (olderThan(c.hoursSinceDigest, 26)) out.push(`Онцлох тойм ${h(c.hoursSinceDigest)} гараагүй (news-digest workflow).`);
+    const failing = c.failingSources / Math.max(1, c.activeSources);
+    if (failing > 0.6) out.push(`Эх сурвалжийн ${Math.round(failing * 100)}% алдаатай (${c.failingSources}/${c.activeSources}).`);
+    if (c.pushSubs >= 5 && c.pushFailing > c.pushSubs / 2) out.push(`Push мэдэгдэл: ${c.pushFailing}/${c.pushSubs} захиалга дараалан алдаатай (VAPID түлхүүр, push үйлчилгээ шалгах).`);
+    // The failure counter never moves for 429/5xx or a systemic VAPID problem, so also look at success.
+    if (c.pushSubs >= 5 && olderThan(c.hoursSincePushSuccess, 96)) out.push(`Push мэдэгдэл ${h(c.hoursSincePushSuccess)} нэг ч захиалагчид хүрээгүй (push алхмын лог, VAPID түлхүүр шалгах).`);
+    if (c.dbMb > DB_LIMIT_MB * 0.8) out.push(`Өгөгдлийн сан ${Math.round(c.dbMb)} MB / ${DB_LIMIT_MB} MB: db:prune-ийн лог, RETENTION_DAYS хувьсагчийг шалгах.`);
+    if (c.published24h >= 10 && c.fallback24h / c.published24h > 0.5) out.push(`Сүүлийн 24 цагийн ${c.fallback24h}/${c.published24h} мэдээ AI-гүй (эх текстийн эхний өгүүлбэр) гарсан: AI үйлчилгээ бүгд унасан эсвэл түлхүүр хүчингүй.`);
+    const ruleBased = c.recentDigests.filter((g) => g === "rule-based").length;
+    if (c.recentDigests.length >= 4 && ruleBased >= 3) out.push(`Сүүлийн 4 тоймын ${ruleBased} нь AI-гүй (дүрмээр) бичигдсэн: тоймын AI редактор ажиллахгүй байна.`);
+    if (c.paidCapDays >= 5) out.push(`Төлбөртэй AI зардал сүүлийн 7 хоногийн ${c.paidCapDays} өдөр өдрийн дээд хязгаарт хүрсэн: үнэгүй үйлчилгээнүүдийн квот дууссан байж магадгүй.`);
+    if (c.hoursSinceRecheck !== null && c.hoursSinceRecheck > 9 * 24) out.push(`Эх сурвалжийн дахин шалгалт ${Math.round(c.hoursSinceRecheck / 24)} хоног ажиллаагүй (source-recheck workflow).`);
+  }
+
+  const o = s.officials;
+  if (o) {
+    if (olderThan(o.hoursSinceSync, 9 * 24)) out.push(`УИХ-ын гишүүдийн мэдээлэл ${o.hoursSinceSync === null ? "хэзээ ч" : `${Math.round(o.hoursSinceSync / 24)} хоног`} шинэчлэгдээгүй (officials-sync workflow).`);
+    if (o.active < 100) out.push(`Идэвхтэй УИХ-ын гишүүн ${o.active} байна (126 байх ёстой): сонгуулийн дараах эсвэл parliament.mn-ийн дутуу хариу. /officials-ыг шалгах.`);
+  }
+
+  if (s.indicators) {
+    for (const [key, maxH] of Object.entries(INDICATOR_MAX_AGE_H)) {
+      const age = s.indicators[key];
+      if (age === undefined) out.push(`Өгөгдлийн хэсэг "${key}" огт хадгалагдаагүй (budget:sync / macro:sync).`);
+      else if (age > maxH) out.push(`Өгөгдлийн хэсэг "${key}" ${Math.round(age / 24)} хоног шинэчлэгдээгүй (news-digest-ийн budget/macro алхам).`);
+    }
+  }
+  if (s.opendataHours !== undefined && olderThan(s.opendataHours, 72)) out.push(`opendata.mn өгөгдөл ${h(s.opendataHours)} шинэчлэгдээгүй (news-digest-ийн data:sync алхам).`);
+
+  for (const platform of SOCIAL_PLATFORMS) {
+    if (!config.socialConfigured[platform]) continue;
+    const p = s.social?.[platform];
+    if (!p) continue;
+    if (olderThan(p.hoursSinceOk, 72)) out.push(`${platform}: ${h(p.hoursSinceOk)} амжилттай пост гараагүй (токен, social алхмын лог шалгах; docs/FACEBOOK.md).`);
+    if (p.unknown7d > 0) out.push(`${platform}: ${p.unknown7d} пост нийтлэгдсэн эсэх нь тодорхойгүй (post_id='unknown'): хуудсаа гараар шалгах.`);
+  }
+  if (s.tokens) {
+    for (const platform of ["threads", "instagram"] as const) {
+      const at = s.tokens[platform];
+      if (!config.socialConfigured[platform] || !at) continue;
+      const age = daysSince(at, now);
+      if (age > 14) out.push(`${platform}: 60 хоногийн токен ${Math.round(age)} хоног сэргээгдээгүй, ${Math.max(0, Math.round(60 - age))} хоногийн дараа дуусна (шинэ токеныг secret-д хийх).`);
+    }
+  }
+
+  const m = s.maintenance;
+  if (m?.pruneAt && daysSince(m.pruneAt, now) > 3) out.push(`Өгөгдлийн сангийн цэвэрлэгээ (db:prune) ${Math.round(daysSince(m.pruneAt, now))} хоног ажиллаагүй.`);
+  if (m?.backupAt && daysSince(m.backupAt, now) > 10) out.push(`Нөөц хуулбар (backup) ${Math.round(daysSince(m.backupAt, now))} хоног хийгдээгүй (backup workflow).`);
+
+  const n = s.network;
+  if (n) {
+    if (!n.siteOk) out.push(`iltodmedee.mn нээгдэхгүй байна (${n.siteStatus}): Vercel, домэйн шалгах.`);
+    if (n.siteOk && !n.feedOk) out.push(`/feed.xml RSS эвдэрсэн байна.`);
+    if (n.siteCertValidTo && daysUntil(n.siteCertValidTo, now) < 20) out.push(`iltodmedee.mn-ийн TLS гэрчилгээ ${ymd(n.siteCertValidTo)}-нд дуусна (Vercel өөрөө сунгадаг: DNS-ээ шалгах).`);
+    if (!n.securityTxtExpires) out.push(`/.well-known/security.txt уншигдсангүй.`);
+    else if (daysUntil(n.securityTxtExpires, now) < 30) out.push(`security.txt-ийн Expires ${ymd(n.securityTxtExpires)}: сунгах.`);
+  }
+  for (const cert of s.bundledCerts ?? []) {
+    if (daysUntil(cert.validTo, now) < 60) out.push(`${cert.file} гэрчилгээ ${ymd(cert.validTo)}-нд дуусна: DigiCert-ээс шинэ intermediate татаж солих (audit.mn-ийн өгөгдөл).`);
+  }
+  if (s.workflows) {
+    for (const wf of s.workflows.notActive) out.push(`Workflow идэвхгүй: ${wf} (Actions → Enable workflow).`);
+    for (const wf of s.workflows.failingSchedules) out.push(`Workflow сүүлийн 3 удаа дараалан алдаатай: ${wf}.`);
+  }
+
+  // Facts written into the code that only a person can re-check.
+  const d = config.dated;
+  if (daysSince(d.governmentsVerified, now) > 548) out.push(`Ерөнхий сайдын жагсаалтыг ${d.governmentsVerified}-нээс хойш шалгаагүй (src/lib/budget/governments.ts, GOVERNMENTS_VERIFIED_THROUGH).`);
+  if (now.getTime() >= new Date(d.programmeEnd).getTime()) out.push(`Засгийн газрын 2024–2028 оны үйл ажиллагааны хөтөлбөр дууссан: шинэ хөтөлбөр батлагдсан бол npm run promises:import.`);
+  if (now.getTime() >= Date.UTC(d.populationYear + 2, 3, 1)) out.push(`Хүн амын тоо ${d.populationYear} оных (src/lib/per-person.ts POPULATION): ҮСХ-ны шинэ тоог оруулах.`);
+  if (daysSince(d.ratesChecked, now) > 395) out.push(`Татварын хувь хэмжээг ${d.ratesChecked}-нээс хойш шалгаагүй (src/lib/tax/receipt.ts RATES_CHECKED).`);
+  return out;
+}

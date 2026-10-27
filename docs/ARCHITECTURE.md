@@ -26,7 +26,7 @@ flowchart LR
     S["scrape<br/>hourly"] --> A["ai:process"]
     D["digest + data syncs<br/>08:07 / 20:07 UB"]
     O["officials:sync<br/>weekly"]
-    W["watchdog daily<br/>keepalive monthly"]
+    W["watchdog daily<br/>keepalive daily"]
   end
   GOV[".gov.mn sites,<br/>APIs, RSS"] --> S
   API["NSO, Mongolbank,<br/>Шилэн данс, ХАСХОМ,<br/>parliament.mn"] --> D & O
@@ -342,11 +342,17 @@ signed HTTP requests (Ed25519), so nothing is hosted. Setup for every platform: 
 
 The site is designed to keep publishing for months with nobody touching it:
 
-- `keepalive.yml` re-enables scheduled workflows monthly (GitHub disables them after 60 days without
-  repository activity).
-- `watchdog.yml` opens a GitHub issue (which emails the owner) when there have been no new articles for
-  26 h, no AI summary for 36 h or no digest for 26 h, when more than 60 % of sources fail, or when the
-  database passes 400 MB. It closes the issue when things recover.
+- `keepalive.yml` re-enables every workflow daily, read from the API (GitHub disables schedules after 60
+  days without repository activity, and drops scheduled runs of public repositories under load), and
+  fails red when one stays disabled.
+- `watchdog.yml` (`scripts/health-check.ts`, rules in `src/lib/health.ts`) opens a GitHub issue (which
+  emails the owner) when any part of the system stops: news, AI summaries (or most of them falling back
+  to the extract), digests (or most of them rule-based), push delivery, social posting per configured
+  platform, the 60-day social tokens, MPs, data snapshots, opendata.mn, the source re-check, the live
+  site, its feed and certificates, a disabled or always-red workflow, or the database passing 400 MB. It
+  also reminds the owner of dated facts in the code (Prime Minister list, population, tax rates, the end
+  of the 2024–2028 programme). Each collector runs on its own, so one failing query never hides the
+  rest; the issue closes itself when things recover.
 - Retention pruning, the AI fallback and source back-off keep the free tiers within limits without
   manual work. A scrape or AI failure never skips the digest (with its rule-based fallback) or the
   pushes: every later pipeline step runs unless the run was cancelled or the migration failed.

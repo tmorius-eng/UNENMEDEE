@@ -1,6 +1,8 @@
-# Daily health check. When the site stops getting news, AI summaries or digests, or the free
-# database is filling up, it opens (or updates) a GitHub issue labelled "watchdog": GitHub emails
-# the repository owner. When everything is healthy again it closes that issue.
+# Daily health check of the whole system (scripts/health-check.ts, rules in src/lib/health.ts):
+# news, AI, digests, push, social posting per configured platform, officials, data snapshots,
+# the live site and its certificates, the workflows themselves and dated facts in the code.
+# A problem opens (or updates) a GitHub issue labelled "watchdog": GitHub emails the repository
+# owner. When everything is healthy again it closes that issue.
 name: Watchdog
 
 on:
@@ -11,6 +13,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # Reads workflow states and scheduled run results (a disabled or always-red schedule is a problem).
+  actions: read
 
 jobs:
   health:
@@ -28,7 +32,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - run: npm ci || (sleep 60 && npm ci)
 
       - name: Check the site's health
         id: health
@@ -37,15 +41,27 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npm run --silent health | tee health.txt
+          GH_TOKEN: ${{ github.token }}
+          AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+          # Which platforms are set up: booleans only, the secrets themselves never reach this job.
+          SOCIAL_FACEBOOK: ${{ secrets.FB_PAGE_TOKEN != '' }}
+          SOCIAL_THREADS: ${{ secrets.THREADS_TOKEN != '' }}
+          SOCIAL_INSTAGRAM: ${{ secrets.INSTAGRAM_TOKEN != '' }}
+          SOCIAL_TELEGRAM: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && vars.TELEGRAM_CHAT_ID != '' }}
+          SOCIAL_DISCORD: ${{ secrets.DISCORD_BOT_TOKEN != '' && (vars.DISCORD_CHANNEL_ID != '' || secrets.DISCORD_CHANNEL_ID != '') }}
+        # 2>&1: a crash's stack trace lands in the issue too, not only in the run log.
+        run: npm run --silent health 2>&1 | tee health.txt
 
       - name: Open or update the watchdog issue
-        if: steps.health.outcome == 'failure'
+        # Also when npm ci failed and the check never ran (health.txt is then empty).
+        if: ${{ !cancelled() && steps.health.outcome != 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh label create watchdog --color d73a4a --description "Automatic health check" 2>/dev/null || true
-          body="$(printf '⚠️ Автомат шалгалт асуудал илрүүллээ (%s UTC):\n\n```\n%s\n```\n\nЗасагдсаны дараа энэ issue автоматаар хаагдана.' "$(date -u '+%Y-%m-%d %H:%M')" "$(cat health.txt)")"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -s health.txt ]; then report="$(cat health.txt)"; else report="Шалгалтын скрипт юу ч хэвлэлгүй унасан (npm ci эсвэл скрипт эвдэрсэн). Лог: $run_url"; fi
+          body="$(printf '⚠️ Автомат шалгалт асуудал илрүүллээ (%s UTC):\n\n```\n%s\n```\n\nЛог: %s\n\nЗасагдсаны дараа энэ issue автоматаар хаагдана.' "$(date -u '+%Y-%m-%d %H:%M')" "$report" "$run_url")"
           open=$(gh issue list --label watchdog --state open --json number --jq '.[0].number')
           if [ -n "$open" ]; then gh issue comment "$open" --body "$body"; else gh issue create --title "⚠️ iltodmedee.mn: автомат шалгалт асуудал илрүүллээ" --label watchdog --body "$body"; fi
           exit 1

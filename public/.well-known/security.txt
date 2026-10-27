@@ -1,6 +1,0 @@
-Contact: mailto:info@iltodmedee.mn
-Contact: https://github.com/tmorius-eng/UNENMEDEE/security/advisories/new
-Expires: 2027-10-25T00:00:00.000Z
-Preferred-Languages: mn, en
-Canonical: https://iltodmedee.mn/.well-known/security.txt
-Policy: https://github.com/tmorius-eng/UNENMEDEE/blob/main/SECURITY.md

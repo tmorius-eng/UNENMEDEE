@@ -12,6 +12,13 @@ export interface Government {
   acting?: boolean;
 }
 
+/**
+ * The day the list above was last checked against the source. The last entry is open-ended
+ * (`to: null`), so after this date nobody has confirmed it is still true; the watchdog reminds the
+ * owner 18 months later (before the 2028 election and any change of government is missed).
+ */
+export const GOVERNMENTS_VERIFIED_THROUGH = "2026-10-21";
+
 export const GOVERNMENTS_SOURCE = "https://en.wikipedia.org/wiki/List_of_prime_ministers_of_Mongolia";
 
 export const GOVERNMENTS: Government[] = [
