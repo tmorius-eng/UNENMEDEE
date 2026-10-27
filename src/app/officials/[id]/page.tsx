@@ -11,8 +11,10 @@ import { TimeAgo } from "@/components/iltod/time-ago";
 import type { AssetDeclaration } from "@/db/schema";
 import { formatMntShort, formatNumber } from "@/lib/format";
 import { declarationFlags } from "@/lib/officials/flags";
+import { PLACES } from "@/lib/places";
 import { getAttendance, getPolitician, getPoliticianIds } from "@/lib/queries";
-import { parseRouteId } from "@/lib/site";
+import { jsonLd, parseRouteId } from "@/lib/site";
+import { breadcrumbLd, personLd } from "@/lib/structured-data";
 
 export async function generateStaticParams() {
   const ids = await getPoliticianIds();
@@ -26,7 +28,8 @@ export async function generateMetadata({ params }: PageProps<"/officials/[id]">)
   if (!data) return { title: "Олдсонгүй", robots: { index: false } };
   const p = data.politician;
   return {
-    title: `${p.fullName}: хөрөнгө, орлогын мэдүүлэг`,
+    // People search the short form ("Д.Ганмаа хөрөнгө"); the full name follows in brackets.
+    title: `${p.shortName} (${p.fullName}) — хөрөнгө, орлого, ирц`,
     description: `${p.party ?? ""} УИХ-ын гишүүн ${p.shortName}-ийн Авлигатай тэмцэх газарт гаргасан хөрөнгө, орлогын мэдүүлэг жил бүрээр, мэдээнд дурдагдсан байдал.`,
     alternates: { canonical: `/officials/${p.id}` },
   };
@@ -110,8 +113,13 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
   const flags = declarationFlags(rows, hiddenYears);
   const latest = rows.at(-1);
 
+  // The constituency's aimags / districts link to their news pages (the whole string must match).
+  const places = p.constituency ? PLACES.filter((pl) => pl.constituency === p.constituency) : [];
+  const ld = { "@context": "https://schema.org", "@graph": [personLd(p), breadcrumbLd([{ name: "УИХ-ын гишүүд", path: "/officials" }, { name: p.shortName, path: `/officials/${p.id}` }])] };
+
   return (
     <article className="flex flex-col gap-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
       <Link href="/officials" className="flex w-fit items-center gap-1.5 text-sm font-semibold text-tertiary hover:text-secondary">
         <ArrowLeft className="size-4" /> Бүх гишүүд
       </Link>
@@ -120,11 +128,22 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
         {p.photoUrl && <img src={p.photoUrl} alt={p.fullName} className="size-20 shrink-0 rounded-full bg-secondary object-cover" />}
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="headline text-[1.75rem] text-primary">{p.fullName}</h1>
+          {p.shortName !== p.fullName && <p className="label-mono normal-case text-tertiary">{p.shortName}</p>}
           <p className="text-sm text-tertiary">
             УИХ-ын гишүүн{p.isActive ? "" : " (асан)"} · {p.party ?? "—"}
             {p.constituency ? ` · ${p.constituency}${p.votes ? ` (${formatNumber(p.votes)} санал)` : ""}` : ""}
             {p.termStart ? ` · ${p.termStart.slice(0, 4)}–${p.termEnd?.slice(0, 4) ?? ""}` : ""}
           </p>
+          {places.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="text-tertiary">Тойргийн мэдээ:</span>
+              {places.map((pl) => (
+                <Link key={pl.slug} href={`/place/${pl.slug}`} prefetch={false} className="font-semibold text-brand-secondary hover:underline">
+                  {pl.name}
+                </Link>
+              ))}
+            </p>
+          )}
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-brand-secondary">
             {p.xacxomId && (
               <a href={`https://xacxom.iaac.mn/xacxom/${p.xacxomId}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">

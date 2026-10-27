@@ -11,7 +11,7 @@ import { getLegalActs } from "@/lib/queries";
 import { safeHttpUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Шинэ хууль, тогтоол — юу өөрчлөгдөж байна вэ",
+  title: "Шинэ хууль, тогтоол — сүүлд батлагдсан хууль, журам",
   alternates: { canonical: "/laws" },
   description: "Хууль зүйн мэдээллийн нэгдсэн системд (legalinfo.mn) шинээр бүртгэгдсэн хууль, УИХ, Засгийн газрын тогтоол, сайдын тушаал, AI-ын товч тайлбартай.",
 };
@@ -61,8 +61,8 @@ export default function LawsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col">
       <PageHeader
-        eyebrow="Хууль, тогтоол · legalinfo.mn"
-        title="Юу шинээр батлагдав?"
+        eyebrow="legalinfo.mn · Юу шинээр батлагдав"
+        title="Шинэ хууль, тогтоол"
         description="Хууль зүйн мэдээллийн нэгдсэн системд (legalinfo.mn) шинээр бүртгэгдсэн хууль, тогтоол, тушаал. Товч тайлбарыг AI бичсэн тул хүчин төгөлдөр текстийг эх бичвэрээс уншина уу."
       >
         <ShareButton path="/laws" title="Шинэ хууль, тогтоол: юу өөрчлөгдөж байна вэ" className="w-fit" />
