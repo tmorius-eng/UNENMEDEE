@@ -9,6 +9,7 @@ import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
 import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
 import { toPrefixQuery } from "@/lib/search";
+import { FEED_MIN_IMPORTANCE, INDEXED_DOMAINS } from "@/lib/seo";
 import { SOURCE_SEEDS } from "@/lib/sources";
 import { ubMidnight } from "@/lib/ticker";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
@@ -170,11 +171,16 @@ const EFFECTIVE_TOPIC = sql<string>`case
   when ${articles.topic} in (${sql.join(AI_TOPIC_KEYS.map((k) => sql`${k}`), sql`, `)}) then ${articles.topic}
   else ${DOMAIN_TOPIC} end`;
 
-/**
- * Minor items (importance below this, e.g. trainings, greetings, dataset listings) stay off the
- * home page and topic pages; they remain on /topic/data, /risk, clusters and the sitemap.
+/*
+ * Minor items (importance below FEED_MIN_IMPORTANCE, e.g. trainings, greetings, dataset listings)
+ * stay off the home page and topic pages; they remain on /topic/data, /risk, clusters and the
+ * archive. Unless clustered, naming a ₮ amount or a legal act they are thin pages: noindex and out
+ * of the sitemaps (`INDEXABLE` = SQL mirror of isThinArticle in src/lib/seo.ts).
  */
-const FEED_MIN_IMPORTANCE = Number(process.env.FEED_MIN_IMPORTANCE ?? 25);
+const INDEXABLE = sql`(coalesce(${articles.importanceScore}, 100) >= ${FEED_MIN_IMPORTANCE}
+  or ${articles.clusterId} is not null
+  or jsonb_array_length(coalesce(${articles.extractedEntities}->'amounts_mnt', '[]'::jsonb)) > 0
+  or ${sources.domain} in (${sql.join(INDEXED_DOMAINS.map((d) => sql`${d}`), sql`, `)}))`;
 
 function filterCondition(filter: FeedFilter): SQL | undefined {
   switch (filter) {
@@ -568,13 +574,14 @@ export async function getSitemapSlugs(limit = 45_000): Promise<{ slug: string; l
       })
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
-      .where(visible)
+      .where(and(visible, INDEXABLE))
       .orderBy(desc(sql`coalesce(${articles.publishedAt}, ${articles.createdAt})`))
       .limit(limit),
   );
 }
 
-export async function getSitemapArticles(limit = 1000): Promise<SitemapArticle[]> {
+/** `indexableOnly` leaves thin pages out (the Google News sitemap); RSS readers get everything. */
+export async function getSitemapArticles(limit = 1000, indexableOnly = false): Promise<SitemapArticle[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("articles");
@@ -593,7 +600,7 @@ export async function getSitemapArticles(limit = 1000): Promise<SitemapArticle[]
       })
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
-      .where(visible)
+      .where(indexableOnly ? and(visible, INDEXABLE) : visible)
       .orderBy(desc(sql`coalesce(${articles.publishedAt}, ${articles.createdAt})`))
       .limit(limit);
     return rows.map((r) => ({ ...r, tldr: r.tldr ?? "" }));

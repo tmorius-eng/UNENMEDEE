@@ -23,6 +23,7 @@ import { formatDateMn, tldrSentences } from "@/lib/format";
 import { placeGenitive, placeOfDomain } from "@/lib/places";
 import { linkPeople } from "@/lib/officials/links";
 import { type ArticleDetail, type FeedFilter, getArticleBySlug, getCluster, getPoliticians, getRecentSlugs, getTopicNeighbours } from "@/lib/queries";
+import { isThinArticle } from "@/lib/seo";
 import { absoluteUrl, jsonLd, safeHttpUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import { topicFor } from "@/lib/topics";
 
@@ -50,6 +51,8 @@ export async function generateMetadata({ params }: PageProps<"/article/[slug]">)
     description,
     keywords: [topic.label, article.sourceName, ...article.entities.orgs.slice(0, 5), ...article.entities.people.slice(0, 3), "мэдээ"],
     alternates: { canonical: url },
+    // Minor single-source notices stay readable and linked, but are not offered to search engines.
+    robots: isThinArticle(article) ? { index: false, follow: true } : undefined,
     openGraph: {
       type: "article",
       url,
