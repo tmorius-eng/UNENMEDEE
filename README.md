@@ -133,7 +133,7 @@ GitHub Actions (08:07 and 20:07 Ulaanbaatar)
  ├─ data:sync / macro:sync / budget:sync   opendata.mn, Mongolbank, NSO, Шилэн данс, World Bank, audit.mn
  ├─ digest                                 rank the last 12 h without AI → editor model picks 10 → /digest
  ├─ push:send / social:post                Web Push + Facebook, Instagram, Threads, Telegram, Discord (docs/FACEBOOK.md)
- └─ db:prune                               bodies older than 180 days become 600-char excerpts
+ └─ db:prune                               old bodies → excerpts, old unpublished rows deleted (bounded DB)
 Weekly: officials:sync (MPs + ХАСХОМ declarations), sources:discover, sources:recheck (edited or deleted posts).
 Daily: watchdog, keepalive, Vercel deployment cleanup.
 Vercel (Next.js 16, Cache Components) reads Supabase and renders the public site + /admin.

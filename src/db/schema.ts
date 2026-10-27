@@ -334,3 +334,19 @@ export const socialPosts = pgTable(
   },
   (t) => [uniqueIndex("social_posts_platform_kind_ref_idx").on(t.platform, t.kind, t.refId)],
 );
+
+/**
+ * URLs and content hashes of articles the retention job deleted (`src/lib/retention.ts`), so the
+ * scraper still treats them as already seen and never fetches or stores them again. ~100 bytes a
+ * row instead of a ~5 KB article row with its indexes; rows older than `SEEN_URL_KEEP_DAYS` go too.
+ */
+export const seenUrls = pgTable(
+  "seen_urls",
+  {
+    originalUrl: text("original_url").primaryKey(),
+    contentHash: varchar("content_hash", { length: 64 }).notNull(),
+    sourceId: integer("source_id"),
+    seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("seen_urls_content_hash_idx").on(t.contentHash), index("seen_urls_seen_at_idx").on(t.seenAt)],
+);

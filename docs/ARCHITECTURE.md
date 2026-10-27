@@ -72,10 +72,25 @@ migrations in [`drizzle/`](../drizzle) (`IF NOT EXISTS` everywhere, so a rerun i
 | `push_subscriptions` | Web Push endpoints and followed MPs |
 | `social_posts` | What was posted to Facebook, Instagram, Threads, Telegram and Discord (one row per platform + kind + item, so nothing posts twice) |
 | `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account, refreshed Threads/Instagram tokens, hidden declaration years) |
-| `transparency_ledger` | Income and costs shown on `/transparency` |
+| `transparency_ledger` | Income and costs shown on `/transparency` (keeps each month's AI total after its call logs are pruned) |
+| `seen_urls` | URL + SHA-256 of articles the retention job deleted, so the scraper still skips them (~100 bytes a row) |
 
-Size budget: about 6 KB per article. Bodies older than 180 days are cut to a 600-character
-excerpt (`db:prune`), so the database stays near one retention window, far under 500 MB.
+Size budget: about 5 KB per article row with its indexes; in Oct 2026 the database grew about
+1.25 MB a day, more than half of it unpublished rows kept only so pages are not fetched twice.
+`db:prune` (`src/lib/retention.ts`, daily) keeps it bounded, in batches of 500 rows:
+
+| Database size | Bodies cut to 600 characters after | Unpublished rows deleted after | Minor stories over 2 years old |
+|---|---|---|---|
+| < 350 MB | `RETENTION_DAYS` (180) | 90 days | kept |
+| ≥ 350 MB | ≤ 90 days | 30 days | kept |
+| ≥ 420 MB | ≤ 45 days | 30 days | deleted |
+
+A deleted row leaves its URL and hash in `seen_urls` (forgotten after 400 days). "Minor" means no
+cluster, importance below 40, not a legal act, not edited and not in any digest; important stories,
+legal acts, clustered stories and digests are never deleted. AI call logs older than 13 months go too,
+except the call that wrote a living article's summary (the page names that model). Each run is
+recorded in `app_settings.prune_state`, the public counters add the deleted rows back, and the
+watchdog reports a prune that stopped running.
 
 ## Scraping
 
