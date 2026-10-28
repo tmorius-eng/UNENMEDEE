@@ -94,6 +94,8 @@ export function planDigest(kind: DigestKind, now: Date, lastEnd: Date | null): D
 
 interface CandidateRow extends DigestCandidate {
   slug: string;
+  /** Tier 1's plain headline (shown by rule-based editions); `title` stays the source's own. */
+  plainTitle: string | null;
   clusterId: number | null;
   score: number;
 }
@@ -135,6 +137,7 @@ async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>, ex
       id: articles.id,
       slug: articles.slug,
       title: articles.title,
+      plainTitle: articles.readerTitle,
       tldr: articles.tldrSummary,
       entities: articles.extractedEntities,
       riskScore: articles.riskScore,
@@ -171,6 +174,7 @@ async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>, ex
         id: r.id,
         slug: r.slug,
         title: r.title,
+        plainTitle: r.plainTitle,
         sourceName: r.sourceName,
         publishedAt: r.publishedAt,
         tldr: r.tldr ?? "",
@@ -222,9 +226,9 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 
 /** Without any AI provider the digest still appears: top stories by rank, their own summaries. */
 export function ruleBasedDigest(candidates: CandidateRow[], plan: DigestPlan) {
-  const items = leadWithNews(candidates.slice(0, plan.pick)).map((c) => toItem(c, c.title, c.tldr.split("\n")[0] ?? ""));
+  const items = leadWithNews(candidates.slice(0, plan.pick)).map((c) => toItem(c, c.plainTitle ?? c.title, c.tldr.split("\n")[0] ?? ""));
   return {
-    title: plan.kind === "30d" ? "Сүүлийн 30 хоногийн онцлох мэдээ" : `Онцлох мэдээ: ${clip(items[0]?.title ?? "", 90)}`,
+    title: plan.kind === "30d" ? "Сүүлийн 30 хоногийн онцлох мэдээ" : `Онцлох мэдээ: ${clip(items[0]?.headline ?? "", 90)}`,
     intro: `Энэ хугацаанд ${candidates.length} мэдээнээс ач холбогдол, эрсдэл, олон эх сурвалжид гарсан байдлаар нь эрэмбэлсэн ${items.length} мэдээ.`,
     items,
   };

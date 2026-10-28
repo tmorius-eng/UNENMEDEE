@@ -17,6 +17,7 @@ import { cx } from "@/utils/cx";
 
 import { AIBullets, AIMessage } from "./ai-message";
 import { Chip, MoneyTags } from "./badges";
+import { impactTeaser, isProtocolStory, ProtocolNote, ReaderImpactBlock } from "./reader-impact";
 import { SpinMeter } from "./spin-meter";
 import { TimeAgo } from "./time-ago";
 
@@ -44,7 +45,10 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
   const { tag, color, dot } = storyTag(s.sourceDomain, s.sourceCategory, s.sourceName, s.topic);
   // The ✓ pops only on a tap (a class on rows restored from localStorage would pop on every load).
   const [pop, setPop] = useState(false);
-  const teaser = tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
+  // "Танд хамаатай юу?" leads the teaser when the text says who a story changes things for.
+  const forYou = impactTeaser(s.impact);
+  const teaser = forYou ? forYou.text : tldrSentences(s.tldr, lead ? 2 : 1).join(" ");
+  const protocol = isProtocolStory(s);
   const amount = largestAmount(s.amounts);
   const share = lead ? null : perPersonLine(s.amounts);
   const Heading = lead ? "h2" : "h3";
@@ -65,6 +69,7 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
               )}
             </span>
             {s.riskFlag && <Chip tone="risk">⚠ Өндөр эрсдэл · {s.riskScore}</Chip>}
+            {protocol && <Chip>Протокол</Chip>}
           </p>
           {/* A real link (crawlers and new-tab clicks reach the article); a plain tap expands in place.
               The view-transition name is shared with the article's <h1>, so the headline morphs there. */}
@@ -90,7 +95,17 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
               </a>
             </ViewTransition>
           </Heading>
-          {teaser && !isOpen && <p className={cx("mt-2 text-secondary", lead ? "line-clamp-3 text-md" : "line-clamp-2 text-sm")}>{teaser}</p>}
+          {teaser && !isOpen && (
+            <p className={cx("mt-2 text-secondary", lead ? "line-clamp-3 text-md" : "line-clamp-2 text-sm")}>
+              {forYou && (
+                <>
+                  <span className="label-mono mr-1.5 text-brand-secondary">Танд</span>
+                  {forYou.who && <span className="font-semibold text-primary">{forYou.who}: </span>}
+                </>
+              )}
+              {teaser}
+            </p>
+          )}
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="label-mono text-tertiary">
               {s.dateUnknown ? (
@@ -129,6 +144,8 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
 
       {isOpen && (
         <div className="panel-enter flex flex-col gap-4 pt-4">
+          {s.impact && <ReaderImpactBlock compact impact={s.impact} />}
+          {protocol && <ProtocolNote />}
           {s.summaryFallback ? (
             // No AI answered: the first sentences of the article itself, labelled as such, and no AI meter.
             <AIMessage compact tier="tier1" title="Эх текстийн эхний өгүүлбэр" note="AI ажиллаагүй">

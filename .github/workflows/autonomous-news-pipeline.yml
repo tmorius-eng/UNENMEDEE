@@ -205,6 +205,12 @@ jobs:
         continue-on-error: true
         run: npm run ai:topics -- --limit 200
 
+      - name: Plain headlines and "Танд хамаатай юу?" for older stories (batched, free tier)
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && (env.GROQ_API_KEY != '' || env.GEMINI_API_KEY != '' || env.REQUESTY_API_KEY != '' || env.NVIDIA_API_KEY != '' || env.MISTRAL_API_KEY != '' || env.OPENROUTER_API_KEY != '' || env.ZAI_API_KEY != '' || env.DEEPSEEK_API_KEY != '') }}
+        # A no-op once last month's feed stories have one (Tier 1 writes them for new articles).
+        continue-on-error: true
+        run: npm run ai:reader -- --limit 64
+
       - name: Notify subscribers about important news
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         # Push problems must never fail the pipeline.

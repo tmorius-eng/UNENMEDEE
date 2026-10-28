@@ -17,7 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { SourceDiff } from "@/lib/scraper/recheck";
-import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta } from "@/lib/types";
+import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ReaderImpact, ScrapeMeta } from "@/lib/types";
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
 export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai"]);
@@ -63,6 +63,10 @@ export const articles = pgTable(
     /** Small structured hints from the scraper adapter (not raw HTML). */
     scrapeMeta: jsonb("scrape_meta").$type<ScrapeMeta>(),
     tldrSummary: text("tldr_summary"),
+    /** The headline in plain words (Tier 1, numbers checked against the text); null = show `title`. */
+    readerTitle: text("reader_title"),
+    /** "Танд хамаатай юу?": who, what changes, from when, what to do (null fields = the text does not say). */
+    readerImpact: jsonb("reader_impact").$type<ReaderImpact>(),
     factVsSpin: jsonb("fact_vs_spin").$type<FactVsSpin>(),
     extractedEntities: jsonb("extracted_entities").$type<ExtractedEntities>(),
     riskFlag: boolean("risk_flag").notNull().default(false),

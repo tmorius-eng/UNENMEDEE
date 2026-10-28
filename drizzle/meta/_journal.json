@@ -127,6 +127,13 @@
       "when": 1793089449613,
       "tag": "0017_ledger_not_entered",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793184709942,
+      "tag": "0018_reader_view",
+      "breakpoints": true
     }
   ]
 }

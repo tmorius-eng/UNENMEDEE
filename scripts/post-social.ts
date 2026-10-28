@@ -204,7 +204,8 @@ async function postNews(db: Db, p: Platform) {
     .select({
       id: articles.id,
       slug: articles.slug,
-      title: articles.title,
+      // Our plain headline when Tier 1 wrote one (src/lib/ai/reader-view.ts).
+      title: sql<string>`coalesce(${articles.readerTitle}, ${articles.title})`,
       tldr: articles.tldrSummary,
       sourceName: sources.name,
       entities: articles.extractedEntities,
@@ -285,7 +286,7 @@ async function loadWeekly(db: Db): Promise<WeeklyTop | null> {
     .select({
       id: articles.id,
       slug: articles.slug,
-      title: articles.title,
+      title: sql<string>`coalesce(${articles.readerTitle}, ${articles.title})`,
       entities: articles.extractedEntities,
       riskFlag: articles.riskFlag,
       sourceId: articles.sourceId,

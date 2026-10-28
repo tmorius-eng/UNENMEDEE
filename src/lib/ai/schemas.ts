@@ -3,6 +3,8 @@ import { z } from "zod";
 import { isAiTopic } from "@/lib/topics";
 import { RISK_FLAG_THRESHOLD } from "@/lib/types";
 
+import { cleanImpact, cleanReaderTitle } from "./reader-view";
+
 /** LLMs sometimes return numbers as strings or out of range: coerce and clamp. */
 const score = z.coerce
   .number()
@@ -43,10 +45,20 @@ export const Tier1Schema = z
       .unknown()
       .transform((v) => (typeof v === "string" && isAiTopic(v.trim().toLowerCase()) ? v.trim().toLowerCase() : null))
       .optional(),
+    /** Shape checks only here; analyze.ts checks every number against the article (reader-view.ts). */
+    reader_title: z.unknown().transform((v) => cleanReaderTitle(v, "", null)).optional(),
+    impact: z.unknown().transform((v) => cleanImpact(v, null)).optional(),
     risk_flag: z.unknown().optional(),
   })
   // risk_flag is derived deterministically, never trusted from the model.
-  .transform((v) => ({ ...v, importance_score: v.importance_score ?? null, topic: v.topic ?? null, risk_flag: v.risk_score >= RISK_FLAG_THRESHOLD }))
+  .transform((v) => ({
+    ...v,
+    importance_score: v.importance_score ?? null,
+    topic: v.topic ?? null,
+    reader_title: v.reader_title ?? null,
+    impact: v.impact ?? null,
+    risk_flag: v.risk_score >= RISK_FLAG_THRESHOLD,
+  }))
   .refine((v) => v.tldr_summary.length >= 20, { message: "tldr_summary is empty" });
 
 export type Tier1Result = z.output<typeof Tier1Schema>;
