@@ -49,6 +49,38 @@ describe("facebook posts", () => {
     assert.equal(p.imageUrl, "https://iltodmedee.mn/ig-image?a=tusuv-123");
   });
 
+  it("article: tells the whole story when we know who it touches, facts and the labelled fact/PR estimate", () => {
+    const p = articlePost({
+      id: 2,
+      slug: "tetgever-1",
+      title: "Хөгжлийн бэрхшээлтэй хүний тэтгэвэр 11-р сарын 1-нээс ₮600,000 болно",
+      tldr: "Тэтгэвэр нэмэгдэнэ.\nЗасгийн газар шийдвэрлэсэн.\nГурав.",
+      sourceName: "ХНХЯ",
+      amounts: [],
+      riskFlag: false,
+      neutrality: 72,
+      impact: { who: "Хөгжлийн бэрхшээлтэй иргэд", change: "Сарын тэтгэвэр 600,000 төгрөг болно", when: "2026 оны 11-р сарын 1-нээс", action: null },
+      facts: ["Тэтгэвэр нэмэгдэнэ", "112 мянган иргэн уг тэтгэврийг авдаг", "Дүн: 600,000 ₮", "Засгийн газрын 10-р сарын 22-ны хуралдаанаар шийдвэрлэсэн"],
+    });
+    const lines = p.message.split("\n");
+    assert.deepEqual(lines.slice(0, 7), [
+      "⚡ Хөгжлийн бэрхшээлтэй хүний тэтгэвэр 11-р сарын 1-нээс ₮600,000 болно",
+      "",
+      "👤 Хэнд: Хөгжлийн бэрхшээлтэй иргэд",
+      "↻ Юу өөрчлөгдөх: Сарын тэтгэвэр 600,000 төгрөг болно",
+      "📅 Хэзээнээс: 2026 оны 11-р сарын 1-нээс",
+      "",
+      "👉 Тэтгэвэр нэмэгдэнэ. Засгийн газар шийдвэрлэсэн.",
+    ]);
+    // The summary's own sentence and a bare amount are not repeated as facts.
+    assert.deepEqual(
+      lines.filter((l) => l.startsWith("📌")),
+      ["📌 112 мянган иргэн уг тэтгэврийг авдаг", "📌 Засгийн газрын 10-р сарын 22-ны хуралдаанаар шийдвэрлэсэн"],
+    );
+    assert.ok(lines.includes("📊 Баримт 72% · Пи-ар 28% (AI-ийн үнэлгээ, буруутгал биш)"));
+    assert.ok(!lines.some((l) => l.startsWith("✓ Юу хийх")));
+  });
+
   it("publish: token only in the POST body; Graph errors keep their code", async () => {
     let seen: { url: string; body: string } | undefined;
     const ok = (async (url: string, init: RequestInit) => {

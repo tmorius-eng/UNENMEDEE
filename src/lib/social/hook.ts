@@ -12,8 +12,8 @@ const NUMBER = /^[\d][\d.,]*%?$/;
 /** "2026 оны", "2025 онд": a year is a date, not the fact worth highlighting. */
 const YEAR = /^(19|20)\d{2}$/;
 const YEAR_WORD = /^(он|оны|онд|оноос|оныг|онтой|оны,)$/i;
-/** Punctuation around a number: "(250", "«61.8", "40%)". */
-const strip = (w: string) => w.replace(/^[("«“'[]+/, "").replace(/[,.:;)»”'\]]+$/, "");
+/** Punctuation and a leading currency sign around a number: "(250", "«61.8", "40%)", "₮600,000" (plain headlines put ₮ first). */
+const strip = (w: string) => w.replace(/^[("«“'[₮$]+/, "").replace(/[,.:;)»”'\]]+$/, "");
 const UNIT = /^(хувь|хувиар|хувьтай|%|их|наяд|тэрбум|сая|мянга|мянган|₮|төгрөг|төгрөгийн|ам\.доллар|ам\.долларын|доллар|км|га|тонн|хүн|өрх|өрхийн)[,.:;]?$/i;
 
 /** Splits a headline into words and marks the first number, its units and the word after them. */

@@ -4,6 +4,7 @@ import jpeg from "jpeg-js";
 import { editionLabel } from "@/lib/edition";
 import { formatDateMn, largestAmount, tldrSentences } from "@/lib/format";
 import { hookCard } from "@/lib/og";
+import { formatShare, perPersonShare } from "@/lib/per-person";
 import { getArticleBySlug, getDigestById } from "@/lib/queries";
 import { hookWords } from "@/lib/social/hook";
 import { canonicalImageQuery } from "@/lib/site";
@@ -35,12 +36,15 @@ async function cardFor(params: URLSearchParams) {
     const a = await getArticleBySlug(slug);
     if (!a) return null;
     const amount = largestAmount(a.amounts);
+    const share = perPersonShare(a.amounts);
     return {
       label: a.riskFlag ? "Анхаарах мэдээ" : "Шинэ мэдээ",
       words: hookWords(a.title),
-      sub: tldrSentences(a.tldr, 1)[0],
-      more: amount ? [`Дүн: ${amount}`] : [],
+      // "Танд хамаатай юу?" when the text says who it changes things for, else the first summary sentence.
+      sub: a.impact?.change ? `${a.impact.who ? `${a.impact.who}: ` : ""}${a.impact.change}` : tldrSentences(a.tldr, 1)[0],
+      more: amount ? [`Дүн: ${amount}${share !== null ? ` · хүнд ≈ ${formatShare(share)}` : ""}`] : [],
       footer: `${a.sourceName}${a.scrapeMeta?.date_unknown ? "" : ` · ${formatDateMn(a.publishedAt)}`}`,
+      fact: a.summaryFallback ? null : a.neutralityScore,
     };
   }
   return null;

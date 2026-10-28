@@ -12,6 +12,7 @@ import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
 import { hashtags } from "./hashtags";
+import { factShareLine, impactLines, keyFacts } from "./story-lines";
 
 export const INSTAGRAM_API = "https://graph.instagram.com";
 export const INSTAGRAM_VERSION = process.env.IG_GRAPH_VERSION || "v26.0";
@@ -41,12 +42,18 @@ export function instagramDigestPost(d: DigestForPost, site = PRODUCTION_URL): In
 export function instagramArticlePost(a: ArticleForPost, site = PRODUCTION_URL): InstagramPost {
   const amount = largestAmount(a.amounts);
   const perPerson = perPersonLine(a.amounts);
+  const summary = tldrSentences(a.tldr, 3).join(" ");
+  const impact = impactLines(a.impact);
+  const meter = factShareLine(a.neutrality);
   const caption = [
     `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
     "",
-    `👉 ${tldrSentences(a.tldr, 3).join(" ")}`,
+    ...(impact.length ? [...impact, ""] : []),
+    `👉 ${summary}`,
+    ...keyFacts(a.facts, summary).map((f) => `📌 ${f}`),
     ...(amount ? [`💰 Дүн: ${amount}`] : []),
     ...(perPerson ? [perPerson] : []),
+    ...(meter ? [meter] : []),
     ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
     `🏛 Эх сурвалж: ${a.sourceName}`,
     "",

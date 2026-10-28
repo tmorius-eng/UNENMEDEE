@@ -61,6 +61,7 @@ export function discordArticlePost(a: ArticleForPost, site = PRODUCTION_URL): Di
   ];
   const lines = [
     `${a.riskFlag ? "🚨" : "⚡"} ${bold(a.title)}`,
+    ...(a.impact?.change ? [`👤 ${a.impact.who ? `${bold(a.impact.who)}: ` : ""}${a.impact.change}${a.impact.when ? ` (${a.impact.when})` : ""}`] : []),
     ...tldrSentences(a.tldr, 2).map((t) => `> ${t}`),
     ...(amount ? [`💰 ${bold(amount)}${share !== null ? ` · 👤 ${POPULATION_LABEL} хүнд хуваавал ${bold(formatShare(share))} / хүн` : ""}`] : []),
     ...(meters.length ? [`${meters.join("  ·  ")}  _(AI-ийн үнэлгээ, буруутгал биш)_`] : []),

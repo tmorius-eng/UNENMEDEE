@@ -212,6 +212,7 @@ async function postNews(db: Db, p: Platform) {
       riskFlag: articles.riskFlag,
       riskScore: articles.riskScore,
       factVsSpin: articles.factVsSpin,
+      impact: articles.readerImpact,
       topic: articles.topic,
       domain: sources.domain,
       category: sources.category,
@@ -238,7 +239,14 @@ async function postNews(db: Db, p: Platform) {
     // The site's own topic rule (topics.ts): aimag/district sites are local, opendata is data,
     // otherwise the AI topic with the domain as fallback.
     const topic = topicFor(r.domain, r.category, r.topic).key;
-    await post(db, p, "article", r.id, p.article({ ...r, topic, tldr: r.tldr ?? "", amounts: r.entities?.amounts_mnt ?? [], neutrality: r.factVsSpin?.neutrality_score ?? null }));
+    await post(db, p, "article", r.id, p.article({
+        ...r,
+        topic,
+        tldr: r.tldr ?? "",
+        amounts: r.entities?.amounts_mnt ?? [],
+        neutrality: r.factVsSpin?.neutrality_score ?? null,
+        facts: r.factVsSpin?.facts ?? [],
+      }));
   }
 }
 
