@@ -9,8 +9,10 @@ import { editionLabel, ruleBasedNote } from "@/lib/edition";
 import { largestAmount, tldrSentences } from "@/lib/format";
 import { perPersonLine } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
+import type { ReaderImpact } from "@/lib/types";
 
 import { hashtags } from "./hashtags";
+import { factShareLine, impactLines, keyFacts } from "./story-lines";
 
 export const GRAPH_VERSION = process.env.FB_GRAPH_VERSION || "v26.0";
 
@@ -46,6 +48,10 @@ export interface ArticleForPost {
   riskScore?: number | null;
   /** fact_vs_spin.neutrality_score: 0 = pure PR, 100 = facts only (Discord's meter). */
   neutrality?: number | null;
+  /** "Танд хамаатай юу?" (reader_impact, grounded in the text). */
+  impact?: ReaderImpact | null;
+  /** fact_vs_spin.facts: checkable facts for the "📌" lines. */
+  facts?: string[] | null;
 }
 
 /** Hook first: the top story and why it matters, then the next four headlines and the link. */
@@ -61,17 +67,28 @@ export function digestPost(d: DigestForPost, site = PRODUCTION_URL): FacebookPos
   return { message: lines.join("\n"), link, imageUrl: `${site}/ig-image?d=${d.id}` };
 }
 
-/** One important story: the headline as the hook, two summary sentences, the largest ₮ amount, the source. */
+/**
+ * One important story, told in full inside the post (most readers never tap the link): the plain
+ * headline, "Танд хамаатай юу?", two summary sentences, up to two facts, the largest ₮ amount and
+ * its per-person share, the AI's fact/PR estimate (labelled), the source and our link.
+ */
 export function articlePost(a: ArticleForPost, site = PRODUCTION_URL): FacebookPost {
   const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
   const perPerson = perPersonLine(a.amounts);
+  const summary = tldrSentences(a.tldr, 2).join(" ");
+  const impact = impactLines(a.impact);
+  const facts = keyFacts(a.facts, summary);
+  const meter = factShareLine(a.neutrality);
   const lines = [
     `${a.riskFlag ? "🚨" : "⚡"} ${a.title}`,
     "",
-    `👉 ${tldrSentences(a.tldr, 2).join(" ")}`,
+    ...(impact.length ? [...impact, ""] : []),
+    `👉 ${summary}`,
+    ...facts.map((f) => `📌 ${f}`),
     ...(amount ? [`💰 Дүн: ${amount}`] : []),
     ...(perPerson ? [perPerson] : []),
+    ...(meter ? [meter] : []),
     ...(a.riskFlag ? ["⚠️ AI-ийн эрсдэлийн үнэлгээ өндөр (буруутгал биш)"] : []),
     `🏛 Эх сурвалж: ${a.sourceName}`,
     "",

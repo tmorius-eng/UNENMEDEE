@@ -31,4 +31,10 @@ describe("hook highlight", () => {
     assert.equal(hot("Шинэ хууль батлагдлаа"), "");
     assert.equal(hookWords("Шинэ хууль").length, 2);
   });
+  it("highlights a ₮ amount written currency-first, as the plain headlines do", () => {
+    const hot = hookWords("Хөгжлийн бэрхшээлтэй хүний тэтгэвэр 11-р сарын 1-нээс ₮600,000 болно")
+      .filter((w) => w.hot)
+      .map((w) => w.word);
+    assert.deepEqual(hot, ["₮600,000", "болно"]);
+  });
 });

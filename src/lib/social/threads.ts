@@ -62,7 +62,9 @@ export function threadsArticlePost(a: ArticleForPost, site = PRODUCTION_URL): Th
   const link = `${site}/article/${a.slug}`;
   const amount = largestAmount(a.amounts);
   const tail = `\n\n👉 ${link}\n${hashtags("threads", a.topic)}`;
-  const parts = [`${a.riskFlag ? "🚨" : "⚡"} ${cut(a.title, 200)}`, "", cut(tldrSentences(a.tldr, 1)[0] ?? "", 180), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
+  // "Танд хамаатай юу?" in one line when the text says who it changes things for, else the summary.
+  const forYou = a.impact?.change ? `👤 ${a.impact.who ? `${a.impact.who}: ` : ""}${a.impact.change}` : null;
+  const parts = [`${a.riskFlag ? "🚨" : "⚡"} ${cut(a.title, 200)}`, "", cut(forYou ?? tldrSentences(a.tldr, 1)[0] ?? "", 180), "", ...(amount ? [`💰 ${amount}`] : []), `🏛 ${a.sourceName}`];
   return { text: cut(parts.join("\n"), THREADS_MAX - threadsLength(tail)) + tail, link, imageUrl: `${site}/ig-image?a=${encodeURIComponent(a.slug)}` };
 }
 

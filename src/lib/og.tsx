@@ -125,7 +125,11 @@ const YELLOW = "#ffd60a";
  * huge black italic capitals with its strongest fact in yellow (hookWords), an optional sub-line
  * ("why it matters" / the first summary sentence) and up to three more headlines.
  */
-export async function hookCard({ label, words, sub, more = [], footer }: { label: string; words: { word: string; hot: boolean }[]; sub?: string; more?: string[]; footer: string }) {
+/**
+ * The Facebook / Instagram / Threads card. `fact` (fact_vs_spin.neutrality_score) draws the site's
+ * fact-vs-PR bar, labelled as the AI's estimate, so the post shows it without a tap.
+ */
+export async function hookCard({ label, words, sub, more = [], footer, fact }: { label: string; words: { word: string; hot: boolean }[]; sub?: string; more?: string[]; footer: string; fact?: number | null }) {
   const [regular, black, markSrc] = await Promise.all([loadFonts(), loadHookFont(), loadMark()]);
   const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
   const length = words.reduce((n, w) => n + w.word.length + 1, 0);
@@ -153,6 +157,19 @@ export async function hookCard({ label, words, sub, more = [], footer }: { label
               ))}
             </div>
             {sub && <div style={{ display: "flex", fontSize: 34, lineHeight: 1.3, color: "#d0d5dd" }}>→ {clip(sub, 170)}</div>}
+            {typeof fact === "number" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", width: "100%", height: 18, borderRadius: 9, overflow: "hidden", background: "#344054" }}>
+                  <div style={{ display: "flex", width: `${Math.max(0, Math.min(100, fact))}%`, background: "#2ed3b7" }} />
+                  <div style={{ display: "flex", flex: 1, background: YELLOW }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 26, color: "#d0d5dd" }}>
+                  <span style={{ color: "#2ed3b7" }}>БАРИМТ {Math.round(Math.max(0, Math.min(100, fact)))}%</span>
+                  <span>AI-ийн үнэлгээ, буруутгал биш</span>
+                  <span style={{ color: YELLOW }}>ПИ-АР {100 - Math.round(Math.max(0, Math.min(100, fact)))}%</span>
+                </div>
+              </div>
+            )}
             {more.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, borderLeft: `6px solid ${YELLOW}`, paddingLeft: 22 }}>
                 {more.slice(0, 3).map((line, i) => (
