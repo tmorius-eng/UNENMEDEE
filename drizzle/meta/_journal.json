@@ -134,6 +134,13 @@
       "when": 1793184709942,
       "tag": "0018_reader_view",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793185937136,
+      "tag": "0019_press_coverage",
+      "breakpoints": true
     }
   ]
 }

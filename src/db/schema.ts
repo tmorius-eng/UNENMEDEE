@@ -9,6 +9,8 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -354,4 +356,37 @@ export const seenUrls = pgTable(
     seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("seen_urls_content_hash_idx").on(t.contentHash), index("seen_urls_seen_at_idx").on(t.seenAt)],
+);
+
+/**
+ * Headlines of independent newsrooms (src/lib/press/feeds.ts OUTLETS), to show which government
+ * stories the press also wrote about. Title + link only: no text, no images. Rows older than
+ * PRESS_KEEP_DAYS are deleted by `npm run press:sync`.
+ */
+export const pressItems = pgTable(
+  "press_items",
+  {
+    id: serial("id").primaryKey(),
+    outlet: varchar("outlet", { length: 64 }).notNull(),
+    title: text("title").notNull(),
+    url: text("url").notNull().unique(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    foundAt: timestamp("found_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("press_items_found_at_idx").on(t.foundAt)],
+);
+
+/** A press headline that covers a government story (src/lib/press/match.ts, TF-IDF cosine ≥ PRESS_MATCH_MIN). */
+export const pressLinks = pgTable(
+  "press_links",
+  {
+    articleId: integer("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    pressItemId: integer("press_item_id")
+      .notNull()
+      .references(() => pressItems.id, { onDelete: "cascade" }),
+    score: real("score").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.articleId, t.pressItemId] }), index("press_links_press_item_idx").on(t.pressItemId)],
 );

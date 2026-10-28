@@ -211,6 +211,12 @@ jobs:
         continue-on-error: true
         run: npm run ai:reader -- --limit 64
 
+      - name: Match the press's headlines with government stories (ikon.mn, news.mn, sonin.mn)
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        # Headlines and links only; a failing feed is a warning. Never fails the pipeline.
+        continue-on-error: true
+        run: npm run press:sync
+
       - name: Notify subscribers about important news
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         # Push problems must never fail the pipeline.

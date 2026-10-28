@@ -121,6 +121,7 @@ const StoryRow = memo(function StoryRow({ s, isRead, isOpen, lead, onOpen, onTog
             {amount && <Chip tone="mnt">{amount}</Chip>}
             {share && <Chip>{share}</Chip>}
             {s.clusterSize > 1 && <Chip tone="brand">{s.clusterSize} эх сурвалж</Chip>}
+            {s.pressCount > 0 && <Chip>📰 {s.pressCount} хэвлэлд</Chip>}
           </p>
         </div>
         <button

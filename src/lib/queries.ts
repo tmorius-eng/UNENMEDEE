@@ -2,13 +2,14 @@ import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, pressItems, pressLinks, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { ubDateKey, ubDayBounds } from "@/lib/archive";
 import { activeBlacklist } from "@/lib/opendata-mn/highlights";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
 import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
 import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
+import { isPressBlindspot } from "@/lib/press/outlets";
 import { toPrefixQuery } from "@/lib/search";
 import { FEED_MIN_IMPORTANCE, INDEXED_DOMAINS } from "@/lib/seo";
 import { SOURCE_SEEDS } from "@/lib/sources";
@@ -63,6 +64,8 @@ export interface ArticleListItem {
   dateUnknown: boolean;
   /** No AI answered: `tldr` is the article's own first sentences (`summary_fallback`), not an AI summary. */
   summaryFallback: boolean;
+  /** Press headlines that cover this story (src/lib/press/match.ts). */
+  pressCount: number;
 }
 
 /**
@@ -120,6 +123,7 @@ const listColumns = {
   clusterSize: sql<number | null>`(select ${clusters.articleCount} from ${clusters} where ${clusters.id} = ${articles.clusterId})`,
   dateUnknown: sql<boolean>`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false)`,
   summaryFallback: articles.summaryFallback,
+  pressCount: sql<number>`(select count(*)::int from ${pressLinks} where ${pressLinks.articleId} = ${articles.id})`,
 };
 
 type ListRow = {
@@ -145,6 +149,7 @@ type ListRow = {
   clusterSize: number | null;
   dateUnknown: boolean;
   summaryFallback: boolean;
+  pressCount: number | null;
 };
 
 function toListItem(r: ListRow): ArticleListItem {
@@ -171,6 +176,7 @@ function toListItem(r: ListRow): ArticleListItem {
     clusterSize: Math.max(1, Number(r.clusterSize ?? 1)),
     dateUnknown: r.dateUnknown === true,
     summaryFallback: r.summaryFallback === true,
+    pressCount: Number(r.pressCount ?? 0),
   };
 }
 
@@ -486,6 +492,17 @@ export interface ArticleDetail extends ArticleListItem {
   /** The model that actually wrote the summary / deep analysis (from ai_usage_logs); null = rule-based or unknown. */
   tier1Model: AIModelRef | null;
   tier2Model: AIModelRef | null;
+  /** The independent press's headlines on the same story, best match first. */
+  press: PressCoverage[];
+  /** Important, a day old, and none of the outlets we read had it (src/lib/press/outlets.ts); computed in the hourly cache. */
+  pressBlindspot: boolean;
+}
+
+export interface PressCoverage {
+  outlet: string;
+  title: string;
+  url: string;
+  publishedAt: Date | null;
 }
 
 export interface AIModelRef {
@@ -534,8 +551,21 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
       .where(and(visible, eq(articles.slug, slug)))
       .limit(1);
     if (!r) return null;
+    const press = Number(r.pressCount ?? 0)
+      ? await getDb()
+          .select({ outlet: pressItems.outlet, title: pressItems.title, url: pressItems.url, publishedAt: pressItems.publishedAt })
+          .from(pressLinks)
+          .innerJoin(pressItems, eq(pressLinks.pressItemId, pressItems.id))
+          .where(eq(pressLinks.articleId, r.id))
+          .orderBy(desc(pressLinks.score))
+          .limit(6)
+      : [];
+    const item = toListItem(r);
     return {
-      ...toListItem(r),
+      ...item,
+      press,
+      // The clock is read inside this 'use cache' function, so the page stays static.
+      pressBlindspot: isPressBlindspot(item, new Date()),
       originalUrl: r.originalUrl,
       contentHash: r.contentHash,
       cleanContent: r.cleanContent,
