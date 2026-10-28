@@ -59,10 +59,29 @@ export function instagramArticlePost(a: ArticleForPost, site = PRODUCTION_URL): 
 
 type Fetch = typeof fetch;
 
+/**
+ * "Media ID is not available": the container exists but Instagram's read replicas have not seen it
+ * yet. Seen on Oct 28 2026 right after a successful create (a 1965 article went to Facebook,
+ * Threads and Discord but not Instagram); waiting and asking again is what Meta recommends.
+ */
+export const MEDIA_NOT_READY = 9007;
+const PUBLISH_RETRIES = 3;
+
+class InstagramError extends Error {
+  constructor(
+    message: string,
+    readonly code: number | undefined,
+  ) {
+    super(message);
+  }
+}
+
+const notReady = (err: unknown) => err instanceof InstagramError && err.code === MEDIA_NOT_READY;
+
 async function call(fetchImpl: Fetch, url: string, init?: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(60_000) });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: { message?: string; code?: number } };
-  if (!res.ok || json.error) throw new Error(`Instagram ${res.status}: ${json.error?.message ?? "request failed"} (code ${json.error?.code ?? "?"})`.slice(0, 300));
+  if (!res.ok || json.error) throw new InstagramError(`Instagram ${res.status}: ${json.error?.message ?? "request failed"} (code ${json.error?.code ?? "?"})`.slice(0, 300), json.error?.code);
   return json;
 }
 
@@ -86,13 +105,25 @@ export async function publishInstagram(opts: { token: string; post: InstagramPos
   const id = String(created.id ?? "");
   if (!id) throw new Error("Instagram returned no container id");
   for (let i = 0; ; i++) {
-    const s = await call(f, `${base}/${encodeURIComponent(id)}?${new URLSearchParams({ fields: "status_code,status", access_token: token })}`);
+    // A 9007 on the status read counts as "still processing", like IN_PROGRESS.
+    const s = await call(f, `${base}/${encodeURIComponent(id)}?${new URLSearchParams({ fields: "status_code,status", access_token: token })}`).catch((err: unknown) => {
+      if (notReady(err)) return { status_code: "NOT_AVAILABLE_YET" } as Record<string, unknown>;
+      throw err;
+    });
     if (s.status_code === "FINISHED") break;
     if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new Error(`Instagram container ${String(s.status_code)}: ${String(s.status ?? "")}`);
     // Never publish a container that is not ready (media_publish would fail or post without the image).
     if (i >= 11) throw new Error(`Instagram container not finished after ${i + 1} checks (${String(s.status_code ?? "?")})`);
     await sleep(5_000);
   }
-  const published = await call(f, `${base}/me/media_publish`, { method: "POST", body: new URLSearchParams({ creation_id: id, access_token: token }) });
-  return String(published.id ?? id);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const published = await call(f, `${base}/me/media_publish`, { method: "POST", body: new URLSearchParams({ creation_id: id, access_token: token }) });
+      return String(published.id ?? id);
+    } catch (err) {
+      // FINISHED, yet the publish endpoint has not seen the container: a few more seconds, not a failure.
+      if (!notReady(err) || attempt >= PUBLISH_RETRIES) throw err;
+      await sleep(5_000);
+    }
+  }
 }

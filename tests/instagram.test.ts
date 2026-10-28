@@ -43,6 +43,27 @@ describe("instagram posts", () => {
       "GET https://graph.instagram.com/v26.0/c1",
       "POST https://graph.instagram.com/v26.0/me/media_publish",
     ]);
+    // Oct 28 2026: the status read answered 9007 "Media ID is not available" right after the create,
+    // and later the publish endpoint can answer the same. Both mean "ask again", not "refused".
+    const seen: string[] = [];
+    let lag = 0;
+    const flaky = (async (url: string, init?: RequestInit) => {
+      seen.push(`${init?.method ?? "GET"} ${url.split("?")[0].split("/").pop()}`);
+      if (url.endsWith("/me/media")) return Response.json({ id: "c2" });
+      if (url.includes("/c2?")) return ++lag === 1 ? Response.json({ error: { message: "Media ID is not available", code: 9007 } }, { status: 400 }) : Response.json({ status_code: "FINISHED" });
+      if (url.endsWith("/me/media_publish")) return ++lag === 3 ? Response.json({ error: { message: "Media ID is not available", code: 9007 } }, { status: 400 }) : Response.json({ id: "m2" });
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    assert.equal(await publishInstagram({ token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: flaky, sleep: async () => {} }), "m2");
+    assert.deepEqual(seen, ["POST media", "GET c2", "GET c2", "POST media_publish", "POST media_publish"]);
+    // The same 9007 on every publish attempt is still a failure, never an endless loop.
+    const stuck = (async (url: string) => {
+      if (url.endsWith("/me/media")) return Response.json({ id: "c3" });
+      if (url.includes("/c3?")) return Response.json({ status_code: "FINISHED" });
+      return Response.json({ error: { message: "Media ID is not available", code: 9007 } }, { status: 400 });
+    }) as unknown as typeof fetch;
+    const gaveUp = await publishInstagram({ token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: stuck, sleep: async () => {} }).catch((e: Error) => e);
+    assert.ok(gaveUp instanceof Error && gaveUp.message.includes("code 9007"));
     const bad = (async () => Response.json({ error: { message: "Invalid OAuth access token", code: 190 } }, { status: 400 })) as unknown as typeof fetch;
     const err = await publishInstagram({ token: "SECRET", post: { imageUrl: "u", caption: "c" }, fetchImpl: bad }).catch((e: Error) => e);
     assert.ok(err instanceof Error && err.message.includes("code 190") && !err.message.includes("SECRET"));
