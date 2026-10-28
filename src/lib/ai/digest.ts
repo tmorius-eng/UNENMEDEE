@@ -6,6 +6,7 @@ import { formatPeriodMn } from "@/lib/format";
 import type { DigestItem, SourceCategory } from "@/lib/types";
 
 import type { BudgetGuard } from "./limits";
+import { isCeremonial } from "./ceremony";
 import { digestMessages, type DigestCandidate } from "./prompts";
 import { AIUnavailableError, callAIWithFallback, chainFor, type UsageLogger } from "./router";
 import { DigestSchema } from "./schemas";
@@ -34,7 +35,12 @@ export interface RankInput {
   otherSources: number;
   sourceDomain: string;
   sourceCategory: SourceCategory;
+  /** The headline: a ceremonial one (a meeting, a visit, an opening) ranks below real decisions. */
+  title?: string;
 }
+
+/** Rank penalty for a ceremonial headline, on top of its capped importance. */
+const CEREMONY_PENALTY = 30;
 
 /** Deterministic pre-ranking, so the model only sees the strongest candidates. */
 export function rankScore(a: RankInput): number {
@@ -45,7 +51,8 @@ export function rankScore(a: RankInput): number {
     a.riskScore * 0.3 +
     Math.min(a.otherSources, 4) * 8 +
     CATEGORY_WEIGHT[a.sourceCategory] +
-    (NATIONAL_DOMAINS.has(a.sourceDomain) ? 10 : 0)
+    (NATIONAL_DOMAINS.has(a.sourceDomain) ? 10 : 0) -
+    (a.title && isCeremonial(a.title) ? CEREMONY_PENALTY : 0)
   );
 }
 
@@ -105,8 +112,18 @@ async function clustersOf(db: DB, articleIds: Set<number>): Promise<Set<number>>
  */
 export function finalItems(aiItems: DigestItem[], candidates: CandidateRow[], plan: DigestPlan): { items: DigestItem[]; fromAI: boolean } {
   const min = plan.kind === "12h" ? MIN_DIGEST_STORIES : 1;
-  if (aiItems.length >= min) return { items: aiItems, fromAI: true };
-  return { items: ruleBasedDigest(candidates, plan).items, fromAI: false };
+  if (aiItems.length >= min) return { items: leadWithNews(aiItems), fromAI: true };
+  return { items: leadWithNews(ruleBasedDigest(candidates, plan).items), fromAI: false };
+}
+
+/**
+ * An edition never opens with a meeting or a ceremony (Oct 2026: an MP's meeting led edition 15).
+ * Ceremonial stories keep their order but move behind the others; with nothing else, nothing moves.
+ */
+export function leadWithNews<T extends { title: string; headline?: string }>(items: T[]): T[] {
+  const ceremonial = (i: T) => isCeremonial(i.title);
+  const news = items.filter((i) => !ceremonial(i));
+  return news.length ? [...news, ...items.filter(ceremonial)] : items;
 }
 
 async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>, excludeClusters: Set<number> = new Set()): Promise<CandidateRow[]> {
@@ -161,7 +178,14 @@ async function loadCandidates(db: DB, plan: DigestPlan, exclude: Set<number>, ex
         riskScore: r.riskScore,
         otherSources,
         clusterId: r.clusterId,
-        score: rankScore({ importanceScore: r.importanceScore, riskScore: r.riskScore, otherSources, sourceDomain: r.sourceDomain, sourceCategory: r.sourceCategory }),
+        score: rankScore({
+          importanceScore: r.importanceScore,
+          riskScore: r.riskScore,
+          otherSources,
+          sourceDomain: r.sourceDomain,
+          sourceCategory: r.sourceCategory,
+          title: r.title,
+        }),
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -198,7 +222,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 
 /** Without any AI provider the digest still appears: top stories by rank, their own summaries. */
 export function ruleBasedDigest(candidates: CandidateRow[], plan: DigestPlan) {
-  const items = candidates.slice(0, plan.pick).map((c) => toItem(c, c.title, c.tldr.split("\n")[0] ?? ""));
+  const items = leadWithNews(candidates.slice(0, plan.pick)).map((c) => toItem(c, c.title, c.tldr.split("\n")[0] ?? ""));
   return {
     title: plan.kind === "30d" ? "Сүүлийн 30 хоногийн онцлох мэдээ" : `Онцлох мэдээ: ${clip(items[0]?.title ?? "", 90)}`,
     intro: `Энэ хугацаанд ${candidates.length} мэдээнээс ач холбогдол, эрсдэл, олон эх сурвалжид гарсан байдлаар нь эрэмбэлсэн ${items.length} мэдээ.`,

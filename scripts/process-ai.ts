@@ -18,11 +18,12 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 
-import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
 import { articles } from "@/db/schema";
 import { analyzeArticle, assignClusters, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
+import { CEREMONY_MAX, isCeremonial } from "@/lib/ai/ceremony";
 import { CLUSTER_WINDOW_DAYS } from "@/lib/ai/clustering";
 import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE, RETRY_FALLBACK_DAYS, RETRY_FALLBACK_PER_RUN, shouldPark } from "@/lib/ai/fallback";
 import { AIUnavailableError } from "@/lib/ai/router";
@@ -84,6 +85,22 @@ async function applyFallbacks(db: ReturnType<typeof getDb>) {
   if (stale.length) console.log(`📝 ${stale.length} article(s) waited over ${FALLBACK_AFTER_HOURS} h or could not be analyzed: shown with their first sentences (no AI).`);
 }
 
+/**
+ * Rows analysed before the ceremony cap (or edited headlines) keep a model score of 85 for "…
+ * хүлээн авч уулзлаа". Cheap and idempotent: only last month's rows still above the cap are read.
+ */
+async function capCeremonialRows(db: ReturnType<typeof getDb>) {
+  const rows = await db
+    .select({ id: articles.id, title: articles.title })
+    .from(articles)
+    .where(and(sql`${articles.importanceScore} > ${CEREMONY_MAX}`, gte(articles.createdAt, new Date(Date.now() - 45 * 86_400_000))));
+  const ids = rows.filter((r) => isCeremonial(r.title)).map((r) => r.id);
+  if (ids.length) {
+    await db.update(articles).set({ importanceScore: CEREMONY_MAX }).where(inArray(articles.id, ids));
+    console.log(`🎀 ${ids.length} ceremonial headline(s) (meetings, visits, openings) capped at importance ${CEREMONY_MAX}.`);
+  }
+}
+
 async function main() {
   if (values.sample) return runSample();
   if (!hasDatabase()) {
@@ -120,6 +137,7 @@ async function main() {
   }
 
   await applyFallbacks(db);
+  await capCeremonialRows(db);
   const limit = Math.max(1, Number(values.limit));
   const batchSize = Math.max(1, Number(values.batch));
   const fresh = await db

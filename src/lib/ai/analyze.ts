@@ -4,6 +4,7 @@ import type { DB } from "@/db";
 import { articles, clusters, sources } from "@/db/schema";
 import { extractMntAmounts } from "@/lib/scraper/adapters/tender";
 
+import { capImportance } from "./ceremony";
 import { CLUSTER_WINDOW_DAYS, findBestMatch, type ClusterDoc } from "./clustering";
 import { clusterMessages, tier1Messages, tier2Messages, type ArticleForAI, type ClusterMember } from "./prompts";
 import type { BudgetGuard } from "./limits";
@@ -95,7 +96,9 @@ export async function analyzeArticle(input: ArticleForAI, opts: AnalyzeOptions =
     log: opts.log,
     budget: opts.budget,
   });
-  const tier1 = withRegexAmounts(t1.data, input.text);
+  const withAmounts = withRegexAmounts(t1.data, input.text);
+  // A meeting, visit or opening is never "national news" by itself, whatever the model said.
+  const tier1 = { ...withAmounts, importance_score: capImportance(input.title, withAmounts.importance_score) };
   let costUsd = t1.costUsd;
 
   let tier2: Tier2Result | null = null;
