@@ -34,7 +34,14 @@ const LAST_DIGEST_KEY = "push_last_digest_id";
 async function newsPayloads(): Promise<{ payloads: PushPayload[]; ids: number[] }> {
   const db = getDb();
   const rows = await db
-    .select({ id: articles.id, slug: articles.slug, title: articles.title, tldr: articles.tldrSummary, sourceName: sources.name, riskFlag: articles.riskFlag })
+    .select({
+      id: articles.id,
+      slug: articles.slug,
+      title: sql<string>`coalesce(${articles.readerTitle}, ${articles.title})`,
+      tldr: articles.tldrSummary,
+      sourceName: sources.name,
+      riskFlag: articles.riskFlag,
+    })
     .from(articles)
     .innerJoin(sources, eq(articles.sourceId, sources.id))
     .where(

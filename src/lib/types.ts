@@ -12,6 +12,17 @@ export interface FactVsSpin {
   neutrality_score: number;
 }
 
+/**
+ * "Танд хамаатай юу?" (Tier 1, grounded in analyze.ts): who the news touches, what changes for
+ * them, from when and what they should do. Every field is null when the text does not say it.
+ */
+export interface ReaderImpact {
+  who: string | null;
+  change: string | null;
+  when: string | null;
+  action: string | null;
+}
+
 /** Named entities extracted by the Tier-1 analyzer. */
 export interface ExtractedEntities {
   people: string[];

@@ -12,6 +12,7 @@ import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { FollowCard } from "@/components/iltod/follow-card";
 import { HashBadge } from "@/components/iltod/hash-badge";
 import { KeyNumbers } from "@/components/iltod/key-numbers";
+import { isProtocolStory, ProtocolNote, ReaderImpactBlock } from "@/components/iltod/reader-impact";
 import { Panel } from "@/components/iltod/panel";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
 import { ShareButton } from "@/components/iltod/share-button";
@@ -85,6 +86,7 @@ function articleJsonLd(article: ArticleDetail) {
         mainEntityOfPage: url,
         url,
         headline: article.title.length > 110 ? `${article.title.slice(0, 109)}…` : article.title,
+        ...(article.sourceTitle ? { alternativeHeadline: article.sourceTitle } : {}),
         description: summaryOf(article),
         image: [absoluteUrl(`/article/${article.slug}/opengraph-image`)],
         ...(published ? { datePublished: published } : {}),
@@ -218,6 +220,13 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
         <ViewTransition name={`hl-${article.slug}`}>
           <h1 className="headline text-[1.875rem] text-primary md:text-[2.5rem]">{article.title}</h1>
         </ViewTransition>
+        {/* Our plain headline is an edit: the government's own stays one line below, word for word. */}
+        {article.sourceTitle && (
+          <p className="-mt-2 text-sm text-tertiary">
+            <span className="label-mono mr-1.5">Эх гарчиг</span>
+            {article.sourceTitle}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1.5">
           <RiskBadge score={article.riskScore} size="md" />
           <Link href="/method#risk" className="label-mono normal-case text-tertiary underline decoration-dotted underline-offset-4 hover:text-primary">
@@ -232,6 +241,9 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
           <ShareButton path={`/article/${slug}`} title={article.title} text={tldrSentences(article.tldr, 1)[0]} className="w-fit" />
         </div>
       </header>
+
+      {article.impact && <ReaderImpactBlock impact={article.impact} className="border-t border-line pt-3" />}
+      {isProtocolStory(article) && <ProtocolNote />}
 
       <AIMessage tier="tier1" title={summaryTitle} note={summaryNote} className="border-t border-line pt-3">
         <AIBullets items={tldrSentences(article.tldr)} className="text-md" />

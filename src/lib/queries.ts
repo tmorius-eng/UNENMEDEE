@@ -15,7 +15,7 @@ import { SOURCE_SEEDS } from "@/lib/sources";
 import { LOG_KEEP_MONTHS, PRUNE_STATE_KEY } from "@/lib/retention";
 import { ubMidnight } from "@/lib/ticker";
 import { AI_TOPIC_KEYS, findTopic, TOPICS } from "@/lib/topics";
-import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ScrapeMeta, SourceCategory } from "@/lib/types";
+import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ReaderImpact, ScrapeMeta, SourceCategory } from "@/lib/types";
 
 /**
  * Read model for the public site. Every function:
@@ -35,7 +35,12 @@ export function parseFilter(value: string | string[] | undefined): FeedFilter {
 export interface ArticleListItem {
   id: number;
   slug: string;
+  /** The plain headline (`reader_title`) when Tier 1 wrote one, else the source's own. */
   title: string;
+  /** The source's own headline when `title` is our plain one (shown under it as "Эх гарчиг"). */
+  sourceTitle: string | null;
+  /** "Танд хамаатай юу?" (null = the text names no one it changes things for). */
+  impact: ReaderImpact | null;
   tldr: string;
   sourceName: string;
   sourceDomain: string;
@@ -89,10 +94,15 @@ async function safe<T>(label: string, fallback: T, fn: () => Promise<T>): Promis
   }
 }
 
+/** The plain headline Tier 1 wrote, else the source's own (src/lib/ai/reader-view.ts). */
+const DISPLAY_TITLE = sql<string>`coalesce(${articles.readerTitle}, ${articles.title})`;
+
 const listColumns = {
   id: articles.id,
   slug: articles.slug,
-  title: articles.title,
+  title: DISPLAY_TITLE,
+  sourceTitle: articles.title,
+  impact: articles.readerImpact,
   tldr: articles.tldrSummary,
   sourceName: sources.name,
   sourceDomain: sources.domain,
@@ -116,6 +126,8 @@ type ListRow = {
   id: number;
   slug: string;
   title: string;
+  sourceTitle: string;
+  impact: ReaderImpact | null;
   tldr: string | null;
   sourceName: string;
   sourceDomain: string;
@@ -140,6 +152,8 @@ function toListItem(r: ListRow): ArticleListItem {
     id: r.id,
     slug: r.slug,
     title: r.title,
+    sourceTitle: r.title === r.sourceTitle ? null : r.sourceTitle,
+    impact: r.impact ?? null,
     tldr: r.tldr ?? "",
     sourceName: r.sourceName,
     sourceDomain: r.sourceDomain,
@@ -596,7 +610,7 @@ export async function getSitemapArticles(limit = 1000, indexableOnly = false): P
     const rows = await getDb()
       .select({
         slug: articles.slug,
-        title: articles.title,
+        title: DISPLAY_TITLE,
         tldr: articles.tldrSummary,
         sourceName: sources.name,
         sourceDomain: sources.domain,
@@ -1048,7 +1062,7 @@ export async function getPolitician(id: number): Promise<PoliticianDetail | null
     const mentions = nameShared
       ? []
       : await db
-          .select({ slug: articles.slug, title: articles.title, publishedAt: articles.publishedAt, sourceName: sources.name })
+          .select({ slug: articles.slug, title: DISPLAY_TITLE, publishedAt: articles.publishedAt, sourceName: sources.name })
           .from(articles)
           .innerJoin(sources, eq(articles.sourceId, sources.id))
           .where(and(visible, sql`jsonb_exists(coalesce(${articles.extractedEntities}->'people', '[]'::jsonb), ${politician.shortName})`))

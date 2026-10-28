@@ -5,6 +5,7 @@ import { articles, clusters, sources } from "@/db/schema";
 import { extractMntAmounts } from "@/lib/scraper/adapters/tender";
 
 import { capImportance } from "./ceremony";
+import { cleanImpact, cleanReaderTitle, groundingSource } from "./reader-view";
 import { CLUSTER_WINDOW_DAYS, findBestMatch, type ClusterDoc } from "./clustering";
 import { clusterMessages, tier1Messages, tier2Messages, type ArticleForAI, type ClusterMember } from "./prompts";
 import type { BudgetGuard } from "./limits";
@@ -61,6 +62,8 @@ export function ruleBasedAnalysis(input: ArticleForAI): Tier1Result | null {
     risk_reason: "Өгөгдлийн багцын мэдээлэл.",
     importance_score: 15,
     topic: null,
+    reader_title: null,
+    impact: null,
     risk_flag: false,
   };
 }
@@ -95,10 +98,19 @@ export async function analyzeArticle(input: ArticleForAI, opts: AnalyzeOptions =
     schema: Tier1Schema,
     log: opts.log,
     budget: opts.budget,
+    // The plain headline and "Танд хамаатай юу?" add ~300 tokens of Mongolian to the answer.
+    maxTokens: 1_900,
   });
   const withAmounts = withRegexAmounts(t1.data, input.text);
   // A meeting, visit or opening is never "national news" by itself, whatever the model said.
-  const tier1 = { ...withAmounts, importance_score: capImportance(input.title, withAmounts.importance_score) };
+  // The plain headline and "Танд хамаатай юу?" keep only numbers the source printed.
+  const digits = groundingSource(input.title, input.text, input.publishedAt);
+  const tier1 = {
+    ...withAmounts,
+    importance_score: capImportance(input.title, withAmounts.importance_score),
+    reader_title: cleanReaderTitle(withAmounts.reader_title, input.title, digits),
+    impact: cleanImpact(withAmounts.impact, digits),
+  };
   let costUsd = t1.costUsd;
 
   let tier2: Tier2Result | null = null;
@@ -168,6 +180,8 @@ export async function processArticle(db: DB, id: number, opts: Omit<AnalyzeOptio
       riskFlag: tier1.risk_flag,
       importanceScore: tier1.importance_score,
       topic: tier1.topic,
+      readerTitle: tier1.reader_title,
+      readerImpact: tier1.impact,
       // Keep an earlier deep analysis if this run did not produce a new one.
       ...(tier2 ? { grokDeepAnalysis: formatDeepAnalysis(tier2) } : {}),
       aiError: null,

@@ -166,7 +166,7 @@ Library code in [`src/lib/ai`](../src/lib/ai); the prompts are public in
 ```mermaid
 flowchart TD
   N["New article<br/>(hash not seen)"] --> G{"Budget guard"}
-  G --> T1["Tier 1: summary, facts, spin,<br/>entities, risk 0-100, importance, topic"]
+  G --> T1["Tier 1: summary, facts, spin,<br/>entities, risk 0-100, importance, topic,<br/>plain headline, who it touches"]
   T1 --> Z{"zod valid?"}
   Z -- no --> RP["one repair retry"] --> Z
   Z -- yes --> R{"risk ≥ 65?"}
@@ -188,6 +188,15 @@ next. Chains can be overridden with `AI_TIER1_CHAIN` / `AI_TIER2_CHAIN`.
 **Structured output.** JSON mode, then zod schemas ([`schemas.ts`](../src/lib/ai/schemas.ts)) with one
 repair retry. Scores are clamped; an unknown `topic` becomes null; ₮ amounts found by regex are merged
 into the entities.
+
+**The reader's view.** Tier 1 also writes a plain headline (`reader_title`, ≤ 80 characters, the
+decision and the number first, no protocol phrases) and "Танд хамаатай юу?" (`reader_impact`: who it
+touches, what changes, from when, what to do). [`reader-view.ts`](../src/lib/ai/reader-view.ts) checks
+every number in them against the article's own text and date and drops a field that does not match;
+a field the text does not support stays null and nothing is shown. The page keeps the government's
+headline word for word under ours. A headline that only reports a meeting, visit or opening
+([`ceremony.ts`](../src/lib/ai/ceremony.ts)) is capped at importance 40 and labelled "Протокол" by rule,
+not by the model. `npm run ai:reader` fills older stories in batches of 8.
 
 **The risk score is an estimate.** The model scores 0–100 by a rubric in the prompt. The "high"
 flag is computed by our code (`risk_score >= 65`), never taken from the model, and the prompts forbid

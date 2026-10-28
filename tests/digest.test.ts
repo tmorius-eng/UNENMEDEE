@@ -99,7 +99,7 @@ describe("digest schedule", () => {
 describe("digest final list", () => {
   const now = new Date("2026-10-24T12:00:00Z");
   const plan = planDigest("12h", now, null);
-  const candidate = (id: number) => ({ id, slug: `s${id}`, title: `Мэдээ ${id}`, sourceName: "Яам", publishedAt: now, tldr: `Товч ${id}`, amounts: [], riskScore: 10, otherSources: 0, clusterId: null, score: 100 - id });
+  const candidate = (id: number) => ({ id, slug: `s${id}`, title: `Мэдээ ${id}`, plainTitle: null, sourceName: "Яам", publishedAt: now, tldr: `Товч ${id}`, amounts: [], riskScore: 10, otherSources: 0, clusterId: null, score: 100 - id });
   const candidates = Array.from({ length: 8 }, (_, i) => candidate(i + 1));
   const aiItem = (id: number) => ({ articleId: id, slug: `s${id}`, title: `Мэдээ ${id}`, sourceName: "Яам", publishedAt: null, riskScore: 10, headline: "AI гарчиг", whyItMatters: "Учир нь", otherSources: 0 });
 
