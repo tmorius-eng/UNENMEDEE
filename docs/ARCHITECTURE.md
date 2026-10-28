@@ -245,6 +245,16 @@ sources, with no embeddings or extra API calls:
    headline and "why it matters" for each.
 3. Drop any id the model invented. Without AI, the rule-based ranking is published as is.
 
+## Press coverage
+
+`npm run press:sync` reads three independent newsrooms' feeds ([`outlets.ts`](../src/lib/press/outlets.ts):
+ikon.mn, news.mn, sonin.mn) with the same robots.txt check and 8 s delay as the scraper, and stores
+only each headline and its link. [`match.ts`](../src/lib/press/match.ts) compares them with the last
+week's government stories (TF-IDF cosine over 5-letter stems, threshold 0.45, calibrated on real
+headlines; two headlines naming different people never match). The article page lists the matches
+under "Хэвлэлд"; an important story that none of them had after a day says so in neutral words
+("ижил гарчиг олдсонгүй"), the idea behind Ground News' "blindspot".
+
 ## Civic data
 
 Facts only: every number links to its official source and no copy accuses anyone. Each source has a

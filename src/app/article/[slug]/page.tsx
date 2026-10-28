@@ -12,6 +12,7 @@ import { FactSpinPanel } from "@/components/iltod/fact-spin-panel";
 import { FollowCard } from "@/components/iltod/follow-card";
 import { HashBadge } from "@/components/iltod/hash-badge";
 import { KeyNumbers } from "@/components/iltod/key-numbers";
+import { PressPanel } from "@/components/iltod/press-panel";
 import { isProtocolStory, ProtocolNote, ReaderImpactBlock } from "@/components/iltod/reader-impact";
 import { Panel } from "@/components/iltod/panel";
 import { SourceChangeNotice } from "@/components/iltod/source-change";
@@ -253,6 +254,8 @@ async function ArticleView({ params }: { params: PageProps<"/article/[slug]">["p
       {article.amounts.length > 0 && <KeyNumbers amounts={article.amounts} facts={article.facts} />}
 
       {!article.summaryFallback && <FactSpinPanel facts={article.facts} spin={article.spinDetected} neutrality={article.neutralityScore} />}
+
+      <PressPanel press={article.press} blindspot={article.pressBlindspot} />
 
       {article.deepAnalysis && (
         <AIMarkdownMessage
