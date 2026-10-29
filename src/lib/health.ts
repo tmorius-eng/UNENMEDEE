@@ -25,6 +25,9 @@ export const INDICATOR_MAX_AGE_H: Record<string, number> = {
   officials_companies: 14 * 24,
 };
 
+/** No pipeline start for this long is a problem (runs are every 30 min, ~50 min long). */
+export const PIPELINE_QUIET_H = 6;
+
 export const SOCIAL_PLATFORMS = ["facebook", "threads", "instagram", "telegram", "discord"] as const;
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 
@@ -95,7 +98,7 @@ export interface HealthSnapshot {
   /** `refreshedAt` of the stored 60-day tokens (null = no stored state). */
   tokens?: { threads: Date | null; instagram: Date | null };
   /** When the maintenance jobs last recorded a run (absent = the job does not exist yet). */
-  maintenance?: { pruneAt?: Date | null; backupAt?: Date | null };
+  maintenance?: { pruneAt?: Date | null; backupAt?: Date | null; pipelineAt?: Date | null };
   network?: NetworkSnapshot;
   workflows?: WorkflowSnapshot;
   /** Expiry of the bundled intermediate certificate (`certs/*.pem`). */
@@ -186,6 +189,9 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
   const m = s.maintenance;
   if (m?.pruneAt && daysSince(m.pruneAt, now) > 3) out.push(`Өгөгдлийн сангийн цэвэрлэгээ (db:prune) ${Math.round(daysSince(m.pruneAt, now))} хоног ажиллаагүй.`);
   if (config.backupConfigured === false) out.push(`Нөөц хуулбар хийгдэхгүй байна: BACKUP_AGE_PUBLIC_KEY secret алга (docs/BACKUP.md-ийн 1-р алхам).`);
+  // `npm run pipeline:mark`, the pipeline's first step: GitHub drops scheduled runs, and the
+  // Supabase fallback (supabase/pipeline-fallback.sql) starts one after an hour when it has a token.
+  if (m?.pipelineAt && daysSince(m.pipelineAt, now) * 24 > PIPELINE_QUIET_H) out.push(`Мэдээний pipeline ${Math.round(daysSince(m.pipelineAt, now) * 24)} цаг эхлээгүй: GitHub хуваарийг алгассан байж магадгүй (docs/PIPELINE-FALLBACK.md).`);
   if (m?.backupAt && daysSince(m.backupAt, now) > 10) out.push(`Нөөц хуулбар (backup) ${Math.round(daysSince(m.backupAt, now))} хоног хийгдээгүй (backup workflow).`);
 
   const n = s.network;

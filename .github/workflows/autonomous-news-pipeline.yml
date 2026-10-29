@@ -140,6 +140,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
         run: npm run db:migrate
 
+      # Tells the Supabase fallback (supabase/pipeline-fallback.sql) and the watchdog that a run
+      # started, so the database only asks GitHub for a run when none started for an hour.
+      - name: Record the run's start
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        continue-on-error: true
+        run: npm run pipeline:mark
+
       - name: Cache Playwright Chromium
         # The cache and the browser install are conveniences for the browser pass only: when either
         # fails (cache service change, apt mirror down) the HTTP pass still runs, with --no-browser.
