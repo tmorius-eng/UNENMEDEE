@@ -11,10 +11,11 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   deepseek: { input: 0.15, output: 0.6 },
   grok: { input: 2, output: 6 },
   // Gemini on a billed project (ai.google.dev/gemini-api/docs/pricing, Oct 2026). The billed
-  // default model is the cheapest text model, gemini-2.5-flash-lite: $0.10 in / $0.40 out.
+  // default model is the cheapest text model a new key can call, gemini-3.1-flash-lite: $0.25 in
+  // / $1.50 out (gemini-2.5-flash-lite answers 404 "no longer available to new users" since Oct 29 2026).
   // Other models are priced by geminiModelPrice. A key from a project WITHOUT billing is free:
   // set GEMINI_FREE_TIER=true. A billed key is charged for every call, so never assumed free.
-  gemini: { input: 0.1, output: 0.4 },
+  gemini: { input: 0.25, output: 1.5 },
   // NVIDIA NIM free API (build.nvidia.com). Free models are rate limited, not billed.
   nvidia: { input: 0, output: 0 },
   // Groq free tier (rate limited per minute/day, no card). Not to be confused with xAI Grok.
@@ -33,7 +34,7 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
 };
 
 /** The cheapest Gemini text model: the only one used on a billed key unless GEMINI_MODEL says otherwise. */
-export const GEMINI_BILLED_MODEL = "gemini-2.5-flash-lite";
+export const GEMINI_BILLED_MODEL = "gemini-3.1-flash-lite";
 
 /** List price of a Gemini text model (USD per 1M tokens), by its id or "-latest" alias. */
 export function geminiModelPrice(model: string): { input: number; output: number } {

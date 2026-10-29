@@ -95,6 +95,12 @@ function openaiProvider(provider: AIProvider, model: string, baseURL: string, ap
         max_tokens: maxTokens + (opts.reasoningHeadroom ?? 0),
       });
       const reportedCost = (res.usage as { cost?: unknown } | undefined)?.cost;
+      // OpenRouter answers some upstream failures with HTTP 200 and an `error` body, no `choices`
+      // (Oct 29 2026: "Cannot read properties of undefined (reading '0')").
+      if (!Array.isArray(res.choices) || res.choices.length === 0) {
+        const upstream = (res as unknown as { error?: { message?: string; code?: unknown } }).error;
+        throw new Error(`no answer in the response${upstream?.message ? `: ${upstream.message}` : ""}`);
+      }
       return {
         content: res.choices[0]?.message?.content ?? "",
         promptTokens: res.usage?.prompt_tokens ?? 0,
@@ -327,7 +333,17 @@ const noopLogger: UsageLogger = async () => {};
 export const PROVIDER_TRIP = 2;
 const tripped = new Map<AIProvider, number>();
 export const resetProviderTrips = () => tripped.clear();
-const isTransportFailure = (err: unknown, message: string) => !(err instanceof SchemaError || err instanceof SyntaxError || /no JSON object/.test(message)) && !isRetryableRateLimit(err);
+const isTransportFailure = (err: unknown, message: string) =>
+  !(err instanceof SchemaError || err instanceof SyntaxError || /no JSON object/.test(message)) && !isRetryableRateLimit(err) && !isRequestSpecific(err);
+
+/**
+ * 400 / 413 / 422 are about this request (Groq's 413 "Request too large" for one big digest
+ * prompt on Oct 29 2026), not about the provider: the next call can work, so they never trip it.
+ */
+function isRequestSpecific(err: unknown): boolean {
+  const status = err instanceof GeminiError || err instanceof OpenAI.APIError ? err.status : undefined;
+  return status === 400 || status === 413 || status === 422;
+}
 
 function isRetryableRateLimit(err: unknown): boolean {
   return (err instanceof GeminiError && err.status === 429) || (err instanceof OpenAI.APIError && err.status === 429);
@@ -398,7 +414,8 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
           const n = (tripped.get(p.provider) ?? 0) + 1;
           tripped.set(p.provider, n);
           // Visible in the workflow log: a call that returns no tokens is not in ai_usage_logs.
-          console.warn(`[ai] ${p.provider}/${p.model} failed (${n}/${PROVIDER_TRIP}${n >= PROVIDER_TRIP ? ", skipped for the rest of this run" : ""}): ${message.slice(0, 160)}`);
+          // Calls already in flight can push n past the limit: print it capped.
+          console.warn(`[ai] ${p.provider}/${p.model} failed (${Math.min(n, PROVIDER_TRIP)}/${PROVIDER_TRIP}${n >= PROVIDER_TRIP ? ", skipped for the rest of this run" : ""}): ${message.slice(0, 160)}`);
         }
         if (promptTokens || completionTokens) {
           const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens, p.model);

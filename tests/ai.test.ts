@@ -99,6 +99,14 @@ describe("router with a mock OpenAI-compatible server", () => {
     assert.equal((await call()).provider, "grok");
   });
 
+  it("a request-specific 413 never trips the provider (one big prompt is not an outage)", async () => {
+    script = (model) => (model === "mock-grok" ? { status: 413 } : { content: TIER2_OK });
+    const call = () => callAIWithFallback({ tier: "tier2", purpose: "tier2", messages: [{ role: "user", content: "x" }], schema: Tier2Schema, log });
+    for (let i = 0; i < PROVIDER_TRIP + 1; i++) await call();
+    // Grok is still tried every time.
+    assert.deepEqual(mock.calls.map((c) => c.model).filter((m) => m === "mock-grok").length, PROVIDER_TRIP + 1);
+  });
+
   it("repairs invalid JSON once on the same provider and logs both calls", async () => {
     script = (_m, i) => ({ content: i === 0 ? "not json at all" : TIER1_OK });
     const res = await callAIWithFallback({ tier: "tier1", purpose: "tier1", messages: [{ role: "user", content: "x" }], schema: Tier1Schema, log });
