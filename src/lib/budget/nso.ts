@@ -15,11 +15,12 @@ export const NSO_TABLES = {
 };
 export const NSO_SOURCE_URL = "https://www.1212.mn/mn/statistic/statcate/573051/table-view/DT_NSO_0800_001V1";
 
-export async function fetchTable(url: string): Promise<JsonStat2> {
+/** POSTs a PX-Web query (the whole table by default; pass a filtered body for big tables). */
+export async function fetchTable(url: string, body: unknown = { query: [], response: { format: "json-stat2" } }): Promise<JsonStat2> {
   const res = await politeFetch(url, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ query: [], response: { format: "json-stat2" } }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`data.1212.mn returned HTTP ${res.status} for ${url.split("/").pop()}`);
   return (await res.json()) as JsonStat2;

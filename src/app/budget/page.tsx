@@ -7,6 +7,7 @@ import { Empty } from "@/components/iltod/empty";
 import { PageHeader } from "@/components/iltod/page-header";
 import { ShareButton } from "@/components/iltod/share-button";
 import { FeedSkeleton } from "@/components/iltod/skeletons";
+import { YearTable } from "@/components/iltod/year-table";
 import { AUDIT_URL, type AuditSnapshot, OPINIONS, type Opinion } from "@/lib/budget/audit";
 import { GOVERNMENTS_SOURCE, GOVERNMENTS_VERIFIED_THROUGH, governmentsInYear, yearUnverified } from "@/lib/budget/governments";
 import { type BudgetNsoSnapshot, type CategorySeries, NSO_SOURCE_URL } from "@/lib/budget/nso";
@@ -108,45 +109,6 @@ function ShareBars({ rows: all, total, format, limit = 12 }: { rows: { name: str
         </li>
       ))}
     </ol>
-  );
-}
-
-function YearTable({ caption, years, rows, format }: { caption: string; years: string[]; rows: { name: string; values: Record<string, number | null> }[]; format: (v: number | null) => string }) {
-  return (
-    <details className="text-sm">
-      <summary className="cursor-pointer text-xs font-semibold text-tertiary">Он оноор хүснэгтээр харах</summary>
-      <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-sm">
-          <caption className="sr-only">{caption}</caption>
-          <thead className="border-b border-line text-xs text-tertiary">
-            <tr>
-              <th scope="col" className="py-2 pr-4 font-medium">
-                Ангилал
-              </th>
-              {years.map((y) => (
-                <th key={y} scope="col" className="py-2 pr-4 text-right font-medium">
-                  {y}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line-soft">
-            {rows.map((r) => (
-              <tr key={r.name}>
-                <th scope="row" className="py-2 pr-4 font-medium text-primary">
-                  {r.name}
-                </th>
-                {years.map((y) => (
-                  <td key={y} className="py-2 pr-4 text-right whitespace-nowrap text-secondary tabular-nums">
-                    {format(r.values[y] ?? null)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
   );
 }
 
