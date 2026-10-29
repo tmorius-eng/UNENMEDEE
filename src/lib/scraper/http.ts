@@ -5,8 +5,9 @@ import { DomainThrottle, getRobots, MAX_CRAWL_DELAY_MS, USER_AGENT } from "./rob
 const throttle = new DomainThrottle();
 
 export class RobotsDisallowedError extends Error {
-  constructor(url: string) {
-    super(`robots.txt disallows ${url}`);
+  /** `unavailable`: robots.txt could not be read (RFC 9309: crawl nothing), not a rule. */
+  constructor(url: string, unavailable?: string) {
+    super(unavailable ? `${unavailable}: nothing fetched (${url})` : `robots.txt disallows ${url}`);
     this.name = "RobotsDisallowedError";
   }
 }
@@ -33,7 +34,7 @@ export async function politeFetch(url: string, opts: PoliteFetchOptions = {}): P
   let crawlDelayMs = 0;
   if (!skipRobots) {
     const robots = await getRobots(u.origin);
-    if (!robots.isAllowed(u.pathname + u.search)) throw new RobotsDisallowedError(url);
+    if (!robots.isAllowed(u.pathname + u.search)) throw new RobotsDisallowedError(url, robots.unavailable);
     crawlDelayMs = Math.min(robots.crawlDelayMs ?? 0, MAX_CRAWL_DELAY_MS);
   }
   await throttle.wait(u.host, crawlDelayMs);

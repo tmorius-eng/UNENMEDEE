@@ -90,8 +90,8 @@ describe("prompt injection guard: every spelling of a tag, title and Tier-1 outp
 
 describe("billed Gemini stays on Flash-Lite", () => {
   it("ignores a Flash or Pro override on a billed key and keeps it on a free key", () => {
-    assert.equal(geminiModel({ GEMINI_MODEL: "gemini-2.5-pro" }, false), "gemini-2.5-flash-lite");
-    assert.equal(geminiModel({ GEMINI_DEEP_MODEL: "gemini-flash-latest" }, true), "gemini-2.5-flash-lite");
+    assert.equal(geminiModel({ GEMINI_MODEL: "gemini-2.5-pro" }, false), "gemini-3.1-flash-lite");
+    assert.equal(geminiModel({ GEMINI_DEEP_MODEL: "gemini-flash-latest" }, true), "gemini-3.1-flash-lite");
     assert.equal(geminiModel({ GEMINI_MODEL: "gemini-3.1-flash-lite" }, false), "gemini-3.1-flash-lite");
     assert.equal(geminiModel({ GEMINI_FREE_TIER: "true", GEMINI_MODEL: "gemini-2.5-pro" }, false), "gemini-2.5-pro");
     assert.equal(geminiModel({ GEMINI_FREE_TIER: "true" }, true), "gemini-flash-latest");
