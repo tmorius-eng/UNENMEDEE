@@ -117,6 +117,8 @@ export interface HealthConfig {
     populationYear: number;
     /** The tax rates in `/tax` were last checked on this day (`RATES_CHECKED`). */
     ratesChecked: string;
+    /** Every /projects entry's sources were last re-read on this day (`PROJECTS_VERIFIED_THROUGH`). */
+    projectsVerified: string;
   };
 }
 
@@ -208,5 +210,6 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
   if (s.population && s.population.year > d.populationYear) out.push(`ҮСХ ${s.population.year} оны хүн амын тоог (${s.population.count.toLocaleString("en-US")}) нийтэлсэн: src/lib/per-person.ts POPULATION-ийг шинэчлэх (одоо ${d.populationYear} оных).`);
   else if (!s.population && now.getTime() >= Date.UTC(d.populationYear + 2, 3, 1)) out.push(`Хүн амын тоо ${d.populationYear} оных (src/lib/per-person.ts POPULATION): ҮСХ-ны шинэ тоог оруулах.`);
   if (daysSince(d.ratesChecked, now) > 395) out.push(`Татварын хувь хэмжээг ${d.ratesChecked}-нээс хойш шалгаагүй (src/lib/tax/receipt.ts RATES_CHECKED).`);
+  if (daysSince(d.projectsVerified, now) > 180) out.push(`Төслүүдийн хуудсын (/projects) эх сурвалжуудыг ${d.projectsVerified}-нээс хойш дахин уншаагүй (src/lib/projects/data.ts PROJECTS_VERIFIED_THROUGH).`);
   return out;
 }

@@ -27,6 +27,7 @@ import { type CoreSnapshot, evaluateHealth, type HealthConfig, type HealthSnapsh
 import { POPULATION } from "@/lib/per-person";
 import { PLACES, placeMatchesConstituency } from "@/lib/places";
 import { PROGRAMME_END } from "@/lib/promises/programme";
+import { PROJECTS_VERIFIED_THROUGH } from "@/lib/projects/data";
 import { PRODUCTION_URL } from "@/lib/site";
 import { RATES_CHECKED } from "@/lib/tax/receipt";
 
@@ -260,7 +261,7 @@ async function main() {
       discord: flag(process.env.SOCIAL_DISCORD),
     },
     backupConfigured: process.env.BACKUP_CONFIGURED === undefined ? undefined : flag(process.env.BACKUP_CONFIGURED),
-    dated: { governmentsVerified: GOVERNMENTS_VERIFIED_THROUGH, programmeEnd: PROGRAMME_END, populationYear: POPULATION.year, ratesChecked: RATES_CHECKED },
+    dated: { governmentsVerified: GOVERNMENTS_VERIFIED_THROUGH, programmeEnd: PROGRAMME_END, populationYear: POPULATION.year, ratesChecked: RATES_CHECKED, projectsVerified: PROJECTS_VERIFIED_THROUGH },
   };
 
   const problems = evaluateHealth(snapshot, config);

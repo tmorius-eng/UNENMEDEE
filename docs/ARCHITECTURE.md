@@ -265,6 +265,7 @@ parser unit-tested against a saved real response in [`tests/fixtures`](../tests/
 | `/officials` | parliament.mn member API + IAAC ХАСХОМ declarations API | [`src/lib/officials`](../src/lib/officials) |
 | `/officials/companies` | Шилэн данс open-data report form 2480 (state-owned companies) | [`src/lib/soe`](../src/lib/soe) |
 | `/budget` | NSO PX-Web (JSON-stat 2.0), Шилэн данс, World Bank, audit.mn register | [`src/lib/budget`](../src/lib/budget) |
+| `/projects` | A curated dataset of the big announced projects (new cities, power plants, the refinery, the metro, the satellite): official acts, budget lines, reported spending, people in official roles and the stage each body itself states, every fact with its page; no verdicts | [`src/lib/projects`](../src/lib/projects) |
 | `/prices` | NSO PX-Web monthly average prices of 13 everyday goods since 2010 (Улаанбаатар + 21 aimags) and quarterly wages; household electricity/water tariffs typed in from the regulator's decisions, shown only once verified | [`src/lib/budget/prices.ts`](../src/lib/budget/prices.ts), [`tariffs.ts`](../src/lib/budget/tariffs.ts) |
 | `/data`, home strip | Mongolbank JSON endpoints, opendata.mn API | [`src/lib/mongolbank`](../src/lib/mongolbank), [`src/lib/opendata-mn`](../src/lib/opendata-mn) |
 | `/tax` | NSO spending structure; all maths in the browser | [`src/lib/tax`](../src/lib/tax) |

@@ -36,6 +36,9 @@ export function SiteFooter() {
           <Link className={footerLink} href="/transparency">
             Зардлын тайлан (AI токен бүрээр)
           </Link>
+          <Link className={footerLink} href="/projects">
+            Мега төслүүд: хэдэн жил, хэдэн төгрөг
+          </Link>
           <Link className={footerLink} href="/prices">
             Махны үнэ, бензиний үнэ 15 жилээр
           </Link>

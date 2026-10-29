@@ -40,7 +40,7 @@ function healthy(): HealthSnapshot {
 
 const CONFIG: HealthConfig = {
   socialConfigured: { facebook: true, threads: true, instagram: false, telegram: false, discord: false },
-  dated: { governmentsVerified: "2026-10-21", programmeEnd: "2028-07-01", populationYear: 2025, ratesChecked: "2026-10-24" },
+  dated: { governmentsVerified: "2026-10-21", programmeEnd: "2028-07-01", populationYear: 2025, ratesChecked: "2026-10-24", projectsVerified: "2026-10-29" },
 };
 
 /** Applies one change to a healthy snapshot and returns the lines it produced. */
@@ -131,7 +131,7 @@ describe("watchdog rules", () => {
 
   it("dated facts ask for a re-check at the right time", () => {
     // Without NSO's snapshot the population reminder falls back to the calendar.
-    const dated = (iso: string) => evaluateHealth({ ...healthy(), population: null }, CONFIG, new Date(iso)).filter((l) => /Ерөнхий сайд|хөтөлбөр дууссан|Хүн амын|Татварын/.test(l));
+    const dated = (iso: string) => evaluateHealth({ ...healthy(), population: null }, CONFIG, new Date(iso)).filter((l) => /Ерөнхий сайд|хөтөлбөр дууссан|Хүн амын|Татварын|Төслүүдийн/.test(l));
     assert.deepEqual(dated("2027-03-31T00:00:00Z"), []);
     // Population of 2025 is published early 2026; asking from April 2027 leaves time for the 2026 figure.
     assert.equal(dated("2027-04-02T00:00:00Z").length, 1);
@@ -140,5 +140,8 @@ describe("watchdog rules", () => {
     assert.ok(beforeElection.some((l) => /Татварын хувь/.test(l)));
     assert.ok(!beforeElection.some((l) => /хөтөлбөр дууссан/.test(l)));
     assert.ok(dated("2028-07-02T00:00:00Z").some((l) => /хөтөлбөр дууссан/.test(l)));
+    // /projects sources: six months after the last re-read.
+    assert.ok(!dated("2027-04-20T00:00:00Z").some((l) => /Төслүүдийн/.test(l)));
+    assert.ok(dated("2027-05-01T00:00:00Z").some((l) => /Төслүүдийн/.test(l)));
   });
 });
