@@ -6,15 +6,17 @@
 #                  writes), so a new key or model can be judged on real output. "models" picks what
 #                  to try, e.g. "mistral=mistral-small-latest openrouter=nvidia/nemotron-3-super-120b-a12b:free zai"
 #                  (provider alone = its default model)
+#   db-check:      connect like the site and the jobs (verified TLS) and print the server's
+#                  certificate chain; run after a database or TLS change (no writes)
 name: Maintenance (manual)
 
 on:
   workflow_dispatch:
     inputs:
       task:
-        description: "refetch-dates, recluster or ai-sample"
+        description: "refetch-dates, recluster, ai-sample or db-check"
         type: choice
-        options: [refetch-dates, recluster, ai-sample]
+        options: [refetch-dates, recluster, ai-sample, db-check]
         default: recluster
       dry_run:
         description: "true = print what would change, write nothing (refetch-dates only)"
@@ -83,5 +85,13 @@ jobs:
                 env AI_TIER1_CHAIN="$p" "$model_var" npm run ai:process -- --sample || echo "::warning::$spec failed"
                 echo "::endgroup::"
               done ;;
+            db-check)
+              # Host and port only (no credentials): which certificate chain the server presents.
+              target="$(node -e 'try{const u=new URL(process.env.DATABASE_URL);console.log(u.hostname+":"+(u.port||5432))}catch{}')"
+              echo "::group::certificate chain of $target"
+              timeout 20 openssl s_client -starttls postgres -connect "$target" -showcerts </dev/null 2>/dev/null | grep -E '^ *[0-9]+ s:|^ +i:|Verify return' || true
+              echo "::endgroup::"
+              npm run db:check
+              npm run db:migrate ;;
             *) echo "::error::unknown task"; exit 1 ;;
           esac

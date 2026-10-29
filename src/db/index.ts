@@ -5,6 +5,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import * as schema from "./schema";
+import { databaseTls, withoutSslParams } from "./tls";
 
 export type DB = NodePgDatabase<typeof schema>;
 
@@ -69,9 +70,10 @@ export function getDb(): DB {
     return globalThis.__iltodDb.db;
   }
   const pool = new Pool({
-    connectionString: url,
-    // Supabase requires TLS; its pooler certificate is not in Node's default CA store.
-    ssl: isLocalDatabase(url) ? false : { rejectUnauthorized: false },
+    // TLS is set here only (tls.ts): the URL's ssl* parameters would replace it.
+    connectionString: isLocalDatabase(url) ? url : withoutSslParams(url),
+    // Verified TLS for every remote database: Supabase's own root CA, host name checked.
+    ssl: isLocalDatabase(url) ? false : databaseTls(),
     max: Number(process.env.DB_POOL_MAX ?? 3),
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,
