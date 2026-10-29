@@ -6,6 +6,7 @@ import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digest
 import { ubDateKey, ubDayBounds } from "@/lib/archive";
 import { activeBlacklist } from "@/lib/opendata-mn/highlights";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
+import { ABOUT_KEY, type About, DEFAULT_ABOUT, parseAbout } from "@/lib/about";
 import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
 import type { SourceDiff, SourceStatus } from "@/lib/scraper/recheck";
@@ -1136,6 +1137,17 @@ export async function getDonation(): Promise<Donation> {
   return safe("getDonation", DEFAULT_DONATION, async () => {
     const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, DONATION_KEY)).limit(1);
     return row ? parseDonation(row.value) : DEFAULT_DONATION;
+  });
+}
+
+/** "Бид хэн бэ" (/about), edited in /admin (app_settings "about"); defaults without a database. */
+export async function getAbout(): Promise<About> {
+  "use cache";
+  cacheLife("days");
+  cacheTag("settings");
+  return safe("getAbout", DEFAULT_ABOUT, async () => {
+    const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, ABOUT_KEY)).limit(1);
+    return row ? parseAbout(row.value) : DEFAULT_ABOUT;
   });
 }
 

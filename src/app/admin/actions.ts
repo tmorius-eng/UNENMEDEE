@@ -12,6 +12,7 @@ import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ACCOUNT_PATTERN, DONATION_KEY, normalizeAccount } from "@/lib/donation";
+import { ABOUT_FIELDS, ABOUT_KEY, cleanAboutText } from "@/lib/about";
 import { HIDDEN_YEARS_KEY, hiddenYearsFromText } from "@/lib/officials/hidden";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
 import { readTextLimited } from "@/lib/scraper/http";
@@ -149,6 +150,23 @@ export async function saveDonation(_prev: ActionResult | null, formData: FormDat
     .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   updateTag("settings");
   return { ok: true, message: `Хадгаллаа: ${parsed.data.bank} ${parsed.data.account}` };
+}
+
+/** "Бид хэн бэ" (/about): five plain-text paragraphs; an empty field shows its default text. */
+export async function saveAbout(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const value: Record<string, string> = {};
+  for (const f of ABOUT_FIELDS) {
+    const raw = String(formData.get(f.key) ?? "");
+    if (raw.length > f.max * 2) return { ok: false, message: `«${f.label}» хэт урт байна (${f.max} тэмдэгт хүртэл).` };
+    value[f.key] = cleanAboutText(raw, f.max);
+  }
+  await getDb()
+    .insert(appSettings)
+    .values({ key: ABOUT_KEY, value: JSON.stringify(value) })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(value), updatedAt: new Date() } });
+  updateTag("settings");
+  return { ok: true, message: "Хадгаллаа: /about шууд шинэчлэгдэнэ. Хоосон үлдээсэн хэсэгт анхдагч текст харагдана." };
 }
 
 /** Declaration years taken out of the officials comparison ("46:2025, 12:2023"); the profile says so. */
