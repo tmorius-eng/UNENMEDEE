@@ -5,7 +5,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { analyzeArticle, formatDeepAnalysis, shouldResynthesize } from "@/lib/ai/analyze";
 import { CLUSTER_THRESHOLD, findBestMatch, similarity, stems, type ClusterDoc } from "@/lib/ai/clustering";
 import { estimateCostUsd, getPrice, isTextModel } from "@/lib/ai/pricing";
-import { AIUnavailableError, callAIWithFallback, type UsageRecord } from "@/lib/ai/router";
+import { AIUnavailableError, callAIWithFallback, PROVIDER_TRIP, resetProviderTrips, type UsageRecord } from "@/lib/ai/router";
 import { parseJsonLoose, Tier1Schema, Tier2Schema } from "@/lib/ai/schemas";
 
 import { startMockLLM, TIER1_OK, TIER2_OK } from "./helpers/mock-llm";
@@ -83,6 +83,20 @@ describe("router with a mock OpenAI-compatible server", () => {
   beforeEach(() => {
     logs.length = 0;
     mock.calls.length = 0;
+    resetProviderTrips();
+  });
+
+  it("skips a provider for the rest of the run after it fails twice, and forgets it once it answers", async () => {
+    script = (model) => (model === "mock-grok" ? { status: 503 } : { content: TIER2_OK });
+    const call = () => callAIWithFallback({ tier: "tier2", purpose: "tier2", messages: [{ role: "user", content: "x" }], schema: Tier2Schema, log });
+    for (let i = 0; i < PROVIDER_TRIP + 1; i++) assert.equal((await call()).provider, "deepseek");
+    // Two tries at Grok, then DeepSeek alone.
+    assert.deepEqual(mock.calls.map((c) => c.model), ["mock-grok", "mock-deepseek", "mock-grok", "mock-deepseek", "mock-deepseek"]);
+    const err = await callAIWithFallback({ tier: "tier2", purpose: "tier2", messages: [], schema: Tier2Schema, chain: ["grok"], log }).catch((e) => e);
+    assert.ok(err instanceof AIUnavailableError && /skipped \(2 failures this run\)/.test(err.attempts[0]));
+    resetProviderTrips();
+    script = (model) => ({ content: model === "mock-grok" ? TIER2_OK : TIER2_OK });
+    assert.equal((await call()).provider, "grok");
   });
 
   it("repairs invalid JSON once on the same provider and logs both calls", async () => {
