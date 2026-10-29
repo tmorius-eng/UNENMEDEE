@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { SeriesLineChart } from "@/components/iltod/charts";
 import { ShareButton } from "@/components/iltod/share-button";
+import { DeclaredCompanies } from "@/components/officials/declared-companies";
 import { FollowToggle } from "@/components/officials/follow";
 import { TimeAgo } from "@/components/iltod/time-ago";
 import type { AssetDeclaration } from "@/db/schema";
@@ -13,7 +14,8 @@ import { formatMntShort, formatNumber } from "@/lib/format";
 import { declarationFlags } from "@/lib/officials/flags";
 import { termLabel, termOf } from "@/lib/officials/terms";
 import { PLACES, placeMatchesConstituency } from "@/lib/places";
-import { getAttendance, getPolitician, getPoliticianIds } from "@/lib/queries";
+import type { OfficialCompaniesSnapshot } from "@/lib/officials/companies";
+import { getAttendance, getIndicator, getPolitician, getPoliticianIds } from "@/lib/queries";
 import { jsonLd, parseRouteId } from "@/lib/site";
 import { breadcrumbLd, personLd } from "@/lib/structured-data";
 
@@ -118,6 +120,7 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
   const data = await getPolitician(id);
   if (!data) notFound();
   const { politician: p, declarations: rows, hiddenYears, mentions, nameShared, nameSharedNow } = data;
+  const companies = await getIndicator<OfficialCompaniesSnapshot>("officials_companies").catch(() => null);
   // Only years the member held this seat can have a "missing" filing.
   const seatFrom = p.termStart ? Number(p.termStart.slice(0, 4)) : null;
   const flags = declarationFlags(rows, hiddenYears, seatFrom ? { from: seatFrom, to: p.termEnd ? Number(p.termEnd.slice(0, 4)) : null } : undefined);
@@ -268,6 +271,9 @@ async function Profile({ params }: { params: PageProps<"/officials/[id]">["param
           <p className="text-xs text-quaternary">
             Эх сурвалж: Авлигатай тэмцэх газар, ХАСХОМ · шинэчлэгдсэн <TimeAgo date={latest?.fetchedAt ?? null} />
           </p>
+          {latest && (
+            <DeclaredCompanies details={latest.details} year={latest.year} xacxomUrl={p.xacxomId ? `https://xacxom.iaac.mn/xacxom/${p.xacxomId}` : null} snapshot={companies?.data ?? null} />
+          )}
         </>
       )}
 
