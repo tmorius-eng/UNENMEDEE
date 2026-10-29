@@ -33,6 +33,9 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <p className="label-mono mb-1 text-tertiary">Шалгах боломжтой</p>
+          <Link className={footerLink} href="/about">
+            Бид хэн бэ
+          </Link>
           <Link className={footerLink} href="/transparency">
             Зардлын тайлан (AI токен бүрээр)
           </Link>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { logout } from "@/app/admin/auth-actions";
+import { AboutForm } from "@/components/admin/about-form";
 import { DonationForm } from "@/components/admin/donation-form";
 import { HiddenYearsForm } from "@/components/admin/hidden-years-form";
 import { LedgerForm } from "@/components/admin/ledger-form";
@@ -14,7 +15,7 @@ import { articles, sources, transparencyLedger } from "@/db/schema";
 import { monthKey } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatDateMn } from "@/lib/format";
-import { getDonation, getHiddenYearsText } from "@/lib/queries";
+import { getAbout, getDonation, getHiddenYearsText } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Редакцийн самбар", robots: { index: false } };
 // AI re-analysis runs inside server actions on this page.
@@ -89,6 +90,12 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin">["
         <h2 className="text-md font-semibold text-primary">Дэмжих: хандивын данс</h2>
         <p className="text-xs text-tertiary">Толгой хэсэг, хөл хэсэг болон /support хуудсанд харагдана. Хадгалсны дараа шууд шинэчлэгдэнэ.</p>
         <DonationForm current={await getDonation()} />
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+        <h2 className="text-md font-semibold text-primary">«Бид хэн бэ» хуудас (/about)</h2>
+        <p className="text-xs text-tertiary">Энгийн текст: хоосон мөрөөр догол мөр тусгаарлана. Хоосон үлдээсэн хэсэгт анхдагч текст харагдана. «Ил тод гэдэг 4 амлалт», холбоо барих хэсэг автоматаар гарна.</p>
+        <AboutForm current={await getAbout()} />
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
