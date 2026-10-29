@@ -12,6 +12,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
 import { closeDb, getDb, isLocalDatabase, isPgliteUrl } from "@/db";
+import { databaseTls, withoutSslParams } from "@/db/tls";
 import { migrateDemo } from "@/db/demo-migrate";
 
 /** Host, port and user only, so logs help debug a wrong secret without leaking the password. */
@@ -36,7 +37,7 @@ async function suggestPoolerHost(url: string): Promise<void> {
     if (String(cluster) === m[1]) continue;
     const candidate = new URL(url);
     candidate.hostname = `aws-${cluster}-${m[2]}.pooler.supabase.com`;
-    const probe = postgres(candidate.toString(), { max: 1, prepare: false, ssl: "require", onnotice: () => {}, connect_timeout: 15 });
+    const probe = postgres(withoutSslParams(candidate.toString()), { max: 1, prepare: false, ssl: databaseTls(), onnotice: () => {}, connect_timeout: 15 });
     try {
       await probe`select 1`;
       console.error(`  ✓ ${candidate.hostname} works. Replace the host in the DATABASE_URL secret (GitHub and Vercel) with it.`);
@@ -65,7 +66,10 @@ async function main() {
     return;
   }
   console.log(`🗄  Migrating ${describe(url)} …`);
-  const client = postgres(url, { max: 1, prepare: false, ssl: isLocalDatabase(url) ? false : "require", onnotice: () => {}, connect_timeout: 30 });
+  // Verified TLS as in src/db (tls.ts); postgres.js's "require" accepted any certificate.
+  const client = isLocalDatabase(url)
+    ? postgres(url, { max: 1, prepare: false, ssl: false, onnotice: () => {}, connect_timeout: 30 })
+    : postgres(withoutSslParams(url), { max: 1, prepare: false, ssl: databaseTls(), onnotice: () => {}, connect_timeout: 30 });
   try {
     await migrate(drizzle(client), { migrationsFolder: "drizzle" });
     const [last] = await client`select created_at from drizzle.__drizzle_migrations order by created_at desc limit 1`;
@@ -77,6 +81,7 @@ async function main() {
     console.error(`✗ Migration failed: ${e.code ? `[${e.code}] ` : ""}${e.message || String(err)}`);
     if (/password authentication failed|28P01/.test(`${e.message} ${e.code}`)) console.error("  → The password in DATABASE_URL is wrong.");
     if (/getaddrinfo ENOTFOUND/.test(e.message ?? "")) console.error("  → The host in DATABASE_URL does not resolve. Copy it again from Supabase → Connect.");
+    if (/certificate|self[- ]signed|altname|UNABLE_TO_VERIFY|ERR_TLS/i.test(`${e.message} ${e.code}`)) console.error("  → The database's TLS certificate was not accepted (src/db/tls.ts). For a database outside Supabase, set DATABASE_SSL_CA to its root certificate (PEM).");
     if (/tenant\/user .* not found|Tenant or user not found/i.test(e.message ?? "")) {
       console.error("  → This pooler host does not know the project. Use the exact string from Supabase → Connect → Transaction pooler.");
       await suggestPoolerHost(url);
