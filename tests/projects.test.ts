@@ -122,6 +122,7 @@ describe("projects helpers", () => {
     const list = projectListLd() as { "@graph": { mainEntity?: { itemListElement: unknown[] } }[] };
     assert.equal(list["@graph"][0].mainEntity!.itemListElement.length, PROJECTS.length);
     const one = projectLd(findProject("shine-kharkhorum")!) as { "@graph": { isBasedOn?: string[] }[] };
-    assert.ok(one["@graph"][0].isBasedOn!.includes("https://kharkhorum.gov.mn/about-us"));
+    // Exact match on the whole URL (CodeQL reads `includes` on a string as a substring check).
+    assert.ok(one["@graph"][0].isBasedOn!.some((u) => u === "https://kharkhorum.gov.mn/about-us"));
   });
 });
