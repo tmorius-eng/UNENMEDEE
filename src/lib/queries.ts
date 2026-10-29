@@ -2,10 +2,11 @@ import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
-import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, indicatorSnapshots, openDatasets, politicians, pressItems, pressLinks, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
+import { aiUsageLogs, appSettings, articles, assetDeclarations, clusters, digests, donations, indicatorSnapshots, openDatasets, politicians, pressItems, pressLinks, sources, transparencyLedger, type AssetDeclaration, type OpenDataset, type Politician } from "@/db/schema";
 import { ubDateKey, ubDayBounds } from "@/lib/archive";
 import { activeBlacklist } from "@/lib/opendata-mn/highlights";
 import { DEFAULT_DONATION, type Donation, DONATION_KEY, parseDonation } from "@/lib/donation";
+import type { DonationsSummary } from "@/lib/donations";
 import { ABOUT_KEY, type About, DEFAULT_ABOUT, parseAbout } from "@/lib/about";
 import { sharedShortNames, suspectUnitYears } from "@/lib/officials/flags";
 import { HIDDEN_YEARS_KEY, type HiddenYears, parseHiddenYears } from "@/lib/officials/hidden";
@@ -1137,6 +1138,36 @@ export async function getDonation(): Promise<Donation> {
   return safe("getDonation", DEFAULT_DONATION, async () => {
     const [row] = await getDb().select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, DONATION_KEY)).limit(1);
     return row ? parseDonation(row.value) : DEFAULT_DONATION;
+  });
+}
+
+/**
+ * Received donations for /transparency (and the admin list): the newest `limit` rows plus the
+ * all-time count and sum and this Ulaanbaatar month's sum. Tag "donations" (admin add/delete).
+ */
+export async function getDonations(limit = 100): Promise<DonationsSummary> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("donations");
+  const empty: DonationsSummary = { rows: [], count: 0, totalMnt: 0, monthMnt: 0 };
+  return safe("getDonations", empty, async () => {
+    const db = getDb();
+    const month = `${ubDateKey(Date.now()).slice(0, 7)}-01`;
+    const [rows, [sums]] = await Promise.all([
+      db
+        .select({ id: donations.id, receivedOn: donations.receivedOn, amountMnt: donations.amountMnt, donor: donations.donor, note: donations.note })
+        .from(donations)
+        .orderBy(desc(donations.receivedOn), desc(donations.id))
+        .limit(limit),
+      db
+        .select({
+          count: sql<number>`count(*)::int`,
+          total: sql<string>`coalesce(sum(${donations.amountMnt}), 0)`,
+          month: sql<string>`coalesce(sum(${donations.amountMnt}) filter (where ${donations.receivedOn} >= ${month}::date), 0)`,
+        })
+        .from(donations),
+    ]);
+    return { rows: rows.map((r) => ({ ...r, amountMnt: Number(r.amountMnt) })), count: sums.count, totalMnt: Number(sums.total), monthMnt: Number(sums.month) };
   });
 }
 

@@ -40,6 +40,7 @@ export const BACKUP_TABLES: BackupTable[] = [
   { table: schema.assetDeclarations, key: schema.assetDeclarations.id, serial: true },
   { table: schema.indicatorSnapshots, key: schema.indicatorSnapshots.key, serial: false },
   { table: schema.transparencyLedger, key: schema.transparencyLedger.id, serial: true },
+  { table: schema.donations, key: schema.donations.id, serial: true },
   { table: schema.pushSubscriptions, key: schema.pushSubscriptions.id, serial: true },
   { table: schema.socialPosts, key: schema.socialPosts.id, serial: true },
 ];

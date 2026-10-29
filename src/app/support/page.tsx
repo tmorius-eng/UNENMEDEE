@@ -37,7 +37,13 @@ export default function SupportPage() {
         <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-primary ring-1 ring-line ring-inset" />}>
           <DonateCard />
         </Suspense>
-        <p className="text-sm text-tertiary">Гүйлгээний утга дээр &quot;Дэмжлэг&quot; гэж бичнэ үү. Банкны аппаараа дансаа хуулж шилжүүлэхэд хамгийн амар.</p>
+        <p className="text-sm text-tertiary">
+          Гүйлгээний утга дээр &quot;Дэмжлэг&quot; гэж бичнэ үү. Хандив бүр{" "}
+          <Link href="/transparency" className="font-semibold text-brand-secondary hover:underline">
+            ил тод тайланд
+          </Link>{" "}
+          өдөр, дүнгээрээ нийтлэгдэнэ: нэрийг товчилж (Б.Б.) бичнэ. Бүтэн нэрээрээ гаргуулах бол &quot;Дэмжлэг нэрээр&quot;, нэргүй бол &quot;Дэмжлэг нууц&quot; гэж бичээрэй.
+        </p>
       </section>
 
       <section aria-labelledby="uses" className="flex flex-col gap-3">
@@ -56,7 +62,7 @@ export default function SupportPage() {
           ))}
         </ul>
         <p className="text-sm text-secondary">
-          Бид бусдаас нээлттэй байхыг шаарддаг тул өөрсдөө ч мөн адил: AI-ын зардал токен бүрээр, хандивын дүн сар бүр{" "}
+          Бид бусдаас нээлттэй байхыг шаарддаг тул өөрсдөө ч мөн адил: AI-ын зардал токен бүрээр, хандив бүр{" "}
           <Link href="/transparency" className="font-semibold text-brand-secondary hover:underline">
             ил тод тайлан
           </Link>

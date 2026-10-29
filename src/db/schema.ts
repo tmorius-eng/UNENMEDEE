@@ -229,6 +229,23 @@ export const transparencyLedger = pgTable("transparency_ledger", {
 });
 
 /**
+ * Received donations, typed in /admin and listed on /transparency (`src/lib/donations.ts`). `donor`
+ * is the name as published (initials, full or null = anonymous); the bank's own name is not kept.
+ */
+export const donations = pgTable(
+  "donations",
+  {
+    id: serial("id").primaryKey(),
+    receivedOn: date("received_on").notNull(),
+    amountMnt: bigint("amount_mnt", { mode: "number" }).notNull(),
+    donor: varchar("donor", { length: 80 }),
+    note: varchar("note", { length: 140 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("donations_received_on_idx").on(t.receivedOn)],
+);
+
+/**
  * Members of parliament (and later other officials), synced from parliament.mn's public API.
  * Rows are never deleted: after an election, members who left get is_active = false.
  */

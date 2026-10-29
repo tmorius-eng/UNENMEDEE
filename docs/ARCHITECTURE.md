@@ -73,6 +73,7 @@ migrations in [`drizzle/`](../drizzle) (`IF NOT EXISTS` everywhere, so a rerun i
 | `social_posts` | What was posted to Facebook, Instagram, Threads, Telegram and Discord (one row per platform + kind + item, so nothing posts twice) |
 | `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account, refreshed Threads/Instagram tokens, hidden declaration years) |
 | `transparency_ledger` | Income and costs shown on `/transparency` (keeps each month's AI total after its call logs are pruned) |
+| `donations` | Each received donation (day, ₮, the donor's name as published: initials by default, full only with consent, or none), typed in `/admin`, listed on `/transparency` |
 | `seen_urls` | URL + SHA-256 of articles the retention job deleted, so the scraper still skips them (~100 bytes a row) |
 
 Size budget: about 5 KB per article row with its indexes; in Oct 2026 the database grew about
