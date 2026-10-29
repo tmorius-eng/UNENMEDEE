@@ -48,16 +48,20 @@ function stripHeavyOnce(html: string): string {
   return out + html.slice(last);
 }
 
+/** Passes over the page at most: real pages need one or two. */
+export const MAX_STRIP_PASSES = 3;
+
 /**
  * Drops heavy blocks before JSDOM parses the page, only to save time and memory: this is not a
  * sanitizer (JSDOM runs no scripts, Readability drops them again and we keep plain text only).
  * Each pass is linear (an unclosed opener never rescans the page: 5,000 of them in 1 MB took
- * 1.4 s with a lazy regex); passes repeat until nothing changes, so a block hidden inside
- * another one goes too.
+ * 1.4 s with a lazy regex); a block hidden inside another one goes on the next pass. Passes stop
+ * at MAX_STRIP_PASSES: markup built to reveal one more block per pass would otherwise cost
+ * pages × passes (quadratic), and whatever is left is only JSDOM's work.
  */
 export function stripHeavyTags(html: string): string {
   let out = html;
-  for (let prev = ""; prev !== out; ) {
+  for (let pass = 0, prev = ""; pass < MAX_STRIP_PASSES && prev !== out; pass++) {
     prev = out;
     out = stripHeavyOnce(out);
   }

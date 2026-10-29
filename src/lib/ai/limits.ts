@@ -68,8 +68,10 @@ export type Allowance = { ok: true } | { ok: false; reason: string };
 
 export function isPaid(provider: AIProvider): boolean {
   // Requesty is a prepaid credit account: its free models cost $0, but any other model
-  // bills that account, so it always stays inside the USD budget.
-  if (provider === "requesty") return true;
+  // bills that account, so it always stays inside the USD budget. Mistral too: its free API has
+  // refused every call since Aug 2026, so a working key is a paying one, and a key without
+  // MISTRAL_PRICE_IN/OUT (price 0) must still stop when the money runs out.
+  if (provider === "requesty" || provider === "mistral") return true;
   const p = getPrice(provider);
   return p.input > 0 || p.output > 0;
 }

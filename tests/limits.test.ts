@@ -95,7 +95,9 @@ describe("free-only model locks", () => {
   });
 
   it("the new free providers are not paid and never count against the USD budget", () => {
-    for (const p of ["mistral", "openrouter", "zai"] as const) assert.equal(isPaid(p), false, p);
+    for (const p of ["openrouter", "zai"] as const) assert.equal(isPaid(p), false, p);
+    // A working Mistral key is a paying one (its free API refuses every call): budget-guarded even at price 0.
+    assert.equal(isPaid("mistral"), true);
   });
 });
 

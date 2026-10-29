@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { ADMIN_COOKIE, adminConfigured, checkPassword, createToken, SESSION_MAX_AGE_S } from "@/lib/admin-auth";
+import { ADMIN_COOKIE, adminConfigured, checkPassword, createToken, isValidToken, SESSION_MAX_AGE_S } from "@/lib/admin-auth";
 import { clientIp, failureLimiter } from "@/lib/rate-limit";
 
 /**
@@ -43,7 +43,18 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   redirect("/admin");
 }
 
+/** Ends the session on the server too: a copied cookie stops working (admin-session.ts). */
 export async function logout() {
-  (await cookies()).delete(ADMIN_COOKIE);
+  const jar = await cookies();
+  // Only a valid session may sign everyone out; anyone can POST this action.
+  if (await isValidToken(jar.get(ADMIN_COOKIE)?.value)) {
+    try {
+      const { revokeSessions } = await import("@/lib/admin-session");
+      await revokeSessions();
+    } catch (err) {
+      console.error("[admin] could not revoke sessions:", err instanceof Error ? err.message : err);
+    }
+  }
+  jar.delete(ADMIN_COOKIE);
   redirect("/admin/login");
 }

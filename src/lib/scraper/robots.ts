@@ -1,3 +1,5 @@
+import { publicFetch } from "./net-guard";
+
 /**
  * Minimal, dependency-free robots.txt support (RFC 9309 + Google wildcard semantics).
  *
@@ -14,11 +16,12 @@ export const USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_NAME}/1.0; +https://il
 
 /** Minimum delay between two requests to the same host. CLAUDE.md rule #1. */
 export const MIN_DOMAIN_DELAY_MS = 8_000;
+/** The longest Crawl-delay we honour (≤ 20 s per request); a longer one is read as this. */
+export const MAX_CRAWL_DELAY_MS = 20_000;
 
 interface Rule {
   allow: boolean;
   pattern: string;
-  regex: RegExp;
 }
 
 export interface RobotsPolicy {
@@ -33,14 +36,35 @@ export interface RobotsPolicy {
 const ALLOW_ALL: RobotsPolicy = { isAllowed: () => true, sitemaps: [] };
 const DISALLOW_ALL: RobotsPolicy = { isAllowed: () => false, sitemaps: [] };
 
-function patternToRegex(pattern: string): RegExp {
+/**
+ * Google's robots.txt wildcards without a regular expression: `*` is any run of characters, a
+ * trailing `$` anchors the end, otherwise the pattern only has to match a prefix. A regex built
+ * from the publisher's file ("/*a*a*a*b") backtracks exponentially on a long path; this greedy
+ * matcher keeps one restart point and stays at path × pattern steps at worst.
+ */
+export function matchesRobotsPattern(pattern: string, path: string): boolean {
   const anchored = pattern.endsWith("$");
-  const body = anchored ? pattern.slice(0, -1) : pattern;
-  const escaped = body
-    .split("*")
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
-    .join(".*");
-  return new RegExp(`^${escaped}${anchored ? "$" : ""}`);
+  const p = anchored ? pattern.slice(0, -1) : `${pattern}*`;
+  let i = 0;
+  let j = 0;
+  let star = -1;
+  let mark = 0;
+  while (i < path.length) {
+    if (j < p.length && p[j] !== "*" && p[j] === path[i]) {
+      i++;
+      j++;
+    } else if (j < p.length && p[j] === "*") {
+      star = j++;
+      mark = i;
+    } else if (star >= 0) {
+      j = star + 1;
+      i = ++mark;
+    } else {
+      return false;
+    }
+  }
+  while (j < p.length && p[j] === "*") j++;
+  return j === p.length;
 }
 
 /** Looks like an HTML page rather than a robots file. */
@@ -84,7 +108,7 @@ export function parseRobots(text: string, agent: string = BOT_NAME): RobotsPolic
     if (key === "allow" || key === "disallow") {
       // An empty Disallow means "allow all" and adds no rule.
       if (!value) continue;
-      current.rules.push({ allow: key === "allow", pattern: value, regex: patternToRegex(value) });
+      current.rules.push({ allow: key === "allow", pattern: value });
     } else if (key === "crawl-delay") {
       const n = Number(value);
       if (Number.isFinite(n) && n >= 0) current.crawlDelay = n;
@@ -103,7 +127,7 @@ export function parseRobots(text: string, agent: string = BOT_NAME): RobotsPolic
     isAllowed(pathAndQuery: string) {
       let best: Rule | null = null;
       for (const rule of rules) {
-        if (!rule.regex.test(pathAndQuery)) continue;
+        if (!matchesRobotsPattern(rule.pattern, pathAndQuery)) continue;
         if (
           !best ||
           rule.pattern.length > best.pattern.length ||
@@ -119,11 +143,30 @@ export function parseRobots(text: string, agent: string = BOT_NAME): RobotsPolic
 
 const cache = new Map<string, Promise<RobotsPolicy>>();
 
+/** RFC 9309 § 2.5: at least 500 KiB must be parsed; more is not needed. */
+export const ROBOTS_MAX_BYTES = 500 * 1024;
+
+/** The first `maxBytes` of a body (counted after decompression), the rest left unread. */
+async function readHead(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  await reader.cancel().catch(() => {});
+  return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, maxBytes));
+}
+
 /** A network error (timeout, reset) gets one more try after this pause; a 5xx answer does not. */
 export const ROBOTS_RETRY_MS = 3_000;
 
 /** Fetches (once per origin per process) and parses robots.txt. */
-export function getRobots(origin: string, fetchImpl: typeof fetch = fetch, retryMs = ROBOTS_RETRY_MS): Promise<RobotsPolicy> {
+export function getRobots(origin: string, fetchImpl: typeof fetch = publicFetch, retryMs = ROBOTS_RETRY_MS): Promise<RobotsPolicy> {
   const cached = cache.get(origin);
   if (cached) return cached;
   const promise = (async () => {
@@ -138,8 +181,9 @@ export function getRobots(origin: string, fetchImpl: typeof fetch = fetch, retry
         if (res.status >= 500) return { ...DISALLOW_ALL, unavailable: `robots.txt answered HTTP ${res.status}` };
         if (!res.ok) return ALLOW_ALL;
         const type = res.headers.get("content-type") ?? "";
-        const text = await res.text();
         if (type.includes("html")) return ALLOW_ALL;
+        // RFC 9309 lets a crawler stop reading at 500 KiB; a bigger file is read up to that.
+        const text = await readHead(res, ROBOTS_MAX_BYTES);
         return parseRobots(text);
       } catch (err) {
         // Slow .gov.mn hosts drop a connection now and then: one failed attempt used to take the

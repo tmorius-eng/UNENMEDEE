@@ -12,6 +12,7 @@ import { PRODUCTION_URL } from "@/lib/site";
 
 import type { ArticleForPost, DigestForPost } from "./facebook";
 import type { Quiz } from "./quiz";
+import { UnknownOutcomeError } from "./outcome";
 import { cut } from "./threads";
 
 export const DISCORD_API = "https://discord.com/api/v10";
@@ -154,7 +155,7 @@ export async function publishDiscord(opts: {
   };
   const channel = encodeURIComponent(opts.channelId);
   const sent = await call(`/channels/${channel}/messages`, discordMessage(opts.post));
-  if (!sent.id) throw new DiscordError("Discord: no message id returned", 200);
+  if (!sent.id) throw new UnknownOutcomeError("Discord: accepted, but no message id could be read");
   if (opts.crosspost !== false) {
     try {
       await call(`/channels/${channel}/messages/${encodeURIComponent(sent.id)}/crosspost`);

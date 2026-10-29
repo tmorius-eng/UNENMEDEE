@@ -14,6 +14,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { ACCOUNT_PATTERN, DONATION_KEY, normalizeAccount } from "@/lib/donation";
 import { HIDDEN_YEARS_KEY, hiddenYearsFromText } from "@/lib/officials/hidden";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
+import { readTextLimited } from "@/lib/scraper/http";
 import { fetchPublicUrl } from "@/lib/scraper/public-url";
 import { contentHash, normalizeText, slugify, truncate } from "@/lib/text";
 
@@ -191,6 +192,9 @@ export interface FilterResult {
   costUsd?: number;
 }
 
+/** A news page is well under this; more is refused before it reaches the parser. */
+const ADMIN_PAGE_MAX_BYTES = 5 * 1024 * 1024;
+
 /** Fetch a URL (politely) or take raw text, then run DeepSeek and, if risky, Grok. */
 export async function runFilter(raw: string, forceDeep: boolean): Promise<FilterResult> {
   await requireAdmin();
@@ -202,7 +206,7 @@ export async function runFilter(raw: string, forceDeep: boolean): Promise<Filter
     try {
       const res = await fetchPublicUrl(value, { timeoutMs: 25_000 });
       if (!res.ok) return { ok: false, error: `Хуудсыг татаж чадсангүй (HTTP ${res.status}).` };
-      const article = await extractArticleSafe(await res.text(), res.url || value);
+      const article = await extractArticleSafe(await readTextLimited(res, ADMIN_PAGE_MAX_BYTES), res.url || value);
       if (!article) return { ok: false, error: "Хуудаснаас нийтлэлийн текст олдсонгүй (JavaScript-ээр ачаалдаг сайт байж магадгүй). Текстийг нь хуулж оруулна уу." };
       input = { title: article.title, url: value, sourceDomain: new URL(value).hostname.replace(/^www\./, ""), text: article.text };
     } catch (err) {

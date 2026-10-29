@@ -441,16 +441,24 @@ export async function getClusters(limit = 30, sinceDays?: number): Promise<Clust
       .selectDistinct({ clusterId: articles.clusterId, name: sources.name })
       .from(articles)
       .innerJoin(sources, eq(articles.sourceId, sources.id))
-      .where(inArray(articles.clusterId, rows.map((r) => r.id)));
-    return rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      synthesis: r.synthesisSummary,
-      articleCount: r.articleCount,
-      maxRiskScore: r.maxRiskScore,
-      updatedAt: r.updatedAt,
-      sources: src.filter((s) => s.clusterId === r.id).map((s) => s.name),
-    }));
+      .where(and(visible, inArray(articles.clusterId, rows.map((r) => r.id))));
+    // Published members only (as on the cluster page): a cluster whose stories were all withdrawn
+    // is left out, and one with a single source left loses its cross-source synthesis.
+    return rows.flatMap((r) => {
+      const names = src.filter((s) => s.clusterId === r.id).map((s) => s.name);
+      if (names.length === 0) return [];
+      return [
+        {
+          id: r.id,
+          title: r.title,
+          synthesis: names.length < 2 ? null : r.synthesisSummary,
+          articleCount: r.articleCount,
+          maxRiskScore: r.maxRiskScore,
+          updatedAt: r.updatedAt,
+          sources: names,
+        },
+      ];
+    });
   });
 }
 
@@ -468,7 +476,10 @@ export async function getCluster(id: number) {
       .innerJoin(sources, eq(articles.sourceId, sources.id))
       .where(and(visible, eq(articles.clusterId, id)))
       .orderBy(desc(articles.publishedAt));
-    return { cluster, articles: rows.map(toListItem) };
+    // The title and synthesis were written from the members: with none still published the
+    // cluster is gone, and with one left its cross-source synthesis is not shown either.
+    if (rows.length === 0) return null;
+    return { cluster: rows.length < 2 ? { ...cluster, synthesisSummary: null } : cluster, articles: rows.map(toListItem) };
   });
 }
 
@@ -916,7 +927,9 @@ export async function getDigests(kind: "12h" | "30d", limit = 10, withStories = 
       const found = await db
         .select({ id: articles.id, tldr: articles.tldrSummary, summaryFallback: articles.summaryFallback, originalUrl: articles.originalUrl, entities: articles.extractedEntities })
         .from(articles)
-        .where(inArray(articles.id, ids));
+        // An edition lists the articles it chose then; one unpublished since keeps its digest
+        // line (the edition's own text) but its current summary and link are not shown.
+        .where(and(inArray(articles.id, ids), eq(articles.isPublished, true)));
       for (const a of found) {
         if (!a.tldr) continue;
         stories.set(a.id, { tldr: a.tldr, summaryFallback: a.summaryFallback, originalUrl: a.originalUrl, amounts: a.entities?.amounts_mnt ?? [] });

@@ -20,6 +20,7 @@ import { appSettings, articles, digests, politicians, pushSubscriptions, sources
 import { mentionAlerts } from "@/lib/officials/follow-alerts";
 import { digestPayload, newsPayload, type PushPayload } from "@/lib/push/core";
 import { sendToAll, sendToEndpoint } from "@/lib/push/server";
+import { oneLine } from "@/lib/log-safe";
 
 const { values } = parseArgs({
   options: {
@@ -102,7 +103,7 @@ async function sendMentionAlerts(dryRun: boolean) {
     db.select({ endpoint: pushSubscriptions.endpoint, follows: pushSubscriptions.followPoliticians }).from(pushSubscriptions).where(sql`cardinality(${pushSubscriptions.followPoliticians}) > 0`),
   ]);
   const alerts = mentionAlerts(rows, pols, subs);
-  for (const a of alerts) console.log(`  → mention: ${a.payload.title} | ${a.payload.body}`);
+  for (const a of alerts) console.log(`  → mention: ${oneLine(a.payload.title)} | ${oneLine(a.payload.body)}`);
   if (dryRun) return;
   let sent = 0;
   for (const a of alerts) if ((await sendToEndpoint(db, a.endpoint, a.payload)).ok) sent++;
@@ -126,7 +127,7 @@ async function main() {
     console.log(`🔕 Nothing new to notify (${mode}).`);
     return;
   }
-  for (const p of plan.payloads) console.log(`  → ${p.title} | ${p.body} | ${p.url}`);
+  for (const p of plan.payloads) console.log(`  → ${oneLine(p.title)} | ${oneLine(p.body)} | ${p.url}`);
   if (values["dry-run"]) return;
 
   if ("digestId" in plan && plan.digestId !== null && !(await claimDigest(plan.digestId))) {

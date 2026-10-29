@@ -38,6 +38,13 @@ Useful details: the URL or file, steps to reproduce, and what an attacker could 
 
 ## Threat model (what protects what)
 
+- **Publishers do not choose our destinations.** Every scraper request (fetch, Crawlee's got,
+  robots.txt, the headless browser) connects only to public addresses: a custom DNS lookup and an
+  IP-literal check at connect time (`src/lib/scraper/net-guard.ts`), so a redirect, a WordPress
+  `link` or a DNS change cannot point the GitHub runner or a Vercel function at loopback, a
+  private network or cloud metadata. Publisher input is parsed in bounded time and size.
+- **Logout is server-side.** Signing out stores a cut-off in `app_settings`; every admin page and
+  action refuses tokens issued before it, so a copied cookie stops working.
 - **One database role, two writers.** GitHub Actions (scraper, AI, syncs) and Vercel share the
   owner connection string. Vercel must write: push subscriptions, followed MPs, admin edits and
   the donation setting. A read-only role would break those, so instead every write path on Vercel

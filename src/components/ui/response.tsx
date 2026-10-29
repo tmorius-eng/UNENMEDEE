@@ -20,6 +20,9 @@ export const Response = memo(
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
+      // No image download button: AI text has no images, and the control's fallback opened
+      // the image URL in a new tab with window.opener (tabnabbing). Local edit, see CLAUDE.md.
+      controls={{ image: false }}
       {...props}
     />
   ),
