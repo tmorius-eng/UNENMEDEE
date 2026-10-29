@@ -5,6 +5,7 @@
  * The Bot API puts the token in the URL path, so URLs are never logged and errors never echo them.
  */
 import { articlePost, digestPost, type ArticleForPost, type DigestForPost } from "./facebook";
+import { UnknownOutcomeError } from "./outcome";
 import { cut } from "./threads";
 
 export const TELEGRAM_API = "https://api.telegram.org";
@@ -53,9 +54,10 @@ export async function publishTelegram(opts: { token: string; chatId: string; pos
     signal: AbortSignal.timeout(30_000),
   });
   const json = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: { message_id?: number }; description?: string };
-  if (!res.ok || !json.ok || json.result?.message_id === undefined) {
-    const why = (json.description ?? "no message id returned").replaceAll(opts.token, "***");
+  if (!res.ok || json.ok === false) {
+    const why = (json.description ?? "request failed").replaceAll(opts.token, "***");
     throw new TelegramError(`Telegram ${res.status}: ${why}`.slice(0, 300), res.status);
   }
+  if (json.result?.message_id === undefined) throw new UnknownOutcomeError(`Telegram ${res.status}: accepted, but no message id could be read`);
   return String(json.result.message_id);
 }

@@ -5,6 +5,7 @@ import type { DB } from "@/db";
 import { appSettings, pushSubscriptions } from "@/db/schema";
 
 import { classifyPushFailure, isSystemicFailure, MAX_PUSH_FAILURES, type PushPayload } from "./core";
+import { oneLine } from "@/lib/log-safe";
 
 /**
  * Web Push sending (GitHub Actions) and key storage.
@@ -109,7 +110,7 @@ export async function sendToAll(db: DB, payloads: PushPayload[]): Promise<SendRe
             result.failed++;
             // Host only: the endpoint path identifies a device.
             const body = (err as { body?: string }).body ?? (err as Error).message;
-            console.warn(`  ✗ push to ${new URL(s.endpoint).host} failed: ${status ?? "?"} ${String(body).slice(0, 200)}`);
+            console.warn(`  ✗ push to ${new URL(s.endpoint).host} failed: ${status ?? "?"} ${oneLine(body, 200)}`);
           }
         }
         // A push-service outage (429/5xx/network) leaves the counter alone: only the subscription's

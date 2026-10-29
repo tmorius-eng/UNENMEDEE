@@ -4,7 +4,10 @@ import { CheerioCrawler, Configuration, gotScraping, log, PlaywrightCrawler } fr
 import { extractTenderMeta, hasTenderSignals } from "./adapters/tender";
 import { cleanTitle, extractArticle, htmlFragmentToText, MIN_ARTICLE_CHARS, parseDateValue } from "./extractor";
 import { findFeedUrl, harvestArticleLinks, harvestSectionLinks, isWordPress, parseFeed, sameSite, wordPressApiBase, wordPressPostsUrl, wordPressPostUrl } from "./links";
-import { getRobots, MIN_DOMAIN_DELAY_MS, type RobotsPolicy, USER_AGENT } from "./robots";
+import { oneLine } from "@/lib/log-safe";
+
+import { assertPublicHostLiteral, guardGotOptions, isPublicHost } from "./net-guard";
+import { getRobots, MAX_CRAWL_DELAY_MS, MIN_DOMAIN_DELAY_MS, type RobotsPolicy, USER_AGENT } from "./robots";
 import type { ScrapedItem, SourceRef, SourceRunResult } from "./types";
 
 /** Storage hooks so the crawler works with the DB or in --dry-run mode. */
@@ -67,14 +70,17 @@ const BLOCKED_RESOURCES = new Set(["image", "media", "font", "stylesheet"]);
  * are broken; the page crawl ignores that), so a bad certificate does not read as "unreachable".
  */
 const robotsFetch = (async (url: string) => {
-  const res = await gotScraping({
-    url,
-    headers: { "user-agent": USER_AGENT },
-    https: { rejectUnauthorized: false },
-    timeout: { request: 15_000 },
-    throwHttpErrors: false,
-    useHeaderGenerator: false,
-  });
+  assertPublicHostLiteral(url);
+  const res = await gotScraping(
+    guardGotOptions({
+      url,
+      headers: { "user-agent": USER_AGENT },
+      https: { rejectUnauthorized: false },
+      timeout: { request: 15_000 },
+      throwHttpErrors: false,
+      useHeaderGenerator: false,
+    }),
+  );
   return new Response(res.statusCode === 204 || res.statusCode === 304 ? null : res.body, {
     status: res.statusCode,
     headers: { "content-type": String(res.headers["content-type"] ?? "") },
@@ -101,9 +107,6 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) =>
   await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
   return out;
 }
-
-/** Longest robots.txt Crawl-delay we honour for a domain. */
-const MAX_CRAWL_DELAY_MS = 20_000;
 
 /** A domain's own pause between requests: our 8 s floor, its robots.txt Crawl-delay above that, 20 s at most. */
 export function domainDelayMs(policy: Pick<RobotsPolicy, "crawlDelayMs">): number {
@@ -218,7 +221,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
     const outcome = await sink.save(state.source, item);
     if (outcome === "inserted") {
       state.inserted += 1;
-      progress(`  ✓ ${state.domain}: ${item.title.slice(0, 90)}`);
+      progress(`  ✓ ${state.domain}: ${oneLine(item.title, 90)}`);
     } else {
       state.skippedDuplicates += 1;
     }
@@ -343,6 +346,9 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
           additionalMimeTypes: BODY_MIME_TYPES,
           preNavigationHooks: [
             async ({ request }, gotOptions) => {
+              // Public addresses only, redirects included (net-guard.ts).
+              assertPublicHostLiteral(request.url);
+              guardGotOptions(gotOptions);
               await politeWait(request.url);
               gotOptions.headers = { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-language": "mn,en;q=0.8" };
             },
@@ -372,9 +378,14 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
           preNavigationHooks: [
             async ({ page, request }) => {
               await politeWait(request.url);
-              await page.route("**/*", (route) =>
-                BLOCKED_RESOURCES.has(route.request().resourceType()) ? route.abort() : route.continue(),
-              );
+              // Heavy resources are skipped; a page's scripts must not reach a private address either.
+              await page.route("**/*", async (route) => {
+                const req = route.request();
+                if (BLOCKED_RESOURCES.has(req.resourceType())) return route.abort();
+                const { protocol, hostname } = new URL(req.url());
+                if ((protocol === "http:" || protocol === "https:") && !(await isPublicHost(hostname))) return route.abort("addressunreachable");
+                return route.continue();
+              });
             },
           ],
           requestHandler: async ({ page, request, response }) => {
@@ -419,7 +430,10 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
       const perPage = opts.since ? 100 : Math.min(opts.perSourceLimit * 2, 50);
       const after = opts.since ? `&after=${opts.since.toISOString().slice(0, 19)}` : "";
       // The advertised REST base: "/index.php?rest_route=/" on sites without pretty permalinks.
-      const api = wordPressPostsUrl(wordPressApiBase(html, pageUrl), `per_page=${perPage}${after}&_fields=id,link,title,date,date_gmt,content`);
+      // The advertised base is the publisher's markup: only on the source's own site.
+      const advertised = wordPressApiBase(html, pageUrl);
+      const apiBase = sameSite(new URL(advertised).hostname, state.domain) ? advertised : `${new URL(pageUrl).origin}/wp-json/`;
+      const api = wordPressPostsUrl(apiBase, `per_page=${perPage}${after}&_fields=id,link,title,date,date_gmt,content`);
       await add([{ url: api, userData: { label: "WP_API", sourceId: state.sourceId, fallbackLinks: links, feedUrl: sameSiteFeed } satisfies UserData }]);
       return;
     }

@@ -12,6 +12,7 @@ import { PRODUCTION_URL } from "@/lib/site";
 import type { ReaderImpact } from "@/lib/types";
 
 import { hashtags } from "./hashtags";
+import { UnknownOutcomeError } from "./outcome";
 import { factShareLine, impactLines, keyFacts } from "./story-lines";
 
 export const GRAPH_VERSION = process.env.FB_GRAPH_VERSION || "v26.0";
@@ -169,8 +170,7 @@ export async function publishToPage(opts: { pageId: string; token: string; post:
     signal: AbortSignal.timeout(30_000),
   });
   const json = (await res.json().catch(() => ({}))) as { id?: string; post_id?: string; error?: { message?: string; code?: number } };
-  if (!res.ok || !json.id) {
-    throw new FacebookError(`Facebook ${res.status}: ${json.error?.message ?? "no post id returned"}`.slice(0, 300), res.status, json.error?.code);
-  }
+  if (!res.ok) throw new FacebookError(`Facebook ${res.status}: ${json.error?.message ?? "request failed"}`.slice(0, 300), res.status, json.error?.code);
+  if (!json.id) throw new UnknownOutcomeError(`Facebook ${res.status}: accepted, but no post id could be read`);
   return json.post_id ?? json.id;
 }

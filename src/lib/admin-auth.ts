@@ -48,10 +48,15 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export async function isValidToken(token: string | undefined, now = Date.now()): Promise<boolean> {
+/**
+ * `floor`: sessions issued at or before this Unix second were signed out (admin-session.ts). The
+ * optimistic proxy passes nothing; requireAdmin() passes the stored value.
+ */
+export async function isValidToken(token: string | undefined, now = Date.now(), floor = 0): Promise<boolean> {
   const m = token?.match(/^(\d{1,12})\.([0-9a-f]{64})$/);
   if (!m) return false;
   const issuedAt = Number(m[1]);
+  if (issuedAt <= floor) return false;
   const age = now / 1000 - issuedAt;
   if (age < -60 || age > SESSION_MAX_AGE_S) return false;
   const expected = await sign(issuedAt);
@@ -62,7 +67,16 @@ export async function isAdmin(): Promise<boolean> {
   const token = (await cookies()).get(ADMIN_COOKIE)?.value;
   // The expiry check reads the clock: keep admin pages out of (runtime) prerendering.
   await connection();
-  return isValidToken(token);
+  if (!(await isValidToken(token))) return false;
+  // Server-side sign-out: loaded lazily so proxy.ts (which imports this file) never pulls in pg.
+  try {
+    const { sessionFloor } = await import("./admin-session");
+    return isValidToken(token, Date.now(), await sessionFloor());
+  } catch (err) {
+    // Unknown whether the session was signed out: refuse rather than guess.
+    console.error("[admin] session check failed:", err instanceof Error ? err.message : err);
+    return false;
+  }
 }
 
 /**

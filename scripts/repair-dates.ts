@@ -165,7 +165,10 @@ async function refetchUndated(db: ReturnType<typeof getDb>, days: number) {
         await db.execute(sql`
           update articles set published_at = ${date}, scrape_meta = scrape_meta - 'date_unknown',
             is_published = ${!tooOld}
-          where id = ${r.id}`);
+          -- The same conditions as the selection: an editor may have unpublished or edited the
+          -- row while its page was being fetched, and that decision stands.
+          where id = ${r.id} and is_published and (scrape_meta->>'date_unknown') = 'true'
+            and edited_at is null and content_pruned_at is null`);
       }
     } catch (err) {
       console.log(`   #${r.id} ${err instanceof Error ? err.message.slice(0, 120) : err}`);

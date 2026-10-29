@@ -37,9 +37,11 @@ export interface SourceDiff {
   containment: number;
 }
 
-const COUNTER = /\d[\d\s,.]*\s*(уншсан|үзсэн|views?|сэтгэгдэл)/iu;
+// Bounded runs and no overlapping classes: these run on publisher text, so a long digit run or
+// word must not make them backtrack quadratically.
+const COUNTER = /\d[\d\s,.]{0,24}(уншсан|үзсэн|views?|сэтгэгдэл)/iu;
 /** Attachment and link labels ("…төсөлDownload", "…_RFIТатах", "file.pdf"): sites rename them freely. */
-const ATTACHMENT = /download|татах|татаж авах|\.(pdf|docx?|xlsx?|zip)\b|\S+_\S+_\S+/iu;
+const ATTACHMENT = /download|татах|татаж авах|\.(pdf|docx?|xlsx?|zip)\b|(?<![^\s_])[^\s_]+_[^\s_]+_[^\s_]/iu;
 
 /**
  * Pieces of text worth comparing: sentences without dates, counters, attachment labels or short

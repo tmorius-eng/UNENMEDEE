@@ -9,8 +9,10 @@ import type { ScrapeMeta } from "@/lib/types";
  * records the failure; these extractors also run on every other source's text.
  */
 
+// Starts only where a number starts (lookbehind): tried from inside a long digit run, the
+// unanchored pattern backtracked quadratically on text with no currency word after it.
 const AMOUNT =
-  /(\d{1,3}(?:[ ,. ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(их наяд|тэрбум|сая|мянга(?:н)?)?\s*(?:төгрөг|₮|төг\.?)/gi;
+  /(?<![\d.,])(\d{1,3}(?:[ ,. ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(их наяд|тэрбум|сая|мянга(?:н)?)?\s*(?:төгрөг|₮|төг\.?)/gi;
 
 /** Finds MNT amounts and returns them as human-readable strings ("4.5 тэрбум ₮"). */
 export function extractMntAmounts(text: string, max = 10): string[] {

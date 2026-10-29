@@ -29,6 +29,7 @@ import { extractiveSummary, FALLBACK_AFTER_HOURS, FALLBACK_IMPORTANCE, RETRY_FAL
 import { AIUnavailableError } from "@/lib/ai/router";
 import { budgetConfig } from "@/lib/ai/limits";
 import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
+import { oneLine } from "@/lib/log-safe";
 
 const { values } = parseArgs({
   options: {
@@ -189,7 +190,7 @@ async function main() {
         if (r.value.tier1.risk_flag) flagged++;
         const via = r.value.tier1Provider === "rule-based" ? " (0 токен)" : "";
         const deep = r.value.tier2 ? ` ⚡${r.value.tier2Provider?.split("/")[0]}` : r.value.tier2Error ? " (гүнзгий шинжилгээ алгассан)" : "";
-        console.log(`  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${via}${deep}  ${a.title.slice(0, 70)}`);
+        console.log(`  ✓ #${a.id} risk=${String(r.value.tier1.risk_score).padStart(3)}${via}${deep}  ${oneLine(a.title, 70)}`);
         continue;
       }
       const err = r.reason;

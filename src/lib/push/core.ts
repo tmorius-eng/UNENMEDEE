@@ -16,7 +16,10 @@ export function isAllowedPushEndpoint(endpoint: string): boolean {
   if (endpoint.length > 1_000) return false;
   try {
     const u = new URL(endpoint);
-    return u.protocol === "https:" && PUSH_HOSTS.some((h) => h.test(u.hostname));
+    // Canonical only: the sender (web-push) parses the stored string again, and a spelling the
+    // two parsers read differently ("https://fcm.googleapis.com\\@evil…") must not pass here and
+    // post somewhere else there. Browsers hand out canonical endpoints.
+    return u.href === endpoint && u.protocol === "https:" && !u.username && !u.password && !u.port && PUSH_HOSTS.some((h) => h.test(u.hostname));
   } catch {
     return false;
   }

@@ -146,9 +146,11 @@ export function parseFeed(xml: string): { url: string; title: string; publishedA
   const items: { url: string; title: string; publishedAt: Date | null }[] = [];
   $("item, entry").each((_, el) => {
     const node = $(el);
-    const url = node.find("link").first().attr("href") || node.find("link").first().text().trim();
-    const title = node.find("title").first().text().trim();
-    const dateText = node.find("pubDate, published, updated, dc\\:date").first().text().trim();
+    // Direct children only: a descendant search per item made nested items quadratic.
+    const link = node.children("link").first();
+    const url = link.attr("href") || link.text().trim();
+    const title = node.children("title").first().text().trim();
+    const dateText = node.children("pubDate, published, updated, dc\\:date").first().text().trim();
     const date = dateText ? new Date(dateText) : null;
     if (url) items.push({ url, title, publishedAt: date && !Number.isNaN(date.getTime()) ? date : null });
   });
@@ -221,7 +223,9 @@ export function wordPressPostsUrl(apiBase: string, query: string): string {
 export function wordPressPostUrl(post: { id?: number; link?: string }, origin: string): string | undefined {
   if (post.link) {
     try {
-      return new URL(post.link, `${origin}/`).toString();
+      const url = new URL(post.link, `${origin}/`);
+      // The post's own site only: `link` is publisher data, and a stored URL is fetched again later.
+      if ((url.protocol === "https:" || url.protocol === "http:") && sameSite(url.hostname, new URL(origin).hostname)) return url.toString();
     } catch {
       /* fall through to the id form */
     }

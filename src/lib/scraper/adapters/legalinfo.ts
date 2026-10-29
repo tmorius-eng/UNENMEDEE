@@ -42,7 +42,10 @@ export function parseLegalinfoList(html: string): LegalAct[] {
     const href = node.attr("href") ?? "";
     if (!/lawId=\d+/.test(href)) return;
     const issuer = node.closest("[data-uk-grid]").find("span").not(".txt-number").last().text().trim();
-    acts.push({ url: new URL(href, "https://legalinfo.mn").toString(), title: cleanTitle(node.text()), issuer: issuer || null, addedAt: current });
+    // The list is the site's markup: only legalinfo.mn's own detail pages are followed.
+    const url = new URL(href, "https://legalinfo.mn");
+    if (url.protocol !== "https:" || url.hostname !== "legalinfo.mn") return;
+    acts.push({ url: url.toString(), title: cleanTitle(node.text()), issuer: issuer || null, addedAt: current });
   });
   return acts;
 }
