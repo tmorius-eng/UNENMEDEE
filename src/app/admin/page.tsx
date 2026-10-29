@@ -3,9 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { deleteDonation } from "@/app/admin/actions";
 import { logout } from "@/app/admin/auth-actions";
 import { AboutForm } from "@/components/admin/about-form";
 import { DonationForm } from "@/components/admin/donation-form";
+import { DonationsForm } from "@/components/admin/donations-form";
 import { HiddenYearsForm } from "@/components/admin/hidden-years-form";
 import { LedgerForm } from "@/components/admin/ledger-form";
 import { PublishToggle, ReanalyzeButtons } from "@/components/admin/row-actions";
@@ -13,9 +15,11 @@ import { RiskBadge, SourceBadge } from "@/components/iltod/badges";
 import { getDb, hasDatabase } from "@/db";
 import { articles, sources, transparencyLedger } from "@/db/schema";
 import { monthKey } from "@/lib/ai/usage-log";
+import { ubDateKey } from "@/lib/archive";
 import { requireAdmin } from "@/lib/admin-auth";
-import { formatDateMn } from "@/lib/format";
-import { getAbout, getDonation, getHiddenYearsText } from "@/lib/queries";
+import { formatDateMn, formatNumber } from "@/lib/format";
+import { ANONYMOUS_LABEL } from "@/lib/donations";
+import { getAbout, getDonation, getDonations, getHiddenYearsText } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Редакцийн самбар", robots: { index: false } };
 // AI re-analysis runs inside server actions on this page.
@@ -85,6 +89,8 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin">["
           }}
         />
       </section>
+
+      <DonationsSection />
 
       <section className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
         <h2 className="text-md font-semibold text-primary">Дэмжих: хандивын данс</h2>
@@ -156,6 +162,39 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin">["
         </div>
       </section>
     </div>
+  );
+}
+
+/** Today in Ulaanbaatar for the date field (the admin page is dynamic: it reads the session cookie). */
+const ubToday = () => ubDateKey(Date.now());
+
+/** Received donations: add one as it arrives in the bank, delete a mistyped one. */
+async function DonationsSection() {
+  const { rows, count, totalMnt, monthMnt } = await getDonations(20);
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl bg-primary p-5 ring-1 ring-secondary ring-inset">
+      <h2 className="text-md font-semibold text-primary">Ирсэн хандив (ил тод тайланд нийтлэгдэнэ)</h2>
+      <p className="text-xs text-tertiary">
+        Банкны хуулгаас орсон хандив бүрийг нэмнэ: /transparency дээр огноо, дүн, нэрийн хамт шууд гарна. Нийт {formatNumber(count)} хандив · {formatNumber(totalMnt)} ₮ · энэ сард {formatNumber(monthMnt)} ₮.
+      </p>
+      <DonationsForm today={ubToday()} />
+      {rows.length > 0 && (
+        <ul className="flex flex-col divide-y divide-secondary border-t border-secondary">
+          {rows.map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+              <span className="num-mono text-tertiary">{d.receivedOn}</span>
+              <span className="num-mono font-semibold text-primary">{formatNumber(d.amountMnt)} ₮</span>
+              <span className="text-secondary">{d.donor ?? ANONYMOUS_LABEL}</span>
+              {d.note && <span className="text-tertiary">«{d.note}»</span>}
+              <form action={deleteDonation} className="ml-auto">
+                <input type="hidden" name="id" value={d.id} />
+                <button className="rounded-md px-2 py-1 text-xs font-semibold text-error-primary ring-1 ring-primary ring-inset hover:bg-primary_hover">Устгах</button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

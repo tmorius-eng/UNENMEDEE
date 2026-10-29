@@ -141,6 +141,13 @@
       "when": 1793185937136,
       "tag": "0019_press_coverage",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793282604456,
+      "tag": "0020_donations",
+      "breakpoints": true
     }
   ]
 }

@@ -5,13 +5,16 @@ import { updateTag } from "next/cache";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { appSettings, articles, sources, transparencyLedger } from "@/db/schema";
+import { appSettings, articles, donations, sources, transparencyLedger } from "@/db/schema";
 import { analyzeArticle, formatDeepAnalysis, processArticle } from "@/lib/ai/analyze";
 import type { ArticleForAI } from "@/lib/ai/prompts";
 import { AIUnavailableError } from "@/lib/ai/router";
 import { dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ACCOUNT_PATTERN, DONATION_KEY, normalizeAccount } from "@/lib/donation";
+import { cleanLine, NAME_MODES, type NameMode, NOTE_MAX, parseAmount, publicDonor, validDay } from "@/lib/donations";
+import { ubDateKey } from "@/lib/archive";
+import { formatNumber } from "@/lib/format";
 import { ABOUT_FIELDS, ABOUT_KEY, cleanAboutText } from "@/lib/about";
 import { HIDDEN_YEARS_KEY, hiddenYearsFromText } from "@/lib/officials/hidden";
 import { extractArticleSafe } from "@/lib/scraper/extract-safe";
@@ -150,6 +153,29 @@ export async function saveDonation(_prev: ActionResult | null, formData: FormDat
     .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   updateTag("settings");
   return { ok: true, message: `Хадгаллаа: ${parsed.data.bank} ${parsed.data.account}` };
+}
+
+/** One received donation for /transparency. Only the name as published is stored. */
+export async function addDonation(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const day = validDay(formData.get("receivedOn"), ubDateKey(Date.now()));
+  if (!day) return { ok: false, message: "Огноо буруу байна (2024 оноос өнөөдөр хүртэл)." };
+  const amount = parseAmount(formData.get("amount"));
+  if (amount === null) return { ok: false, message: "Дүнг бүхэл төгрөгөөр бичнэ үү (жишээ нь 50000)." };
+  const rawMode = String(formData.get("mode") ?? "");
+  const mode: NameMode = (NAME_MODES as readonly string[]).includes(rawMode) ? (rawMode as NameMode) : "initials";
+  const donor = publicDonor(String(formData.get("donor") ?? ""), mode);
+  const note = cleanLine(formData.get("note"), NOTE_MAX) || null;
+  await getDb().insert(donations).values({ receivedOn: day, amountMnt: amount, donor, note });
+  updateTag("donations");
+  return { ok: true, message: `Нэмлээ: ${day} · ${formatNumber(amount)} ₮ · ${donor ?? "нэргүй"} — ил тод тайланд гарлаа.` };
+}
+
+export async function deleteDonation(formData: FormData) {
+  await requireAdmin();
+  const id = z.coerce.number().int().positive().parse(formData.get("id"));
+  await getDb().delete(donations).where(eq(donations.id, id));
+  updateTag("donations");
 }
 
 /** "Бид хэн бэ" (/about): five plain-text paragraphs; an empty field shows its default text. */
