@@ -8,6 +8,7 @@ import { cacheLife } from "next/cache";
 import { GOVERNMENTS_VERIFIED_THROUGH, governmentsBetween } from "@/lib/budget/governments";
 import { formatDateMn } from "@/lib/format";
 import { ALL_GOALS, MEASURABLE_GOALS, PROGRAMME } from "@/lib/promises";
+import { PROJECTS } from "@/lib/projects/data";
 import { directionGoals, directionSlug, PROGRAMME_END } from "@/lib/promises/programme";
 import { absoluteUrl, jsonLd, SITE_NAME } from "@/lib/site";
 
@@ -155,6 +156,7 @@ export default async function PromisesPage() {
           <ol className="flex flex-col gap-2">
             {PROGRAMME.megaProjects.map((m, i) => {
               const [first, ...rest] = m.split(/(?<=\.)\s+/);
+              const tracked = PROJECTS.find((p) => p.links.megaIndex === i);
               return (
                 <li
                   key={i}
@@ -170,6 +172,13 @@ export default async function PromisesPage() {
                     {rest.length > 0 && (
                       <p className="mt-2 text-sm text-secondary">
                         {rest.join(" ")}
+                      </p>
+                    )}
+                    {tracked && (
+                      <p className="mt-2 text-sm">
+                        <Link href={`/projects/${tracked.slug}`} className="font-semibold text-brand-secondary hover:underline">
+                          Албан шийдвэр, төсөв, үе шат →
+                        </Link>
                       </p>
                     )}
                   </details>

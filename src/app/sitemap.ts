@@ -4,6 +4,7 @@ import { getArchiveDays, getPoliticianIds, getSitemapSlugs, getSourceHubDomains 
 import { absoluteUrl } from "@/lib/site";
 import { PLACES } from "@/lib/places";
 import { ALL_DIRECTIONS } from "@/lib/promises";
+import { PROJECTS } from "@/lib/projects/data";
 import { directionSlug } from "@/lib/promises/programme";
 import { TOPICS } from "@/lib/topics";
 
@@ -27,6 +28,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/officials/companies"), changeFrequency: "weekly", priority: 0.7 },
     { url: absoluteUrl("/budget"), changeFrequency: "weekly", priority: 0.8 },
     { url: absoluteUrl("/prices"), changeFrequency: "weekly", priority: 0.7 },
+    { url: absoluteUrl("/projects"), changeFrequency: "weekly", priority: 0.7 },
+    ...PROJECTS.map((p) => ({ url: absoluteUrl(`/projects/${p.slug}`), lastModified: p.verifiedThrough, changeFrequency: "monthly" as const, priority: 0.6 })),
     { url: absoluteUrl("/tax"), changeFrequency: "monthly", priority: 0.7 },
     { url: absoluteUrl("/laws"), changeFrequency: "daily", priority: 0.8 },
     { url: absoluteUrl("/promises"), changeFrequency: "monthly", priority: 0.7 },
