@@ -18,6 +18,9 @@ export const INDICATOR_MAX_AGE_H: Record<string, number> = {
   audit_opinions: 14 * 24,
   soe_finance: 14 * 24,
   population: 14 * 24,
+  // NSO adds a month about 8 days after it ends; the wage table is quarterly with a ~2-month lag.
+  prices_nso: 45 * 24,
+  wages_nso: 150 * 24,
 };
 
 export const SOCIAL_PLATFORMS = ["facebook", "threads", "instagram", "telegram", "discord"] as const;

@@ -7,6 +7,8 @@
  *   worldbank_tax     tax revenue, % of GDP (World Bank)
  *   audit_opinions    latest adverse / disclaimer / qualified audit opinions (audit.mn)
  *   soe_finance       state-owned companies' revenue, expenses, profit, wage fund, staff (Шилэн данс)
+ *   prices_nso        NSO's monthly average prices of 13 everyday goods since 2010 (Улаанбаатар + the 21 aimags), for /prices
+ *   wages_nso         NSO's average monthly nominal wage by quarter since 2000 (national + Улаанбаатар), for /prices
  *
  *   npm run budget:sync [-- --dry-run]
  * audit.mn needs NODE_EXTRA_CA_CERTS=certs/rapidssl-tls-rsa-ca-g1.pem (see src/lib/budget/audit.ts).
@@ -19,6 +21,7 @@ import { indicatorSnapshots } from "@/db/schema";
 import { fetchAuditOpinions } from "@/lib/budget/audit";
 import { budgetHistory, type BudgetNsoSnapshot, fetchTable, governmentDebt, NSO_TABLES, revenueByType, spendingBreakdown } from "@/lib/budget/nso";
 import { fetchPopulation } from "@/lib/budget/population";
+import { parsePrices, parseWages, PRICES_TABLE, pricesQuery, WAGES_TABLE, wagesQuery } from "@/lib/budget/prices";
 import { fetchShilendans } from "@/lib/budget/shilendans";
 import { fetchSoeSnapshot } from "@/lib/soe/shilendans";
 import { fetchTaxShare } from "@/lib/budget/worldbank";
@@ -65,6 +68,21 @@ const JOBS: { key: string; run: () => Promise<{ data: unknown; asOf: string | nu
     run: async () => {
       const data = await fetchSoeSnapshot();
       return { data, asOf: String(data.year), summary: `${data.companies.length} organisations, ${data.year}` };
+    },
+  },
+  {
+    key: "prices_nso",
+    run: async () => {
+      const data = parsePrices(await fetchTable(PRICES_TABLE, pricesQuery()));
+      const beef = data.goods.find((g) => g.key === "beef");
+      return { data, asOf: data.latestMonth, summary: `${data.goods.length} goods × ${data.months.length} months, UB ${data.latestMonth}, beef ${beef?.ub.at(-1)} ₮/kg` };
+    },
+  },
+  {
+    key: "wages_nso",
+    run: async () => {
+      const data = parseWages(await fetchTable(WAGES_TABLE, wagesQuery()));
+      return { data, asOf: data.quarters.at(-1) ?? null, summary: `${data.quarters.length} quarters, national ${data.national.at(-1)} ₮ (${data.quarters.at(-1)})` };
     },
   },
   {

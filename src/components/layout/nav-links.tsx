@@ -25,6 +25,7 @@ export const NAV_PRIMARY: NavItem[] = [
 export const NAV_MORE: NavItem[] = [
   { href: "/my", label: "Миний мэдээ" },
   { href: "/data", label: "Өгөгдөл" },
+  { href: "/prices", label: "Үнэ" },
   { href: "/risk", label: "Эрсдэл" },
   { href: "/laws", label: "Хууль" },
   { href: "/promises", label: "Амлалт" },

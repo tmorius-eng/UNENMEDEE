@@ -8,6 +8,7 @@ import { extractiveSummary } from "@/lib/ai/fallback";
 import { OPINIONS, parseAuditList, type AuditSnapshot } from "@/lib/budget/audit";
 import { budgetHistory, revenueByType, spendingBreakdown, type BudgetNsoSnapshot } from "@/lib/budget/nso";
 import type { JsonStat2 } from "@/lib/budget/jsonstat";
+import { GOODS, parsePrices, parseWages } from "@/lib/budget/prices";
 import { parseCategories, parseTopPayees, type ShilendansSnapshot } from "@/lib/budget/shilendans";
 import { parseWorldBank } from "@/lib/budget/worldbank";
 import { buildSnapshot } from "@/lib/mongolbank/client";
@@ -159,6 +160,9 @@ export async function seedDemo(db: DB, fixtures = "tests/fixtures", now = new Da
       } satisfies AuditSnapshot,
     },
     { key: "soe_finance", data: { year: now.getUTCFullYear() - 1, companies: parseSoeReport(json("soe-report.json")) } },
+    // /prices: 3 of the 13 goods (beef, petrol, canteen), every month since 2010-12, and the wage series.
+    { key: "prices_nso", data: parsePrices(stat("nso-prices.json"), GOODS.filter((g) => ["beef", "petrol", "canteen"].includes(g.key))) },
+    { key: "wages_nso", data: parseWages(stat("nso-wages.json")) },
   ];
   for (const s of snapshots) {
     const row = { key: s.key, data: s.data, asOf, updatedAt: now };
