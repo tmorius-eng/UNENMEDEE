@@ -102,8 +102,36 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) =>
   return out;
 }
 
-/** Longest robots.txt Crawl-delay we honour for every domain (Crawlee's delay is global). */
+/** Longest robots.txt Crawl-delay we honour for a domain. */
 const MAX_CRAWL_DELAY_MS = 20_000;
+
+/** A domain's own pause between requests: our 8 s floor, its robots.txt Crawl-delay above that, 20 s at most. */
+export function domainDelayMs(policy: Pick<RobotsPolicy, "crawlDelayMs">): number {
+  return Math.min(MAX_CRAWL_DELAY_MS, Math.max(MIN_DOMAIN_DELAY_MS, policy.crawlDelayMs ?? 0));
+}
+
+/**
+ * The share of the time budget kept for the browser pass. Before Oct 29 2026 the HTTP pass
+ * always ran out the whole budget (122 sources, 20 s between requests on every domain), the
+ * browser pass never started, the JavaScript-only sites were never read and 69 sources a run
+ * ended "not reached".
+ */
+export const BROWSER_BUDGET_SHARE = 0.3;
+export function httpBudgetMs(budgetMs: number, browser: boolean): number {
+  return browser ? Math.round(budgetMs * (1 - BROWSER_BUDGET_SHARE)) : budgetMs;
+}
+
+/**
+ * When the browser pass could not run, only a source whose listing needs JavaScript and whose
+ * HTTP pass found nothing and failed nothing keeps its place in line (no health written); a
+ * source with an HTTP error or with articles stored is recorded like any other, so a dead site
+ * backs off instead of sitting "not reached" at the front of the queue for days.
+ */
+export function keepsPlace(s: Pick<SourceState, "needsBrowserListing" | "error" | "inserted">): boolean {
+  return s.needsBrowserListing && !s.error && s.inserted === 0;
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function homepage(source: SourceRef): string {
   return `${new URL(source.urlPattern).origin}/`;
@@ -159,7 +187,20 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
   // Crawl-delay. RFC 9309: a 5xx or unreachable robots.txt means crawl nothing this run.
   const robotsFor = (url: string) => getRobots(new URL(url).origin, robotsFetch);
   const policies: RobotsPolicy[] = await mapLimit(sources, ROBOTS_CONCURRENCY, (s) => robotsFor(s.urlPattern));
-  const crawlDelayMs = Math.min(MAX_CRAWL_DELAY_MS, Math.max(MIN_DOMAIN_DELAY_MS, ...policies.map((p) => p.crawlDelayMs ?? 0)));
+  // Crawlee's sameDomainDelaySecs is one number for every domain, so it stays at the 8 s floor
+  // and a domain whose robots.txt asks for more waits the rest here, before each of its requests
+  // (one site's 20 s used to slow all 122 domains to 20 s).
+  const delayByHost = new Map(sources.map((s, i) => [new URL(s.urlPattern).hostname, domainDelayMs(policies[i])]));
+  const lastRequestAt = new Map<string, number>();
+  const politeWait = async (url: string) => {
+    const host = new URL(url).hostname;
+    const want = delayByHost.get(host) ?? MIN_DOMAIN_DELAY_MS;
+    if (want > MIN_DOMAIN_DELAY_MS) {
+      const since = Date.now() - (lastRequestAt.get(host) ?? 0);
+      if (since < want) await sleep(want - since);
+    }
+    lastRequestAt.set(host, Date.now());
+  };
 
   // ---------------------------------------------------------------- shared logic
   async function saveItem(state: SourceState, item: ScrapedItem) {
@@ -197,8 +238,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
   }
 
   /** Runs one pass; false when there was no time left to start it. */
-  async function runPass(mode: Mode, seed: (add: Adder) => Promise<void>): Promise<boolean> {
-    const remaining = deadline - Date.now();
+  async function runPass(mode: Mode, seed: (add: Adder) => Promise<void>, passDeadline = deadline): Promise<boolean> {
+    const remaining = passDeadline - Date.now();
     if (remaining < 30_000) return false;
     const config = new Configuration({ persistStorage: false, purgeOnStart: true });
     let crawler: CheerioCrawler | PlaywrightCrawler;
@@ -286,7 +327,7 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
 
     const common = {
       maxConcurrency: mode === "http" ? opts.concurrency : Math.min(4, opts.concurrency),
-      sameDomainDelaySecs: crawlDelayMs / 1000,
+      sameDomainDelaySecs: MIN_DOMAIN_DELAY_MS / 1000,
       maxRequestRetries: 1,
       navigationTimeoutSecs: 45, // some .gov.mn servers answer slowly from abroad
       requestHandlerTimeoutSecs: 90,
@@ -301,7 +342,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
           additionalHttpErrorStatusCodes: [404, 410, 451],
           additionalMimeTypes: BODY_MIME_TYPES,
           preNavigationHooks: [
-            (_ctx, gotOptions) => {
+            async ({ request }, gotOptions) => {
+              await politeWait(request.url);
               gotOptions.headers = { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-language": "mn,en;q=0.8" };
             },
           ],
@@ -328,7 +370,8 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
             },
           },
           preNavigationHooks: [
-            async ({ page }) => {
+            async ({ page, request }) => {
+              await politeWait(request.url);
               await page.route("**/*", (route) =>
                 BLOCKED_RESOURCES.has(route.request().resourceType()) ? route.abort() : route.continue(),
               );
@@ -468,11 +511,16 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
   }
 
   // ---------------------------------------------------------------- passes
-  await runPass("http", async (add) => {
-    await add([...states.values()].map((s) => listingRequest(s, s.source.urlPattern, "primary")));
-  });
-
   const browserEnabled = opts.browser ?? process.env.SCRAPER_BROWSER !== "0";
+  const httpDeadline = Date.now() + httpBudgetMs(opts.budgetMs, browserEnabled);
+  await runPass(
+    "http",
+    async (add) => {
+      await add([...states.values()].map((s) => listingRequest(s, s.source.urlPattern, "primary")));
+    },
+    httpDeadline,
+  );
+
   const forBrowser = [...states.values()].filter((s) => s.needsBrowserListing || s.needsBrowserArticles.length);
   if (browserEnabled && forBrowser.length) {
     progress(`🖥  Rendering ${forBrowser.length} JavaScript-heavy source(s) in headless Chromium…`);
@@ -493,9 +541,9 @@ export async function crawlSources(sources: SourceRef[], sink: ArticleSink, opts
         }
         await add(reqs);
       });
-      // The HTTP pass used the whole budget: these sources were never tried in the browser, so
-      // they are not failures. Left uncompleted, they are first in line next run (no backoff).
-      if (!ran) for (const s of forBrowser) if (s.inserted === 0) s.completed = false;
+      // No time left for the browser: a JavaScript-only listing the HTTP pass could not read is
+      // not a failure and keeps its place in line; everything the HTTP pass did learn is recorded.
+      if (!ran) for (const s of forBrowser) if (keepsPlace(s)) s.completed = false;
     } catch (err) {
       for (const s of forBrowser) s.completed = true;
       progress(`  ✗ Browser pass unavailable: ${errorMessage(err)} (set CHROMIUM_EXECUTABLE_PATH or run \`npx playwright install chromium\`)`);

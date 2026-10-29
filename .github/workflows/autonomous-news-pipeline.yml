@@ -10,6 +10,8 @@ on:
     # pipeline roughly every 1-2 h; the concurrency group keeps two from overlapping.
     - cron: "17 */2 * * *"
     - cron: "47 1-23/2 * * *"
+    - cron: "32 */2 * * *"
+    - cron: "2 1-23/2 * * *"
   workflow_dispatch:
     inputs:
       sources:
