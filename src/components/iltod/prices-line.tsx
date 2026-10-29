@@ -1,3 +1,4 @@
+import { ArrowRight } from "@untitledui/icons";
 import Link from "next/link";
 
 import { type PricesSnapshot, yearlyPct } from "@/lib/budget/prices";
@@ -26,15 +27,20 @@ export async function PricesLine() {
     .filter((g): g is NonNullable<typeof g> => g !== undefined && g.ub.at(-1) !== null)
     .map((g) => {
       const pct = pctLabel(yearlyPct(snap.data.months, g.ub));
-      return `${g.name.replace(/ \(.*\)$/, "")} ${formatNumber(g.ub.at(-1) as number)} ₮/${g.unit}${pct ? ` (1 жилд ${pct})` : ""}`;
+      // No-break spaces inside the number: "3 040" must not split across lines on a phone.
+      return `${g.name.replace(/ \(.*\)$/, "")} ${formatNumber(g.ub.at(-1) as number).replace(/ /g, "\u00a0")}\u00a0₮/${g.unit}${pct ? ` (1 жилд ${pct})` : ""}`;
     });
   if (parts.length === 0) return null;
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 border-b border-line py-2 text-xs text-secondary">
-      <span aria-hidden>🛒</span>
-      <span>{parts.join(" · ")}</span>
-      <Link href="/prices" prefetch={false} className="font-semibold text-brand-secondary hover:underline">
-        Үнэ 15 жилээр →
+    // Same row shape as the macro strip's footer above it: text left, the link right-aligned under
+    // "Дэлгэрэнгүй" (it wraps to its own right-aligned line on narrow phones).
+    <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-2 text-xs text-secondary">
+      <span>
+        <span aria-hidden>🛒 </span>
+        {parts.join(" · ")}
+      </span>
+      <Link href="/prices" prefetch={false} className="ml-auto flex shrink-0 items-center gap-1 font-semibold text-brand-secondary hover:underline">
+        Үнэ 15 жилээр <ArrowRight className="size-3.5" />
       </Link>
     </p>
   );

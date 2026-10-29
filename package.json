@@ -21,6 +21,7 @@
     "digest": "tsx scripts/make-digest.ts",
     "data:sync": "tsx scripts/sync-opendata-mn.ts",
     "officials:sync": "tsx scripts/sync-officials.ts",
+    "officials:companies": "tsx scripts/sync-official-companies.ts",
     "macro:sync": "tsx scripts/sync-macro.ts",
     "budget:sync": "tsx scripts/sync-budget.ts",
     "promises:import": "tsx scripts/import-programme.ts",

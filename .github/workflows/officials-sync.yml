@@ -1,6 +1,7 @@
 # Members of parliament and their ХАСХОМ asset/income declarations, weekly (Monday 03:17
 # Ulaanbaatar time). The roster follows elections automatically: members who leave are
 # marked inactive, new ones appear. ≈126 requests per host at 8 s each, hosts in parallel.
+# Then up to 25 minutes of Шилэн данс lookups for the companies the members declared.
 name: Officials & declarations sync
 
 on:
@@ -20,7 +21,7 @@ jobs:
     # Forks keep the code but never run the scheduled jobs (no secrets, no Actions minutes).
     if: github.repository == 'tmorius-eng/UNENMEDEE'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -50,3 +51,10 @@ jobs:
 
       - name: Sync members and declarations
         run: npm run officials:sync
+
+      # The companies members name in their declarations (shares, lenders), looked up in Шилэн данс
+      # one host at 8 s a request: 25 minutes a run, never-checked names first, then > 30 days old.
+      # Uses the stored declarations, so it runs even when the roster step failed.
+      - name: Look up declared companies in Шилэн данс
+        if: ${{ !cancelled() }}
+        run: npm run officials:companies -- --budget 25

@@ -21,6 +21,8 @@ export const INDICATOR_MAX_AGE_H: Record<string, number> = {
   // NSO adds a month about 8 days after it ends; the wage table is quarterly with a ~2-month lag.
   prices_nso: 45 * 24,
   wages_nso: 150 * 24,
+  // officials-sync.yml (weekly): MPs' declared companies looked up in Шилэн данс.
+  officials_companies: 14 * 24,
 };
 
 export const SOCIAL_PLATFORMS = ["facebook", "threads", "instagram", "telegram", "discord"] as const;
