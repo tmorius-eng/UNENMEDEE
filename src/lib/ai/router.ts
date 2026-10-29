@@ -182,9 +182,10 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
         : null;
     case "nvidia":
       // NVIDIA NIM free API (OpenAI-compatible). Gemma 4 31B: valid JSON and good Mongolian
-      // in tests, but slow on the free queue (15-40 s), hence the longer timeout.
+      // in tests, but slow on the free queue (15-40 s). 60 s, not 180: on Oct 28-29 2026 every
+      // call timed out and each one held an article for three minutes before the next provider.
       return env.NVIDIA_API_KEY
-        ? openaiProvider(provider, env.NVIDIA_MODEL || "google/gemma-4-31b-it", env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1", env.NVIDIA_API_KEY, { timeoutMs: 180_000 })
+        ? openaiProvider(provider, env.NVIDIA_MODEL || "google/gemma-4-31b-it", env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1", env.NVIDIA_API_KEY, { timeoutMs: 60_000 })
         : null;
     case "requesty":
       // Requesty gateway (OpenAI-compatible). The default Gemma 4 31B is free there and
@@ -316,6 +317,18 @@ export interface CallResult<T> {
 
 const noopLogger: UsageLogger = async () => {};
 
+/**
+ * Transport failures (timeouts, 5xx, auth, network) per provider in this process. After
+ * PROVIDER_TRIP of them in a row the provider is skipped for the rest of the run: on Oct 29 2026
+ * NVIDIA NIM timed out on every call (180 s each, nothing logged because no tokens came back),
+ * so every third article waited 4 minutes before Groq or Requesty answered in 5 s. Rate limits
+ * (429) and invalid JSON do not count: they are the next provider's or the repair retry's job.
+ */
+export const PROVIDER_TRIP = 2;
+const tripped = new Map<AIProvider, number>();
+export const resetProviderTrips = () => tripped.clear();
+const isTransportFailure = (err: unknown, message: string) => !(err instanceof SchemaError || err instanceof SyntaxError || /no JSON object/.test(message)) && !isRetryableRateLimit(err);
+
 function isRetryableRateLimit(err: unknown): boolean {
   return (err instanceof GeminiError && err.status === 429) || (err instanceof OpenAI.APIError && err.status === 429);
 }
@@ -341,6 +354,11 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
 
   const attempts: string[] = [];
   for (const [index, p] of chain.entries()) {
+    const trips = tripped.get(p.provider) ?? 0;
+    if (trips >= PROVIDER_TRIP) {
+      attempts.push(`${p.provider}/${p.model}: skipped (${trips} failures this run)`);
+      continue;
+    }
     const allowance = await budget.check(p.provider);
     if (!allowance.ok) {
       attempts.push(`${p.provider}/${p.model}: skipped (limit: ${allowance.reason})`);
@@ -371,10 +389,17 @@ export async function callAIWithFallback<S extends z.ZodTypeAny>(opts: CallOptio
         const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens, p.model);
         await log({ provider: p.provider, model: p.model, purpose: opts.purpose, articleId: opts.articleId, promptTokens, completionTokens, estimatedCostUsd: costUsd, success: true });
         budget.record(p.provider, costUsd);
+        tripped.delete(p.provider);
         return { data: parsed.data, provider: p.provider, model: p.model, costUsd };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         attempts.push(`${p.provider}/${p.model}: ${message.slice(0, 200)}`);
+        if (isTransportFailure(err, message)) {
+          const n = (tripped.get(p.provider) ?? 0) + 1;
+          tripped.set(p.provider, n);
+          // Visible in the workflow log: a call that returns no tokens is not in ai_usage_logs.
+          console.warn(`[ai] ${p.provider}/${p.model} failed (${n}/${PROVIDER_TRIP}${n >= PROVIDER_TRIP ? ", skipped for the rest of this run" : ""}): ${message.slice(0, 160)}`);
+        }
         if (promptTokens || completionTokens) {
           const costUsd = reportedCost ?? estimateCostUsd(p.provider, promptTokens, completionTokens, p.model);
           await log({ provider: p.provider, model: p.model, purpose: opts.purpose, articleId: opts.articleId, promptTokens, completionTokens, estimatedCostUsd: costUsd, success: false });

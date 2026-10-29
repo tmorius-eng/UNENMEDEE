@@ -118,6 +118,18 @@ export async function recordSourceResults(db: DB, results: SourceRunResult[]): P
   }
 }
 
+/**
+ * Hours a source waits after n consecutive failures: 2, 4, 8, 8… A dead site costs one failed
+ * listing every 8 h; a live site that timed out from the runner (Oct 28 2026: mof.gov.mn,
+ * mfa.gov.mn, customs.gov.mn, ulaanbaatar.mn all at once) is back the same day. The old cap of
+ * 64 h kept whole ministries silent for three days after one bad network minute.
+ */
+export const MAX_BACKOFF_H = 8;
+export function backoffMs(consecutiveFailures: number): number {
+  if (consecutiveFailures <= 0) return 0;
+  return Math.min(2 ** consecutiveFailures, MAX_BACKOFF_H) * 3_600_000;
+}
+
 /** Active sources that are due, least-recently scraped first. */
 export async function loadDueSources(db: DB, domains?: string[]) {
   const rows = await db
@@ -128,8 +140,6 @@ export async function loadDueSources(db: DB, domains?: string[]) {
   const now = Date.now();
   return rows.filter((s) => {
     if (domains?.length || s.consecutiveFailures === 0 || !s.lastScrapedAt) return true;
-    // Back off 2^n hours (max 64h) after n consecutive failures.
-    const waitMs = 2 ** Math.min(s.consecutiveFailures, 6) * 3_600_000;
-    return now - s.lastScrapedAt.getTime() >= waitMs;
+    return now - s.lastScrapedAt.getTime() >= backoffMs(s.consecutiveFailures);
   });
 }
