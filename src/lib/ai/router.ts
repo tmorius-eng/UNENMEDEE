@@ -9,7 +9,7 @@ import { estimateCostUsd, GEMINI_BILLED_MODEL, geminiIsFree, getPrice, isTextMod
 import { parseJsonLoose } from "./schemas";
 
 export type Tier = "tier1" | "tier2";
-export type Purpose = "tier1" | "tier2" | "cluster" | "admin" | "digest" | "topic" | "reader";
+export type Purpose = "tier1" | "tier2" | "cluster" | "admin" | "digest" | "topic" | "reader" | "video";
 
 export interface UsageRecord {
   provider: AIProvider;

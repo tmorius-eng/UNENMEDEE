@@ -29,6 +29,7 @@
     "discord:commands": "tsx scripts/discord-commands.ts",
     "push:send": "tsx scripts/send-push.ts",
     "social:post": "tsx scripts/post-social.ts",
+    "video:make": "tsx scripts/make-video.ts",
     "vercel:cleanup": "tsx scripts/vercel-cleanup.ts",
     "sources:discover": "tsx scripts/discover-sources.ts",
     "sources:recheck": "tsx scripts/recheck-sources.ts",

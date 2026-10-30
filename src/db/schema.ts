@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -20,6 +21,9 @@ import {
 
 import type { SourceDiff } from "@/lib/scraper/recheck";
 import type { DatasetHighlight, DigestItem, ExtractedEntities, FactVsSpin, ReaderImpact, ScrapeMeta } from "@/lib/types";
+import type { VideoMeta } from "@/lib/video/posts";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
 export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai"]);
@@ -338,6 +342,22 @@ export type OpenDataset = typeof openDatasets.$inferSelect;
 export type Politician = typeof politicians.$inferSelect;
 export type AssetDeclaration = typeof assetDeclarations.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+/**
+ * Generated videos (src/lib/video, scripts/make-video.ts): one per good and NSO data month. The
+ * MP4 lives here only until the platforms have fetched it from /reel (make-video clears files
+ * older than `VIDEO_KEEP_DAYS`); the row stays so the same video is never made twice. Not in the
+ * backup.
+ */
+export const videos = pgTable("videos", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 80 }).notNull().unique(),
+  meta: jsonb("meta").$type<VideoMeta>().notNull(),
+  mp4: bytea("mp4"),
+  bytes: integer("bytes"),
+  durationS: real("duration_s"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type LedgerRow = typeof transparencyLedger.$inferSelect;
 
 /**

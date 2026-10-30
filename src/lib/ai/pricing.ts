@@ -36,9 +36,14 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
 /** The cheapest Gemini text model: the only one used on a billed key unless GEMINI_MODEL says otherwise. */
 export const GEMINI_BILLED_MODEL = "gemini-3.1-flash-lite";
 
-/** List price of a Gemini text model (USD per 1M tokens), by its id or "-latest" alias. */
-export function geminiModelPrice(model: string): { input: number; output: number } {
+/**
+ * List price of a Gemini model (USD per 1M tokens), by its id or "-latest" alias. The speech model
+ * (video narration, src/lib/video/tts.ts) bills text in and audio out: $0.50 / $9.00 through
+ * 2026-12-31, $1.00 / $18.00 from 2027-01-01 (ai.google.dev/gemini-api/docs/pricing, Oct 2026).
+ */
+export function geminiModelPrice(model: string, now: Date = new Date()): { input: number; output: number } {
   const m = model.toLowerCase();
+  if (m.includes("tts")) return now < new Date("2027-01-01T00:00:00Z") ? { input: 0.5, output: 9 } : { input: 1, output: 18 };
   if (m.includes("2.5-flash-lite")) return { input: 0.1, output: 0.4 };
   if (m.includes("3.1-flash-lite")) return { input: 0.25, output: 1.5 };
   if (m.includes("lite")) return { input: 0.3, output: 2.5 }; // 3.5 Flash-Lite, "flash-lite-latest"
