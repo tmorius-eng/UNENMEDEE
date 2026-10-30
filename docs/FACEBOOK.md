@@ -106,15 +106,18 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
    Allow access to messages**; webhook (`/api/messenger`, object `instagram`, field `messages`); Instagram app
    secret-ийг `MESSENGER_SETTINGS`-д `igAppSecret` болгож нэмнэ.
 
-## Өдөр бүрийн үнийн видео (Reels)
+## Өдөр бүрийн видео (Reels)
 
-`.github/workflows/video.yml` өдөр бүр 19:41-д (Улаанбаатар) нэг богино видео хийж, Facebook Reels,
-Instagram Reels, Threads руу тавина. Шинэ secret хэрэггүй: дээрх `FB_PAGE_TOKEN`, `INSTAGRAM_TOKEN`,
+`.github/workflows/video.yml` өдөр бүр хоёр удаа богино видео хийж, Facebook Reels, Instagram Reels, Threads
+руу тавина: 12:41-д «ХҮН БҮРТ ХУВААВАЛ» (шинэ мэдээний том ₮ дүнг хүн амд хуваасан таавар), 19:41-д
+«ҮНЭ ТААГААРАЙ» (нэг барааны 15 жилийн үнэ). Аль нэг нь гарах зүйлгүй бол нөгөөг нь хийнэ. GitHub товлосон
+ажлыг алгасвал 30 минут тутмын pipeline 20 цагт нэг ч видео гараагүйг хараад өөрөө хийж тавина. Шинэ secret хэрэггүй: дээрх `FB_PAGE_TOKEN`, `INSTAGRAM_TOKEN`,
 `THREADS_TOKEN` ба `GEMINI_API_KEY` (дуу хоолой) хангалттай. Facebook Reels нь `pages_manage_posts`
 эрхтэй Page токеноор тавигдана.
 
 - Түр зогсоох: **Settings → Secrets and variables → Actions → Variables** → `VIDEO_POSTING` = `off`.
-- Нэг барааг одоо хийх: **Actions → Daily price video → Run workflow**, `good` = `beef` гэх мэт.
+- Одоо хийх: **Actions → Daily video → Run workflow**; `kind` = `money` (мэдээний видео), `prices`, эсвэл
+  `good` = `beef` гэх мэт.
 - Урьдчилж үзэх: `dry_run` = `true`. Видео нь ажлын **Artifacts** (video-preview) хэсэгт гарна, юу ч тавигдахгүй.
 - Хоолой солих: `GEMINI_TTS_VOICE` хувьсагч (анхдагч нь `Aoede`).
 

@@ -343,7 +343,8 @@ export type Politician = typeof politicians.$inferSelect;
 export type AssetDeclaration = typeof assetDeclarations.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 /**
- * Generated videos (src/lib/video, scripts/make-video.ts): one per good and NSO data month. The
+ * Generated videos (src/lib/video, scripts/make-video.ts): one per good and NSO data month
+ * (`prices:<good>:<month>`) or per story (`money:<articleId>`). The
  * MP4 lives here only until the platforms have fetched it from /reel (make-video clears files
  * older than `VIDEO_KEEP_DAYS`); the row stays so the same video is never made twice. Not in the
  * backup.
