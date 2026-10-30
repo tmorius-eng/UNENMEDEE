@@ -58,11 +58,11 @@ describe("price video spec", () => {
     assert.deepEqual(verifySpec(spec), []);
     const text = narration(spec);
     assert.ok(!/\d/.test(text));
-    assert.ok(text.startsWith("Таагаарай! Арван таван жилийн өмнө нэг кило үхрийн мах хэд байсан бэ?"));
-    assert.ok(text.includes("Дөрвөн мянга долоон зуун жаран төгрөг!"));
+    assert.ok(text.startsWith("За, таагаад үз дээ. Арван таван жилийн өмнө нэг кило үхрийн мах хэд байсан гэж бодож байна?"));
+    assert.ok(text.includes("Дөрвөн мянга долоон зуун жаран төгрөг байсан!"));
     assert.ok(text.includes("Гучин нэгэн мянга хоёр зуун арван төгрөг"));
     assert.ok(text.includes("зургаа гаруй кило мах"));
-    assert.ok(text.includes("тавин хувиар өссөн"));
+    assert.ok(text.includes("тавин хувиар нэмэгдчихлээ"));
     assert.equal(spec.sentences[1].caption, "*4\u00a0760₮*");
     assert.equal(spec.options.filter((o) => o.correct).length, 1);
   });

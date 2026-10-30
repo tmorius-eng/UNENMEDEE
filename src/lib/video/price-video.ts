@@ -152,35 +152,37 @@ export function priceVideoSpec(snap: PricesSnapshot, goodKey: string): VideoSpec
   const sentences: Sentence[] = [
     {
       scene: "quiz",
-      say: `Таагаарай! ${cap(numberWords(years))} жилийн өмнө ${names.say} хэд байсан бэ?`,
+      // Spoken the way people talk ("за", "шүү", "-чих-"), not the way a bulletin reads: the
+      // written-style script sounded like an announcer even with a natural voice (Oct 2026).
+      say: `За, таагаад үз дээ. ${cap(numberWords(years))} жилийн өмнө ${names.say} хэд байсан гэж бодож байна?`,
       caption: `${years} жилийн өмнө ${names.caption} хэд байсан бэ?`,
     },
-    { scene: "reveal", say: `${cap(numberWords(then))} төгрөг!`, caption: `*${money(then)}*` },
-    { scene: "now", say: `Харин одоо? ${cap(numberWords(nowValue))} төгрөг.`, caption: `Харин одоо? *${money(nowValue)}*` },
+    { scene: "reveal", say: `${cap(numberWords(then))} төгрөг байсан!`, caption: `*${money(then)}*` },
+    { scene: "now", say: `Харин одоо? ${cap(numberWords(nowValue))} төгрөг шүү.`, caption: `Харин одоо? *${money(nowValue)}*` },
   ];
   if (ratio >= 1.5) {
     const about = aboutUnits(ratio, names.unitSay, names.unit);
     sentences.push({
       scene: "relate",
-      say: `Энэ мөнгөөр тэр үед ${about.say} ${names.short} авах байсан.`,
+      say: `Өөрөөр хэлбэл, энэ мөнгөөр тэр үед ${about.say} ${names.short} авчих байсан гэсэн үг.`,
       caption: `Энэ мөнгөөр тэр үед ${about.caption} авна`,
     });
   } else {
     const pct = Math.round((ratio - 1) * 100);
     sentences.push(
       pct >= 0
-        ? { scene: "change", say: `${cap(numberWords(pct))} хувиар өссөн гэсэн үг.`, caption: `*+${pct}%* өссөн` }
-        : { scene: "change", say: `${cap(numberWords(-pct))} хувиар буурсан гэсэн үг.`, caption: `*−${-pct}%* буурсан` },
+        ? { scene: "change", say: `Тэгэхээр ${numberWords(pct)} хувиар өссөн гэсэн үг.`, caption: `*+${pct}%* өссөн` }
+        : { scene: "change", say: `Тэгэхээр ${numberWords(-pct)} хувиар буурсан гэсэн үг.`, caption: `*−${-pct}%* буурсан` },
     );
   }
   if (yearPct !== null && Math.abs(yearPct) >= 1) {
     sentences.push(
       yearPct > 0
-        ? { scene: "year", say: `Ганцхан жилд л ${numberWords(yearPct)} хувиар өссөн.`, caption: `Ганцхан жилд *+${yearPct}%*` }
-        : { scene: "year", say: `Сүүлийн нэг жилд ${numberWords(-yearPct)} хувиар хямдарсан.`, caption: `Сүүлийн 1 жилд *−${-yearPct}%*` },
+        ? { scene: "year", say: `Ганцхан жилийн дотор л ${numberWords(yearPct)} хувиар нэмэгдчихлээ.`, caption: `Ганцхан жилд *+${yearPct}%*` }
+        : { scene: "year", say: `Сүүлийн нэг жилд ${numberWords(-yearPct)} хувиар хямдарчээ.`, caption: `Сүүлийн 1 жилд *−${-yearPct}%*` },
     );
   }
-  sentences.push({ scene: "cta", say: "Танайд хэд байна? Коммент бичээрэй!", caption: "Танайд хэд байна? Коммент бичээрэй!" });
+  sentences.push({ scene: "cta", say: "Танайд одоо хэд байна? Коммент дээр бичээрэй.", caption: "Танайд хэд байна? Коммент бичээрэй!" });
 
   return {
     key: `prices:${goodKey}:${latest}`,

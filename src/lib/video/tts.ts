@@ -14,12 +14,12 @@ export const TTS_VOICE = process.env.GEMINI_TTS_VOICE?.trim() || "Aoede";
 
 /** The director's note: who speaks, where, how. Only the TRANSCRIPT is read aloud. */
 export function narrationPrompt(text: string): string {
-  return `# AUDIO PROFILE: A woman in her early twenties, a native Mongolian speaker from Ulaanbaatar who runs a fun, fast quiz channel about prices and money for teenagers and students.
-## THE SCENE: Recording a 20-second vertical video for TikTok and Instagram Reels, talking straight to one friend and playfully quizzing them.
+  return `# AUDIO PROFILE: A woman in her mid-twenties from Ulaanbaatar, Mongolian is her only language; she talks about prices and money with her friends every day.
+## THE SCENE: She is recording a voice message on her phone for a close friend, sitting at home, telling her something surprising she just found out about prices. Nobody else is listening; it is not a broadcast.
 ### DIRECTOR'S NOTES
-Style: upbeat, playful and genuinely conversational, with a smile in the voice. Real human pauses at commas and full stops; a teasing lift on the question, a small "wow" on the big number. Never a news anchor, never sing-song, never shouting.
-Pacing: lively everyday speaking pace.
-Accent: native Khalkha Mongolian.
+Style: completely natural everyday Ulaanbaatar speech, the way young people really talk: relaxed, warm, a little amused, with a real smile in the voice. Natural rhythm and breathing, small human pauses where a person would think, a curious rising tone on the questions, genuine surprise on the big number. Not a presenter, not an announcer, not a narrator, not acting, never theatrical, never sing-song.
+Pacing: normal conversational speed, the way she would talk to a friend.
+Accent: native Khalkha Mongolian from Ulaanbaatar, everyday pronunciation (not careful reading).
 #### TRANSCRIPT
 ${text}`;
 }
