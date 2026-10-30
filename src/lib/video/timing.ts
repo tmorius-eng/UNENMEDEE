@@ -49,7 +49,8 @@ export function speechBounds(silences: Silence[], total: number): { lead: number
 
 /**
  * Start time (seconds) of each sentence in the take. The first starts at 0 (its caption is on
- * screen from the first frame); the others at the end of the pause nearest to their estimate.
+ * screen from the first frame); the others at the sentence-end pause (`punctuationStarts`), else
+ * at the end of the pause nearest to their share of the letters.
  */
 export function sentenceStarts(sentences: string[], silences: Silence[], total: number): number[] {
   const { lead, tail } = speechBounds(silences, total);
@@ -57,6 +58,8 @@ export function sentenceStarts(sentences: string[], silences: Silence[], total: 
   const weights = sentences.map(letters);
   const sum = weights.reduce((a, b) => a + b, 0) || 1;
   const pauses = silences.filter((s) => s.start > lead + 0.05 && s.end < tail - 0.05);
+  const byPunctuation = punctuationStarts(sentences, pauses, (acc) => lead + (speech * acc) / sum);
+  if (byPunctuation) return byPunctuation;
   const starts = [0];
   let acc = 0;
   for (let i = 1; i < sentences.length; i++) {
@@ -69,6 +72,37 @@ export function sentenceStarts(sentences: string[], silences: Silence[], total: 
     starts.push(near && near.d <= SNAP_S ? near.p.end : Math.max(estimate, starts[i - 1] + 0.3));
   }
   return starts.map((t) => Math.round(t * 100) / 100);
+}
+
+/** Spoken sentences ("За, ... тоо. Зуун ... төгрөг." is two) in one spec sentence. */
+const spokenParts = (s: string) => Math.max(1, s.split(/(?<=[.!?…])\s+/).filter((p) => letters(p) > 0).length);
+
+/**
+ * A speaker pauses longest at the end of a sentence. With N full stops in the narration, the N
+ * longest inner pauses are taken as those ends, in time order, and each spec sentence starts at
+ * the one after its last spoken sentence. Letter shares alone drifted by a whole sentence when a
+ * long number was said fast (Oct 2026). Returns null (use the letter estimate) when there are too
+ * few pauses or a boundary lands more than 3 s from its letter estimate.
+ */
+function punctuationStarts(sentences: string[], pauses: Silence[], estimateAt: (letters: number) => number): number[] | null {
+  const parts = sentences.map(spokenParts);
+  const ends = parts.reduce((a, b) => a + b, 0) - 1;
+  if (sentences.length < 2 || pauses.length < ends) return null;
+  const chosen = [...pauses]
+    .sort((a, b) => b.end - b.start - (a.end - a.start))
+    .slice(0, ends)
+    .sort((a, b) => a.start - b.start);
+  const starts = [0];
+  let part = 0;
+  let acc = 0;
+  for (let i = 1; i < sentences.length; i++) {
+    part += parts[i - 1];
+    acc += letters(sentences[i - 1]);
+    const p = chosen[part - 1];
+    if (!p || p.end <= starts[i - 1] + 0.3 || Math.abs((p.start + p.end) / 2 - estimateAt(acc)) > 3) return null;
+    starts.push(Math.round(p.end * 100) / 100);
+  }
+  return starts;
 }
 
 /**
@@ -97,9 +131,13 @@ export interface Timeline {
 
 /** The video clock: sentence starts shifted by the guess pause, the length, the sound effects. */
 export function buildTimeline(scenes: Scene[], takeStarts: number[], take: { duration: number; tail: number }, units: number | null): Timeline {
-  const pauseAt = Math.max(0, takeStarts[1] - 0.05);
-  const pause = scenes[0] === "quiz" ? PAUSE_S : 0;
-  const starts = takeStarts.map((t, i) => (i === 0 ? t : Math.round((t + pause) * 100) / 100));
+  // The guess pause goes right before the answer: after sentence 0 in a price video, after the
+  // hook and the question in a money video.
+  const reveal = scenes.indexOf("reveal");
+  const at = reveal > 0 ? reveal : 1;
+  const pauseAt = Math.round(Math.max(0, takeStarts[at] - 0.05) * 100) / 100;
+  const pause = scenes[at - 1] === "quiz" ? PAUSE_S : 0;
+  const starts = takeStarts.map((t, i) => (i < at ? t : Math.round((t + pause) * 100) / 100));
   const total = Math.round((take.duration + pause + OUTRO_S) * 100) / 100;
   const sfx: Timeline["sfx"] = [];
   if (pause) for (let i = 0; i < 3; i++) sfx.push({ at: pauseAt + 0.15 + i * 0.7, kind: "tick" });
@@ -107,7 +145,8 @@ export function buildTimeline(scenes: Scene[], takeStarts: number[], take: { dur
     const at = starts[i];
     if (scene === "reveal") sfx.push({ at, kind: "pop" });
     else if (scene === "year") sfx.push({ at: Math.max(0, at - 0.1), kind: "ding" });
-    else if (i > 1) sfx.push({ at: Math.max(0, at - 0.15), kind: "whoosh" });
+    else if (scene === "hook") sfx.push({ at: 0.35, kind: "ding" });
+    else if (i > 0) sfx.push({ at: Math.max(0, at - 0.15), kind: "whoosh" });
     if (scene === "relate" && units) {
       const n = Math.min(12, Math.ceil(units));
       for (let b = 0; b < n; b++) sfx.push({ at: at + BLOCKS_AFTER_S + b * BLOCK_STEP_S, kind: "block" });

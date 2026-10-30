@@ -10,6 +10,8 @@ import { publishInstagram } from "@/lib/social/instagram";
 import { publishThreads, THREADS_MAX, threadsLength } from "@/lib/social/threads";
 import { numberWords, timesPhrase } from "@/lib/video/mn-numbers";
 import { facebookVideoText, instagramVideoCaption, threadsVideoText, type VideoMeta } from "@/lib/video/posts";
+import { moneyHtml } from "@/lib/video/money-html";
+import { amountWords, moneyNarration, moneyVideoSpec, roundShare, shareOptions, verifyMoneySpec } from "@/lib/video/money-video";
 import { narration, priceVideoSpec, quizOptions, SPOKEN, verifySpec } from "@/lib/video/price-video";
 import { sceneHtml } from "@/lib/video/scene-html";
 import { audioFilter } from "@/lib/video/render";
@@ -248,5 +250,115 @@ describe("publishing a video", () => {
     const body = new URLSearchParams(String(calls[0].init?.body));
     assert.equal(body.get("media_type"), "VIDEO");
     assert.equal(body.get("video_url"), "https://iltodmedee.mn/reel?v=3");
+  });
+});
+
+describe("«ХҮН БҮРТ ХУВААВАЛ» money video", () => {
+  const story = {
+    id: 1940,
+    slug: "toriin-alban-khaagch",
+    title: "52 мянган төрийн албан хаагчийн цалин нэмэгдэж, 170.1 тэрбум ₮ зарцуулна",
+    amounts: ["170.1 тэрбум ₮", "120.0 тэрбум ₮"],
+    sourceName: "Засгийн газар",
+    day: "2026-10-28",
+    topic: "economy",
+  };
+
+  it("divides the headline's amount by the population, guesses it and compares it with a price", () => {
+    const spec = moneyVideoSpec(story, snap)!;
+    assert.equal(spec.key, "money:1940");
+    assert.equal(spec.amount, 170.1e9);
+    assert.equal(spec.share, 49_700);
+    assert.deepEqual(
+      spec.sentences.map((s) => s.scene),
+      ["hook", "quiz", "reveal", "relate", "cta"],
+    );
+    // 49 700 ₮ is 1.6 kg of beef but 3.4 canteen meals: the comparison with 3+ units wins.
+    assert.equal(spec.relate?.goodKey, "canteen");
+    assert.deepEqual(verifyMoneySpec(spec), []);
+    const text = moneyNarration(spec);
+    assert.ok(!/\d/.test(text));
+    assert.match(text, /Зуун дал гаруй тэрбум төгрөг/);
+    assert.match(text, /дөчин есөн мянга долоон зуун төгрөг/);
+    assert.match(spec.source, /хүн бүр төлнө гэсэн үг биш/);
+    assert.match(spec.source, /Дуу: AI/);
+  });
+
+  it("never uses an amount the story does not hold, foreign money or a small sum", () => {
+    // The AI headline said "тэрбум" where the story's amount is "их наяд".
+    assert.equal(moneyVideoSpec({ ...story, title: "Сан 8.1 тэрбум ₮ орлого тодотголоо", amounts: ["8.1 их наяд ₮"] }, snap), null);
+    assert.equal(moneyVideoSpec({ ...story, title: "230 сая ам.долларын хөрөнгө татна", amounts: ["230 сая ам.доллар"] }, snap), null);
+    assert.equal(moneyVideoSpec({ ...story, title: "Сургуульд 860 сая төгрөг зарцуулав", amounts: ["860 сая төгрөг"] }, snap), null);
+  });
+
+  it("has exactly one true option, at a place that moves with the story", () => {
+    const options = shareOptions(49_700, 1940);
+    assert.equal(options.filter((o) => o.correct).length, 1);
+    assert.deepEqual(
+      options.map((o) => o.value),
+      [16_600, 149_000, 49_700],
+    );
+    assert.equal(shareOptions(49_700, 1941).findIndex((o) => o.correct), 0);
+  });
+
+  it("says amounts the way a person does", () => {
+    assert.equal(amountWords(9.1e9), "есөн тэрбум зуун сая");
+    assert.equal(amountWords(170.1e9), "зуун дал гаруй тэрбум");
+    assert.equal(amountWords(120e9), "зуун хорин тэрбум");
+    assert.equal(amountWords(3e12), "гурван их наяд");
+    assert.equal(amountWords(1.1e12), "нэг их наяд зуун тэрбум");
+    assert.equal(roundShare(876_102), 876_000);
+    assert.equal(roundShare(2_656.8), 2_660);
+  });
+
+  it("refuses a caption number that is not from the story", () => {
+    const spec = moneyVideoSpec(story, snap)!;
+    spec.sentences[2].caption = "Нэг хүнд *≈ 59 700₮*";
+    assert.ok(verifyMoneySpec(spec).some((p) => p.includes("59 700")));
+  });
+
+  it("puts the guess pause after the question, not after the hook", () => {
+    const tl = buildTimeline(["hook", "quiz", "reveal", "relate", "cta"], [0, 5, 8.7, 11.15, 13.65], { duration: 19.16, tail: 18.9 }, 3.4);
+    assert.equal(tl.pauseAt, 8.65);
+    assert.deepEqual(tl.starts, [0, 5, 10.8, 13.25, 15.75]);
+    assert.equal(tl.sfx.find((e) => e.kind === "pop")?.at, 10.8);
+  });
+
+  it("starts each sentence at its sentence-end pause even when a number is said fast", () => {
+    const log = [
+      "silence_start: 0", "silence_end: 0.185",
+      "silence_start: 1.58", "silence_end: 2.174",
+      "silence_start: 4.41", "silence_end: 5.028",
+      "silence_start: 6.755", "silence_end: 7.135",
+      "silence_start: 8.313", "silence_end: 8.704",
+      "silence_start: 9.255", "silence_end: 9.562",
+      "silence_start: 9.793", "silence_end: 9.985",
+      "silence_start: 10.758", "silence_end: 11.147",
+      "silence_start: 13.245", "silence_end: 13.647",
+      "silence_start: 16.495", "silence_end: 16.697",
+      "silence_start: 17.811", "silence_end: 18.282",
+      "silence_start: 18.931",
+    ].join("\n");
+    const spec = moneyVideoSpec(story, snap)!;
+    const starts = sentenceStarts(spec.sentences.map((s) => s.say), parseSilences(log, 19.16), 19.16);
+    assert.deepEqual(starts, [0, 5.03, 8.7, 11.15, 13.65]);
+  });
+
+  it("writes posts with the plain-division wording and the story's link", () => {
+    const meta: VideoMeta = { kind: "money", articleId: 1940, headline: story.title, amountLabel: "170.1 тэрбум ₮", shareLabel: "≈ 49 700₮", sourceName: "Засгийн газар", topic: "economy", link: "iltodmedee.mn/article/toriin-alban-khaagch" };
+    const fb = facebookVideoText(meta, "https://iltodmedee.mn");
+    assert.match(fb, /хүн бүр төлнө гэсэн үг биш/);
+    assert.match(fb, /https:\/\/iltodmedee\.mn\/article\/toriin-alban-khaagch/);
+    assert.match(fb, /#эдийнзасаг/);
+    assert.ok(threadsLength(threadsVideoText(meta, "https://iltodmedee.mn")) <= THREADS_MAX);
+    assert.match(instagramVideoCaption(meta), /bio-д/);
+  });
+
+  it("renders a page with the headline as data, never as markup", () => {
+    const spec = moneyVideoSpec({ ...story, title: "<img src=x onerror=alert(1)> 170.1 тэрбум ₮ зарцуулна" }, snap)!;
+    const tl = buildTimeline(spec.sentences.map((s) => s.scene), [0, 5, 8.7, 11.15, 13.65], { duration: 19.16, tail: 18.9 }, 3.4);
+    const html = moneyHtml(spec, tl, { fontsDir: "/f", logo: "/l.png" });
+    assert.ok(!html.includes("<img src=x"));
+    assert.match(html, /\\u003cimg src=x/);
   });
 });

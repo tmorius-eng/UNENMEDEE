@@ -15,7 +15,8 @@ import { agoPoints, type GoodSeries, type PricesSnapshot, valueAt } from "@/lib/
 
 import { numberWords } from "./mn-numbers";
 
-export type Scene = "quiz" | "reveal" | "now" | "relate" | "change" | "year" | "cta";
+/** "hook" opens the money videos (money-video.ts) before their guess. */
+export type Scene = "hook" | "quiz" | "reveal" | "now" | "relate" | "change" | "year" | "cta";
 
 export interface Sentence {
   scene: Scene;
@@ -93,7 +94,7 @@ const NBSP = " ";
 /** "31 210₮" with a no-break space, so the word-by-word captions never split a number. */
 const money = (n: number) => `${formatNumber(n).replace(/ /g, NBSP)}₮`;
 
-function cap(s: string): string {
+export function cap(s: string): string {
   return s.charAt(0).toLocaleUpperCase("mn") + s.slice(1);
 }
 

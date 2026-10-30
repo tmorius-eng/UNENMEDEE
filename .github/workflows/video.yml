@@ -1,16 +1,22 @@
-# One short price video a day ("15 жилийн өмнө", src/lib/video): made from the NSO price snapshot
-# with a Gemini voice (AI budget guard, logged on /transparency), stored for /reel, then posted as
-# a Reel to Facebook and Instagram and as a video to Threads. One video per good and NSO month:
-# once all 13 goods are out, the runs make nothing until NSO publishes the next month.
+# Two short videos a day (src/lib/video), made with a Gemini voice (AI budget guard, logged on
+# /transparency), stored for /reel, then posted as a Reel to Facebook and Instagram and as a video
+# to Threads. Midday: "ХҮН БҮРТ ХУВААВАЛ" (a fresh story's ₮ amount divided by the population),
+# else a price video. Evening: "ҮНЭ ТААГААРАЙ" (one good, 15 years of NSO prices; 13 per NSO
+# month), else a money video. So something goes out every day with nobody touching it.
 # Turn it off without a code change: repository variable VIDEO_POSTING = off.
-name: Daily price video
+name: Daily video
 
 on:
   schedule:
-    # 19:41 Ulaanbaatar, evening scrolling time (GitHub may start it late).
+    # 12:41 and 19:41 Ulaanbaatar, lunch and evening scrolling time (GitHub may start them late).
+    - cron: "41 4 * * *"
     - cron: "41 11 * * *"
   workflow_dispatch:
     inputs:
+      kind:
+        description: "auto = price video, else money video; money = only «ХҮН БҮРТ ХУВААВАЛ»; prices = only a price video"
+        required: false
+        default: "auto"
       good:
         description: "Good key (beef, mutton, flour, bread, rice, milk, egg, potato, sugar, petrol, diesel, canteen, firewood); empty = the next one"
         required: false
@@ -76,9 +82,14 @@ jobs:
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
           # Inputs reach the script only through env vars (no injection).
           IN_GOOD: ${{ github.event.inputs.good }}
+          IN_KIND: ${{ github.event.inputs.kind }}
           IN_DRY: ${{ github.event.inputs.dry_run }}
+          IN_SCHEDULE: ${{ github.event.schedule }}
         run: |
           args=()
+          # The midday run leads with a money video, the evening run with a price video.
+          if [ "$IN_SCHEDULE" = "41 4 * * *" ]; then args+=(--prefer money); fi
+          case "$IN_KIND" in money|prices) args+=(--kind "$IN_KIND") ;; esac
           case "$IN_GOOD" in ''|*[!a-z0-9]*) ;; *) args+=(--good "$IN_GOOD") ;; esac
           if [ "$IN_DRY" = "true" ]; then args+=(--dry-run --out video.mp4); fi
           npm run video:make -- "${args[@]}"
