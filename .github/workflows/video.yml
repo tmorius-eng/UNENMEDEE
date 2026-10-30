@@ -1,0 +1,107 @@
+# One short price video a day ("15 жилийн өмнө", src/lib/video): made from the NSO price snapshot
+# with a Gemini voice (AI budget guard, logged on /transparency), stored for /reel, then posted as
+# a Reel to Facebook and Instagram and as a video to Threads. One video per good and NSO month:
+# once all 13 goods are out, the runs make nothing until NSO publishes the next month.
+# Turn it off without a code change: repository variable VIDEO_POSTING = off.
+name: Daily price video
+
+on:
+  schedule:
+    # 19:41 Ulaanbaatar, evening scrolling time (GitHub may start it late).
+    - cron: "41 11 * * *"
+  workflow_dispatch:
+    inputs:
+      good:
+        description: "Good key (beef, mutton, flour, bread, rice, milk, egg, potato, sugar, petrol, diesel, canteen, firewood); empty = the next one"
+        required: false
+        default: ""
+      dry_run:
+        description: "true = render and print the posts, store and post nothing (the voice is still billed)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: video
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  video:
+    if: github.repository == 'tmorius-eng/UNENMEDEE' && vars.VIDEO_POSTING != 'off'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # No secret is set on the job: dependency install scripts never see one.
+      - name: Install dependencies
+        run: npm ci || (sleep 60 && npm ci)
+
+      - name: Cache the Playwright browser
+        continue-on-error: true
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium and ffmpeg
+        run: |
+          npx playwright install --with-deps chromium || (sleep 30 && npx playwright install --with-deps chromium)
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg)
+
+      - name: Apply database migrations
+        id: migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT || secrets.DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Make the video
+        id: make
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
+          GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL }}
+          GEMINI_TTS_VOICE: ${{ vars.GEMINI_TTS_VOICE }}
+          AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
+          AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
+          # Inputs reach the script only through env vars (no injection).
+          IN_GOOD: ${{ github.event.inputs.good }}
+          IN_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          args=()
+          case "$IN_GOOD" in ''|*[!a-z0-9]*) ;; *) args+=(--good "$IN_GOOD") ;; esac
+          if [ "$IN_DRY" = "true" ]; then args+=(--dry-run --out video.mp4); fi
+          npm run video:make -- "${args[@]}"
+
+      - name: Keep the dry-run video
+        if: ${{ github.event.inputs.dry_run == 'true' && steps.make.outcome == 'success' && hashFiles('video.mp4') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: video-preview
+          path: video.mp4
+          retention-days: 7
+
+      - name: Post it (Facebook Reels, Instagram Reels, Threads)
+        # Also after a failed make: a video made earlier and not yet posted still goes out.
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FB_GRAPH_VERSION: ${{ vars.FB_GRAPH_VERSION }}
+          IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
+          FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+          IN_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [ "$IN_DRY" = "true" ]; then npm run social:post -- --mode video --dry-run; else npm run social:post -- --mode video; fi

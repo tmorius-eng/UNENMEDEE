@@ -20,7 +20,10 @@ export const INSTAGRAM_SETTINGS_KEY = "instagram";
 export const CAPTION_MAX = 2200;
 
 export interface InstagramPost {
-  imageUrl: string;
+  /** Our JPEG card (an image post), or */
+  imageUrl?: string;
+  /** a generated video (a Reel, also shown in the feed). */
+  videoUrl?: string;
   caption: string;
 }
 
@@ -99,16 +102,23 @@ export async function refreshInstagramToken(token: string, fetchImpl: Fetch = fe
   return json.access_token;
 }
 
-/** Creates the image container, waits until Instagram has fetched the JPEG, publishes, returns the media id. */
+/**
+ * Creates the image (or Reel) container, waits until Instagram has fetched the file, publishes,
+ * returns the media id. A video takes longer to process: up to 3 minutes of checks.
+ */
 export async function publishInstagram(opts: { token: string; post: InstagramPost; fetchImpl?: Fetch; sleep?: (ms: number) => Promise<void> }): Promise<string> {
   const f = opts.fetchImpl ?? fetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const base = `${INSTAGRAM_API}/${INSTAGRAM_VERSION}`;
   const token = opts.token;
+  const media: Record<string, string> = opts.post.videoUrl
+    ? { media_type: "REELS", video_url: opts.post.videoUrl, share_to_feed: "true" }
+    : { image_url: opts.post.imageUrl ?? "" };
   const created = await call(f, `${base}/me/media`, {
     method: "POST",
-    body: new URLSearchParams({ image_url: opts.post.imageUrl, caption: opts.post.caption, access_token: token }),
+    body: new URLSearchParams({ ...media, caption: opts.post.caption, access_token: token }),
   });
+  const checks = opts.post.videoUrl ? 36 : 12;
   const id = String(created.id ?? "");
   if (!id) throw new Error("Instagram returned no container id");
   for (let i = 0; ; i++) {
@@ -120,7 +130,7 @@ export async function publishInstagram(opts: { token: string; post: InstagramPos
     if (s.status_code === "FINISHED") break;
     if (s.status_code === "ERROR" || s.status_code === "EXPIRED") throw new Error(`Instagram container ${String(s.status_code)}: ${String(s.status ?? "")}`);
     // Never publish a container that is not ready (media_publish would fail or post without the image).
-    if (i >= 11) throw new Error(`Instagram container not finished after ${i + 1} checks (${String(s.status_code ?? "?")})`);
+    if (i >= checks - 1) throw new Error(`Instagram container not finished after ${i + 1} checks (${String(s.status_code ?? "?")})`);
     await sleep(5_000);
   }
   for (let attempt = 1; ; attempt++) {

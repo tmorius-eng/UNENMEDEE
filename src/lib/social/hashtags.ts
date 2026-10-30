@@ -21,6 +21,8 @@ const TOPIC_TAGS: Record<string, string[]> = {
   foreign: ["#гадаадхарилцаа", "#дипломат"],
   local: ["#ороннутаг", "#аймаг"],
   data: ["#нээлттэйөгөгдөл", "#статистик"],
+  // Not a feed topic: the "15 жилийн өмнө" price videos (src/lib/video).
+  prices: ["#үнэ", "#инфляц"],
 };
 
 export function hashtags(platform: SocialPlatform, topic?: string | null): string {

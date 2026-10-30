@@ -48,6 +48,7 @@ database is the only shared state between the two halves.
 | Source discovery | weekly | `sources:discover` | `sources` |
 | Source re-check | weekly | `sources:recheck` | `articles.source_status`, `source_diff` |
 | Social posts | after each pipeline / digest run | `social:post` (news, digest, quiz, weekly) | `social_posts` |
+| Price video | daily (`video.yml`) | `video:make` (NSO prices → Gemini voice → Playwright frames → ffmpeg MP4), then `social:post --mode video` (Facebook / Instagram Reels, Threads) | `videos`, `social_posts`, `ai_usage_logs` |
 | Watchdog | daily | `npm run health` | a GitHub issue when something is stale |
 | Vercel cleanup | daily | `vercel:cleanup` | deletes old Vercel deployments (10 GB Hobby storage) |
 | Keepalive | monthly | GitHub API | re-enables scheduled workflows |
@@ -70,6 +71,7 @@ migrations in [`drizzle/`](../drizzle) (`IF NOT EXISTS` everywhere, so a rerun i
 | `open_datasets` | opendata.mn metadata and small computed highlights (never raw rows) |
 | `indicator_snapshots` | One JSON document per external source (`mongolbank`, `budget_nso`, `shilendans`, `soe_finance`, …) |
 | `push_subscriptions` | Web Push endpoints and followed MPs |
+| `videos` | Generated price videos: the MP4 for a few days (served at `/reel?v=<id>` for the platforms to fetch), then only the key and the numbers it showed |
 | `social_posts` | What was posted to Facebook, Instagram, Threads, Telegram and Discord (one row per platform + kind + item, so nothing posts twice) |
 | `app_settings` | Server-side settings shared by Vercel and Actions (VAPID keys, donation account, refreshed Threads/Instagram tokens, hidden declaration years) |
 | `transparency_ledger` | Income and costs shown on `/transparency` (keeps each month's AI total after its call logs are pruned) |

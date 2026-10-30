@@ -7,6 +7,7 @@
  *   npm run social:post -- --mode news --dry-run    # print, post nothing
  *   npm run social:post -- --mode quiz              # the daily Discord quiz poll (once a day)
  *   npm run social:post -- --mode weekly            # "7 хоногийн ТОП" on Mondays (--any-day to test)
+ *   npm run social:post -- --mode video             # the newest generated video (make-video.ts) as a Reel on Facebook, Instagram and Threads
  *
  * Facebook needs FB_PAGE_ID (variable) and FB_PAGE_TOKEN (secret). Threads needs THREADS_TOKEN
  * (secret) once: the long-lived token is then kept and refreshed weekly in app_settings
@@ -25,9 +26,9 @@ import { parseArgs } from "node:util";
 import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 
 import { closeDb, getDb, hasDatabase } from "@/db";
-import { appSettings, articles, clusters, digests, politicians, socialPosts, sources } from "@/db/schema";
-import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
-import { INSTAGRAM_SETTINGS_KEY, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
+import { appSettings, articles, clusters, digests, politicians, socialPosts, sources, videos } from "@/db/schema";
+import { type ArticleForPost, articlePost, type DigestForPost, digestPost, FacebookError, publishReel, publishToPage, resolveFacebookPage } from "@/lib/social/facebook";
+import { INSTAGRAM_SETTINGS_KEY, type InstagramPost, instagramArticlePost, instagramDigestPost, publishInstagram, refreshInstagramToken } from "@/lib/social/instagram";
 import { publishThreads, refreshToken, THREADS_SETTINGS_KEY, threadsArticlePost, threadsDigestPost } from "@/lib/social/threads";
 import { publishTelegram, telegramArticlePost, telegramDigestPost, type TelegramPost } from "@/lib/social/telegram";
 import { discordArticlePost, discordChannelId, discordDigestPost, type DiscordPost, discordQuizPost, publishDiscord } from "@/lib/social/discord";
@@ -38,6 +39,7 @@ import { currentState, needsRefresh, refreshSeverity, type TokenState } from "@/
 import { PRODUCTION_URL } from "@/lib/site";
 import { outcomeUnknown } from "@/lib/social/outcome";
 import { topicFor } from "@/lib/topics";
+import { facebookVideoText, instagramVideoCaption, threadsVideoText, type VideoMeta } from "@/lib/video/posts";
 
 const { values } = parseArgs({
   options: {
@@ -62,6 +64,15 @@ interface Platform {
   quiz?(q: Quiz): { preview: string; publish(): Promise<string> };
   /** Text-only platforms (not Instagram, which needs an image). */
   weekly?(w: WeeklyTop): { preview: string; publish(): Promise<string> };
+  /** Video platforms (Facebook Reels, Instagram Reels, Threads). */
+  video?(v: VideoForPost): { preview: string; publish(): Promise<string> };
+}
+
+/** A generated video and the public URL the platforms fetch it from (/reel). */
+interface VideoForPost {
+  id: number;
+  meta: VideoMeta;
+  url: string;
 }
 
 function facebook(pageId: string, token: string): Platform {
@@ -74,6 +85,10 @@ function facebook(pageId: string, token: string): Platform {
     digest: (d) => make(digestPost(d)),
     article: (a) => make(articlePost(a)),
     weekly: (w) => make({ message: weeklyText(w, "plain"), link: `${PRODUCTION_URL}/digest` }),
+    video: (v) => {
+      const description = facebookVideoText(v.meta);
+      return { preview: `${v.url}\n${description}`, publish: () => publishReel({ pageId, token, videoUrl: v.url, description }) };
+    },
   };
 }
 
@@ -84,6 +99,10 @@ function threads(token: string): Platform {
     digest: (d) => make(threadsDigestPost(d)),
     article: (a) => make(threadsArticlePost(a)),
     weekly: (w) => make({ text: weeklyShortText(w), link: `${PRODUCTION_URL}/digest` }),
+    video: (v) => {
+      const text = threadsVideoText(v.meta);
+      return { preview: `${v.url}\n${text}`, publish: () => publishThreads({ token, post: { text, link: v.url, videoUrl: v.url } }) };
+    },
   };
 }
 
@@ -112,8 +131,16 @@ function discord(token: string, channelId: string): Platform {
 }
 
 function instagram(token: string): Platform {
-  const make = (post: { imageUrl: string; caption: string }) => ({ preview: `${post.imageUrl}\n${post.caption}`, publish: () => publishInstagram({ token, post }) });
-  return { name: "instagram", digest: (d) => make(instagramDigestPost(d)), article: (a) => make(instagramArticlePost(a)) };
+  const make = (post: InstagramPost) => ({ preview: `${post.imageUrl ?? post.videoUrl}\n${post.caption}`, publish: () => publishInstagram({ token, post }) });
+  return {
+    name: "instagram",
+    digest: (d) => make(instagramDigestPost(d)),
+    article: (a) => make(instagramArticlePost(a)),
+    video: (v) => {
+      const caption = instagramVideoCaption(v.meta);
+      return { preview: `${v.url}\n${caption}`, publish: () => publishInstagram({ token, post: { videoUrl: v.url, caption } }) };
+    },
+  };
 }
 
 /**
@@ -156,7 +183,7 @@ const notPosted = (platform: string, kind: string, ref: unknown) =>
  * next run. Once it may have gone out (published but the DB update failed, or the answer was lost
  * to a timeout) the reservation stays, marked for a manual check: a repost would be a duplicate.
  */
-async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz" | "weekly", refId: number, item: { preview: string; publish(): Promise<string> }) {
+async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz" | "weekly" | "video", refId: number, item: { preview: string; publish(): Promise<string> }) {
   console.log(`  → ${p.name} ${kind} #${refId}: ${item.preview.replace(/\n/g, "\n    ")}`);
   if (dry) return;
   const [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
@@ -335,6 +362,22 @@ async function postWeekly(db: Db, p: Platform, w: WeeklyTop) {
   await post(db, p, "weekly", w.week, p.weekly(w));
 }
 
+/** Videos older than this are not posted any more (their file is cleared after VIDEO_KEEP_DAYS). */
+const VIDEO_POST_WITHIN_H = 48;
+
+/** The newest generated video this platform has not posted yet, as a Reel / video post. */
+async function postVideo(db: Db, p: Platform) {
+  if (!p.video) return;
+  const [v] = await db
+    .select({ id: videos.id, meta: videos.meta })
+    .from(videos)
+    .where(and(isNotNull(videos.mp4), gte(videos.createdAt, new Date(Date.now() - VIDEO_POST_WITHIN_H * 3_600_000)), notPosted(p.name, "video", videos.id)))
+    .orderBy(desc(videos.createdAt))
+    .limit(1);
+  if (!v) return console.log(`🎬 ${p.name}: no new video to post.`);
+  await post(db, p, "video", v.id, p.video({ id: v.id, meta: v.meta, url: `${PRODUCTION_URL}/reel?v=${v.id}` }));
+}
+
 async function main() {
   if (!hasDatabase()) {
     console.error("✗ DATABASE_URL is not set.");
@@ -374,7 +417,7 @@ async function main() {
   else if (dcToken || dcChannel) console.error("::error::Discord needs both the DISCORD_BOT_TOKEN secret and DISCORD_CHANNEL_ID (the channel id or its discord.com/channels/… URL, docs/FACEBOOK.md).");
   else console.log("🎮 Discord is off: set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID, see docs/FACEBOOK.md.");
 
-  const mode = values.mode === "digest" || values.mode === "quiz" || values.mode === "weekly" ? values.mode : "news";
+  const mode = values.mode === "digest" || values.mode === "quiz" || values.mode === "weekly" || values.mode === "video" ? values.mode : "news";
   let weekly: WeeklyTop | null = null;
   if (mode === "weekly") {
     if (!isWeeklyDue(new Date()) && !values["any-day"] && !dry) return console.log("📊 The weekly list goes out on Mondays (Ulaanbaatar); --any-day to post now.");
@@ -387,6 +430,7 @@ async function main() {
       if (mode === "digest") await postDigest(db, p);
       else if (mode === "quiz") await postQuiz(db, p);
       else if (mode === "weekly" && weekly) await postWeekly(db, p, weekly);
+      else if (mode === "video") await postVideo(db, p);
       else await postNews(db, p);
     } catch (err) {
       const hint = err instanceof FacebookError && err.hint ? ` ${err.hint}` : "";

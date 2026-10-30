@@ -22,6 +22,8 @@ export interface ThreadsPost {
   link: string;
   /** Our JPEG hook card: an IMAGE post with the link in the text; without it a TEXT post with a link card. */
   imageUrl?: string;
+  /** A generated video (src/lib/video): a VIDEO post with the link in the text. */
+  videoUrl?: string;
 }
 
 /**
@@ -84,14 +86,19 @@ export async function refreshToken(token: string, fetchImpl: Fetch = fetch): Pro
   return json.access_token;
 }
 
-/** Creates the IMAGE (or TEXT) container, waits until it is FINISHED, publishes it and returns the post id. */
+/** Creates the VIDEO, IMAGE or TEXT container, waits until it is FINISHED, publishes it and returns the post id. */
 export async function publishThreads(opts: { token: string; post: ThreadsPost; fetchImpl?: Fetch; sleep?: (ms: number) => Promise<void> }): Promise<string> {
   const f = opts.fetchImpl ?? fetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const token = opts.token;
-  const body = opts.post.imageUrl
-    ? new URLSearchParams({ media_type: "IMAGE", image_url: opts.post.imageUrl, text: opts.post.text, access_token: token })
-    : new URLSearchParams({ media_type: "TEXT", text: opts.post.text, link_attachment: opts.post.link, access_token: token });
+  const body = opts.post.videoUrl
+    ? new URLSearchParams({ media_type: "VIDEO", video_url: opts.post.videoUrl, text: opts.post.text, access_token: token })
+    : opts.post.imageUrl
+      ? new URLSearchParams({ media_type: "IMAGE", image_url: opts.post.imageUrl, text: opts.post.text, access_token: token })
+      : new URLSearchParams({ media_type: "TEXT", text: opts.post.text, link_attachment: opts.post.link, access_token: token });
+  // A video is processed for longer: up to 3 minutes of checks instead of 30 seconds.
+  const checks = opts.post.videoUrl ? 36 : 10;
+  const wait = opts.post.videoUrl ? 5_000 : 3_000;
   const created = await call(f, `${THREADS_API}/v1.0/me/threads`, { method: "POST", body });
   const id = String(created.id ?? "");
   if (!id) throw new Error("Threads returned no container id");
@@ -100,8 +107,8 @@ export async function publishThreads(opts: { token: string; post: ThreadsPost; f
     if (s.status === "FINISHED") break;
     if (s.status === "ERROR" || s.status === "EXPIRED") throw new Error(`Threads container ${s.status}: ${String(s.error_message ?? "")}`);
     // Never publish a container that is not ready: the post would fail or go out without its card.
-    if (i >= 9) throw new Error(`Threads container not finished after ${i + 1} checks (${String(s.status ?? "?")})`);
-    await sleep(3_000);
+    if (i >= checks - 1) throw new Error(`Threads container not finished after ${i + 1} checks (${String(s.status ?? "?")})`);
+    await sleep(wait);
   }
   const published = await call(f, `${THREADS_API}/v1.0/me/threads_publish`, { method: "POST", body: new URLSearchParams({ creation_id: id, access_token: token }) });
   return String(published.id ?? id);

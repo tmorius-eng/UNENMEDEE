@@ -27,7 +27,8 @@ interface BackupTable {
  * Every table worth restoring, parents before children (articles → sources, clusters;
  * asset_declarations → politicians). Left out: ai_usage_logs (the ledger keeps the monthly
  * totals), open_datasets (the next `data:sync` rebuilds it) and press_items / press_links (45 days
- * of other sites' headlines; the next `press:sync` reads the feeds again).
+ * of other sites' headlines; the next `press:sync` reads the feeds again) and videos (MP4 files kept
+ * a few days for the platforms to fetch; a lost row only means that video can be made again).
  */
 export const BACKUP_TABLES: BackupTable[] = [
   { table: schema.appSettings, key: schema.appSettings.key, serial: false },
