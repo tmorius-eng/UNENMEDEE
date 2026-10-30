@@ -1,90 +1,132 @@
 /**
- * "15 жилийн өмнө" price videos (Reels / Threads, 1080×1920, ~25 s): one everyday good from the
- * NSO price snapshot (`prices_nso`, src/lib/budget/prices.ts), its Улаанбаатар price then and now,
- * the multiple, the change in a year and the 1/5/10/15-year points. Every number comes from the
- * snapshot; the narration gets them as words (mn-numbers.ts) and the captions as digits, and
- * `verifySpec` refuses a spec whose captions name a number the snapshot does not hold.
+ * "Таагаарай!" price videos (Reels / Threads, 1080×1920, ~22 s) for young viewers, built on what
+ * short-video guidance agrees on: the hook is on screen in the first 2–3 seconds (many watch with
+ * the sound off), a curiosity gap the viewer answers in their head (a 3-2-1 guess), a payoff every
+ * few seconds, a relatable comparison instead of a statistic, and an ending that asks for a comment
+ * and a share (Instagram ranks watch time and sends). One everyday good from the NSO price snapshot
+ * (`prices_nso`): its Улаанбаатар price then (the oldest of 15/10/5 years back) and now, what
+ * today's money bought then, the change in a year. Every number comes from the snapshot; the
+ * narration gets them as words (mn-numbers.ts), the captions as digits, and `verifySpec` refuses a
+ * spec that could show a number the snapshot does not hold. The two wrong answers of the guess are
+ * marked as options, never shown as data.
  */
 import { formatNumber } from "@/lib/format";
 import { agoPoints, type GoodSeries, type PricesSnapshot, valueAt } from "@/lib/budget/prices";
 
-import { numberWords, timesPhrase } from "./mn-numbers";
+import { numberWords } from "./mn-numbers";
 
-export type Panel = "ratio" | "tiles" | "link";
+export type Scene = "quiz" | "reveal" | "now" | "relate" | "change" | "year" | "cta";
 
 export interface Sentence {
+  scene: Scene;
   /** What the voice says: words only, no digits. */
   say: string;
-  /** The caption on screen; `<em>` marks the yellow number (our own markup, escaped text). */
+  /** The caption on screen, word by word; `*…*` marks a highlighted number (no HTML). */
   caption: string;
-  /** The extra panel shown while this sentence is spoken. */
-  panel?: Panel;
-  /** The chart sweeps from the old point to today during this sentence. */
-  sweep?: boolean;
 }
 
-export interface Tile {
-  label: string;
-  value: string;
-  pct: string;
+export interface QuizOption {
+  text: string;
+  value: number;
+  correct: boolean;
 }
 
 export interface VideoSpec {
   /** Unique per good and data month: one video each time NSO publishes a month. */
   key: string;
   goodKey: string;
-  kicker: string;
+  /** Short sticker over the question: "ҮНЭ ТААГААРАЙ". */
+  series: string;
   title: string;
+  /** "Улаанбаатар · сарын дундаж үнэ" */
   sub: string;
+  question: string;
+  options: QuizOption[];
   months: string[];
-  series: (number | null)[];
+  series_: (number | null)[];
   /** Index of the old point and of the latest month in `months`. */
   from: number;
   to: number;
-  ratioChip: string;
-  ratioNote: string;
-  tiles: Tile[];
+  /** What today's price of one unit bought then (now / then), e.g. 6.6, and its unit. */
+  units: { count: number; unit: string } | null;
   sentences: Sentence[];
   source: string;
   /** The page with the whole series, shown at the end and linked in the posts. */
   link: string;
-  /** Facts for the post texts. */
   then: { month: string; value: number; years: number };
   now: { month: string; value: number };
   yearPct: number | null;
 }
 
-/** How each good is named on screen and aloud ("1 кг үхрийн мах" / "нэг кило үхрийн мах"). */
-export const SPOKEN: Record<string, { caption: string; say: string; title: string; unit: string }> = {
-  beef: { caption: "1 кг үхрийн мах", say: "нэг кило үхрийн мах", title: "Үхрийн мах, 1 кг", unit: "ястай" },
-  mutton: { caption: "1 кг хонины мах", say: "нэг кило хонины мах", title: "Хонины мах, 1 кг", unit: "ястай" },
-  flour: { caption: "1 кг гурил", say: "нэг кило нэгдүгээр зэргийн гурил", title: "Гурил, 1 кг", unit: "1-р зэрэг" },
-  bread: { caption: "1 талх", say: "нэг талх", title: "Талх, 1 ширхэг", unit: "" },
-  rice: { caption: "1 кг цагаан будаа", say: "нэг кило цагаан будаа", title: "Цагаан будаа, 1 кг", unit: "" },
-  milk: { caption: "1 л задгай сүү", say: "нэг литр задгай сүү", title: "Сүү, 1 литр", unit: "задгай" },
-  egg: { caption: "1 өндөг", say: "нэг өндөг", title: "Өндөг, 1 ширхэг", unit: "" },
-  potato: { caption: "1 кг төмс", say: "нэг кило төмс", title: "Төмс, 1 кг", unit: "" },
-  sugar: { caption: "1 кг элсэн чихэр", say: "нэг кило элсэн чихэр", title: "Элсэн чихэр, 1 кг", unit: "" },
-  petrol: { caption: "1 л А-92 бензин", say: "нэг литр А ерэн хоёр бензин", title: "Бензин А-92, 1 литр", unit: "" },
-  diesel: { caption: "1 л дизель түлш", say: "нэг литр дизель түлш", title: "Дизель түлш, 1 литр", unit: "" },
-  canteen: { caption: "гуанзны 1 порц хоол", say: "гуанзны нэг порц хоол", title: "Гуанзны хоол, 1 порц", unit: "" },
-  firewood: { caption: "1 шуудай түлшний мод", say: "нэг шуудай түлшний мод", title: "Түлшний мод, 1 шуудай", unit: "" },
-};
-
-const HOOKS = ["Та мэдэх үү?", "Санаж байна уу?", "Нэг тоо харъя."];
-
-const PCT_CAP = 1000;
-
-function pctText(p: number): string {
-  const r = Math.round(p);
-  return `${r >= 0 ? "▲" : "▼"} ${formatNumber(Math.min(Math.abs(r), PCT_CAP))}%${Math.abs(r) > PCT_CAP ? "+" : ""}`;
+interface Names {
+  /** "1 кг үхрийн мах" */
+  caption: string;
+  /** "нэг кило үхрийн мах" */
+  say: string;
+  title: string;
+  /** Short spoken noun: "мах", "бензин" ("Энэ мөнгөөр тэр үед … кило мах авах байсан"). */
+  short: string;
+  /** Spoken unit ("кило") and the caption unit ("кг"). */
+  unitSay: string;
+  unit: string;
+  note: string;
 }
 
-const monthDot = (m: string) => m.replace("-", ".");
+/** How each good is named on screen and aloud. */
+export const SPOKEN: Record<string, Names> = {
+  beef: { caption: "1 кг үхрийн мах", say: "нэг кило үхрийн мах", title: "Үхрийн мах", short: "мах", unitSay: "кило", unit: "кг", note: "ястай" },
+  mutton: { caption: "1 кг хонины мах", say: "нэг кило хонины мах", title: "Хонины мах", short: "мах", unitSay: "кило", unit: "кг", note: "ястай" },
+  flour: { caption: "1 кг гурил", say: "нэг кило гурил", title: "Гурил", short: "гурил", unitSay: "кило", unit: "кг", note: "1-р зэрэг" },
+  bread: { caption: "1 талх", say: "нэг талх", title: "Талх", short: "талх", unitSay: "ширхэг", unit: "ш", note: "" },
+  rice: { caption: "1 кг цагаан будаа", say: "нэг кило цагаан будаа", title: "Цагаан будаа", short: "будаа", unitSay: "кило", unit: "кг", note: "" },
+  milk: { caption: "1 л сүү", say: "нэг литр сүү", title: "Сүү", short: "сүү", unitSay: "литр", unit: "л", note: "задгай" },
+  egg: { caption: "1 өндөг", say: "нэг өндөг", title: "Өндөг", short: "өндөг", unitSay: "ширхэг", unit: "ш", note: "" },
+  potato: { caption: "1 кг төмс", say: "нэг кило төмс", title: "Төмс", short: "төмс", unitSay: "кило", unit: "кг", note: "" },
+  sugar: { caption: "1 кг элсэн чихэр", say: "нэг кило элсэн чихэр", title: "Элсэн чихэр", short: "чихэр", unitSay: "кило", unit: "кг", note: "" },
+  petrol: { caption: "1 л А-92 бензин", say: "нэг литр А ерэн хоёр бензин", title: "Бензин А-92", short: "бензин", unitSay: "литр", unit: "л", note: "" },
+  diesel: { caption: "1 л дизель", say: "нэг литр дизель түлш", title: "Дизель түлш", short: "түлш", unitSay: "литр", unit: "л", note: "" },
+  canteen: { caption: "гуанзны 1 порц хоол", say: "гуанзны нэг порц хоол", title: "Гуанзны хоол", short: "хоол", unitSay: "порц", unit: "порц", note: "" },
+  firewood: { caption: "1 шуудай мод", say: "нэг шуудай түлшний мод", title: "Түлшний мод", short: "мод", unitSay: "шуудай", unit: "шуудай", note: "" },
+};
+
+const NBSP = " ";
+/** "31 210₮" with a no-break space, so the word-by-word captions never split a number. */
+const money = (n: number) => `${formatNumber(n).replace(/ /g, NBSP)}₮`;
+
+function cap(s: string): string {
+  return s.charAt(0).toLocaleUpperCase("mn") + s.slice(1);
+}
+
+/** A round wrong answer: a step that reads like a price (100 ₮ steps for thousands). */
+function niceRound(n: number): number {
+  const step = n >= 10_000 ? 500 : n >= 1_000 ? 100 : n >= 100 ? 10 : 1;
+  return Math.max(step, Math.round(n / step) * step);
+}
+
+/** Three options, the true price at a position that moves with the good. */
+export function quizOptions(then: number, position: number): QuizOption[] {
+  let low = niceRound(then * 0.55);
+  let high = niceRound(then * 1.8);
+  if (low === then) low = niceRound(then * 0.45);
+  if (high === then) high = niceRound(then * 2.2);
+  const wrong = [low, high];
+  const values = [...wrong];
+  values.splice(position % 3, 0, then);
+  return values.map((v) => ({ text: money(v), value: v, correct: v === then }));
+}
+
+/** "бараг долоон кило" / "6 гаруй кг": how many units today's price bought then. */
+function aboutUnits(ratio: number, unitSay: string, unit: string): { say: string; caption: string } {
+  const whole = Math.floor(ratio);
+  const frac = ratio - whole;
+  if (frac >= 0.75) return { say: `бараг ${numberWords(whole + 1)} ${unitSay}`, caption: `бараг *${whole + 1}${NBSP}${unit}*` };
+  if (frac < 0.25) return { say: `${numberWords(whole)} ${unitSay}`, caption: `*${whole}${NBSP}${unit}*` };
+  return { say: `${numberWords(whole, "nominative")} гаруй ${unitSay}`, caption: `*${whole}${NBSP}гаруй${NBSP}${unit}*` };
+}
 
 /**
  * The spec for one good, or null when its series cannot carry a video (no latest price or no
- * price 5+ years back). The oldest of 15/10/5 years back with a price is "then".
+ * price 5+ years back).
  */
 export function priceVideoSpec(snap: PricesSnapshot, goodKey: string): VideoSpec | null {
   const good: GoodSeries | undefined = snap.goods.find((g) => g.key === goodKey);
@@ -100,73 +142,66 @@ export function priceVideoSpec(snap: PricesSnapshot, goodKey: string): VideoSpec
   const from = snap.months.indexOf(thenPoint.month);
   const to = snap.months.indexOf(latest);
   if (from < 0 || to <= from) return null;
-  const year = points.find((p) => p.years === 1);
-  const yearPct = year?.pct ?? null;
+  const yearRaw = points.find((p) => p.years === 1)?.pct ?? null;
+  const yearPct = yearRaw === null ? null : Math.round(yearRaw);
   const ratio = nowValue / then;
-  const yearsWord = numberWords(thenPoint.years);
-  const hook = HOOKS[Math.max(0, Object.keys(SPOKEN).indexOf(goodKey)) % HOOKS.length];
-
-  // The multiple when the price at least doubled, otherwise the percentage (or a fall).
-  const pct = Math.round((ratio - 1) * 100);
-  const change =
-    ratio >= 2
-      ? (() => {
-          const t = timesPhrase(ratio);
-          return { say: `${cap(t.say)} өссөн гэсэн үг.`, caption: `${cap(t.caption.replace(/(\d+)/, "<em>$1</em>"))} өссөн гэсэн үг.` };
-        })()
-      : pct >= 0
-        ? { say: `${cap(numberWords(pct))} хувиар өссөн гэсэн үг.`, caption: `<em>${pct}%</em>-иар өссөн гэсэн үг.` }
-        : { say: `${cap(numberWords(-pct))} хувиар буурсан гэсэн үг.`, caption: `<em>${-pct}%</em>-иар буурсан гэсэн үг.` };
-
-  const yearRound = yearPct === null ? null : Math.round(yearPct);
-  const yearLine =
-    yearRound === null
-      ? null
-      : yearRound >= 1
-        ? { say: `Зөвхөн сүүлийн нэг жилд гэхэд ${numberWords(yearRound)} хувиар үнэтэй болсон.`, caption: `Зөвхөн сүүлийн нэг жилд <span class="nw"><em>${yearRound}%</em>-иар</span> үнэтэй болсон.` }
-        : yearRound <= -1
-          ? { say: `Сүүлийн нэг жилд ${numberWords(-yearRound)} хувиар хямдарсан.`, caption: `Сүүлийн нэг жилд <span class="nw"><em>${-yearRound}%</em>-иар</span> хямдарсан.` }
-          : { say: "Сүүлийн нэг жилд бараг өөрчлөгдөөгүй.", caption: "Сүүлийн нэг жилд бараг өөрчлөгдөөгүй." };
+  const years = thenPoint.years;
+  // Where the true answer sits moves with the good and the month, so it is not always "A".
+  const position = Math.max(0, Object.keys(SPOKEN).indexOf(goodKey)) + Number(latest.slice(5, 7));
 
   const sentences: Sentence[] = [
-    { say: hook, caption: hook },
     {
-      say: `${cap(yearsWord)} жилийн өмнө Улаанбаатарт ${names.say} ${numberWords(then)} төгрөг байсан.`,
-      caption: `${thenPoint.years} жилийн өмнө Улаанбаатарт ${names.caption} <em>${formatNumber(then)}₮</em> байсан.`,
+      scene: "quiz",
+      say: `Таагаарай! ${cap(numberWords(years))} жилийн өмнө ${names.say} хэд байсан бэ?`,
+      caption: `${years} жилийн өмнө ${names.caption} хэд байсан бэ?`,
     },
-    { say: `Одоо? ${cap(numberWords(nowValue))} төгрөг.`, caption: `Одоо? <em>${formatNumber(nowValue)}₮</em>.`, sweep: true },
-    { ...change, panel: "ratio" },
-    ...(yearLine ? [{ ...yearLine, panel: "tiles" as const }] : []),
-    { say: "Эх сурвалж нь Үндэсний статистикийн хороо.", caption: "Эх сурвалж: Үндэсний статистикийн хороо.", panel: "tiles" },
-    { say: "Дэлгэрэнгүйг ил тод мэдээ цэг эм эн дээрээс үзээрэй.", caption: "Дэлгэрэнгүйг <em>iltodmedee.mn</em> дээрээс.", panel: "link" },
+    { scene: "reveal", say: `${cap(numberWords(then))} төгрөг!`, caption: `*${money(then)}*` },
+    { scene: "now", say: `Харин одоо? ${cap(numberWords(nowValue))} төгрөг.`, caption: `Харин одоо? *${money(nowValue)}*` },
   ];
+  if (ratio >= 1.5) {
+    const about = aboutUnits(ratio, names.unitSay, names.unit);
+    sentences.push({
+      scene: "relate",
+      say: `Энэ мөнгөөр тэр үед ${about.say} ${names.short} авах байсан.`,
+      caption: `Энэ мөнгөөр тэр үед ${about.caption} авна`,
+    });
+  } else {
+    const pct = Math.round((ratio - 1) * 100);
+    sentences.push(
+      pct >= 0
+        ? { scene: "change", say: `${cap(numberWords(pct))} хувиар өссөн гэсэн үг.`, caption: `*+${pct}%* өссөн` }
+        : { scene: "change", say: `${cap(numberWords(-pct))} хувиар буурсан гэсэн үг.`, caption: `*−${-pct}%* буурсан` },
+    );
+  }
+  if (yearPct !== null && Math.abs(yearPct) >= 1) {
+    sentences.push(
+      yearPct > 0
+        ? { scene: "year", say: `Ганцхан жилд л ${numberWords(yearPct)} хувиар өссөн.`, caption: `Ганцхан жилд *+${yearPct}%*` }
+        : { scene: "year", say: `Сүүлийн нэг жилд ${numberWords(-yearPct)} хувиар хямдарсан.`, caption: `Сүүлийн 1 жилд *−${-yearPct}%*` },
+    );
+  }
+  sentences.push({ scene: "cta", say: "Танайд хэд байна? Коммент бичээрэй!", caption: "Танайд хэд байна? Коммент бичээрэй!" });
 
   return {
     key: `prices:${goodKey}:${latest}`,
     goodKey,
-    kicker: `Үнэ · ${thenPoint.years} жилийн өмнө`,
+    series: "ҮНЭ ТААГААРАЙ",
     title: names.title,
-    sub: ["Улаанбаатар", names.unit, "сарын дундаж үнэ"].filter(Boolean).join(" · "),
+    sub: ["Улаанбаатар", names.note, "сарын дундаж үнэ"].filter(Boolean).join(" · "),
+    question: `${years} жилийн өмнө ${names.caption} хэд байсан бэ?`,
+    options: quizOptions(then, position),
     months: snap.months,
-    series: good.ub,
+    series_: good.ub,
     from,
     to,
-    ratioChip: `×${ratio.toFixed(1)}`,
-    ratioNote: `${monthDot(thenPoint.month)} → ${monthDot(latest)} · нэрлэсэн үнэ`,
-    tiles: points
-      .filter((p) => p.value !== null && p.pct !== null)
-      .map((p) => ({ label: `${p.years} жилийн өмнө`, value: formatNumber(p.value!), pct: pctText(p.pct!) })),
+    units: ratio >= 1.5 ? { count: Math.round(ratio * 10) / 10, unit: names.unit } : null,
     sentences,
-    source: "Эх сурвалж: ҮСХ · 1212.mn · DT_NSO_0600_019V1 · Дуу: AI",
+    source: "Эх сурвалж: ҮСХ (1212.mn) · нэрлэсэн үнэ · Дуу: AI",
     link: `iltodmedee.mn/prices#${goodKey}`,
-    then: { month: thenPoint.month, value: then, years: thenPoint.years },
+    then: { month: thenPoint.month, value: then, years },
     now: { month: latest, value: nowValue },
-    yearPct: yearRound,
+    yearPct,
   };
-}
-
-function cap(s: string): string {
-  return s.charAt(0).toLocaleUpperCase("mn") + s.slice(1);
 }
 
 /** The narration as one text for the voice (sentences in order). */
@@ -176,33 +211,34 @@ export function narration(spec: VideoSpec): string {
 
 /**
  * Refuses a spec that could put a wrong number on screen or in the voice: the narration must hold
- * no digit, and every number in the captions and tiles must be one the spec computed from the
- * snapshot. Returns the problems (empty = fine).
+ * no digit; every number in the captions and the unit count must be one computed from the
+ * snapshot; exactly one option is the true price. Returns the problems (empty = fine).
  */
 export function verifySpec(spec: VideoSpec): string[] {
   const problems: string[] = [];
   for (const s of spec.sentences) if (/\d/.test(s.say)) problems.push(`digits in the narration: ${s.say}`);
+  const ratio = spec.now.value / spec.then.value;
   const allowed = new Set<string>([
     String(spec.then.years),
     formatNumber(spec.then.value),
     formatNumber(spec.now.value),
     "1",
+    String(Math.floor(ratio)),
+    String(Math.floor(ratio) + 1),
+    String(Math.abs(Math.round((ratio - 1) * 100))),
     ...(spec.yearPct !== null ? [String(Math.abs(spec.yearPct))] : []),
   ]);
-  const ratio = spec.now.value / spec.then.value;
-  allowed.add(String(Math.floor(ratio)));
-  allowed.add(String(Math.floor(ratio) + 1));
-  allowed.add(String(Math.abs(Math.round((ratio - 1) * 100))));
   for (const s of spec.sentences) {
-    // Our caption markup (<em>, <span class="nw">) holds no digits, so the numbers are read as they stand.
-    const text = s.caption;
-    for (const m of text.matchAll(/\d[\d ]*\d|\d/g)) {
+    for (const m of s.caption.replace(/ /g, " ").matchAll(/\d[\d ]*\d|\d/g)) {
       const n = m[0].trim();
-      // "1 кг", "1 л", "А-92": the unit and the grade, not a price.
-      if (n === "92") continue;
-      if (!allowed.has(n)) problems.push(`caption number ${n} is not from the snapshot: ${text}`);
+      if (n === "92") continue; // "А-92": the grade, not a price.
+      if (!allowed.has(n)) problems.push(`caption number ${n} is not from the snapshot: ${s.caption}`);
     }
   }
-  if (spec.series[spec.from] !== spec.then.value || spec.series[spec.to] !== spec.now.value) problems.push("chart end points differ from the captions");
+  const right = spec.options.filter((o) => o.correct);
+  if (right.length !== 1 || right[0].value !== spec.then.value) problems.push("the quiz must have exactly one true answer, the old price");
+  if (spec.options.some((o) => !o.correct && o.value === spec.then.value)) problems.push("a wrong option equals the true price");
+  if (spec.units && Math.abs(spec.units.count - Math.round(ratio * 10) / 10) > 1e-9) problems.push("unit count differs from now / then");
+  if (spec.series_[spec.from] !== spec.then.value || spec.series_[spec.to] !== spec.now.value) problems.push("chart end points differ from the captions");
   return problems;
 }

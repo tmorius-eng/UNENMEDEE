@@ -14,11 +14,11 @@ export const TTS_VOICE = process.env.GEMINI_TTS_VOICE?.trim() || "Aoede";
 
 /** The director's note: who speaks, where, how. Only the TRANSCRIPT is read aloud. */
 export function narrationPrompt(text: string): string {
-  return `# AUDIO PROFILE: A woman in her late twenties, a native Mongolian speaker from Ulaanbaatar who hosts a popular short video channel that explains the news to young people.
-## THE SCENE: Recording a 25-second vertical video for Instagram Reels in a quiet home studio, talking straight to one viewer like a friend over tea.
+  return `# AUDIO PROFILE: A woman in her early twenties, a native Mongolian speaker from Ulaanbaatar who runs a fun, fast quiz channel about prices and money for teenagers and students.
+## THE SCENE: Recording a 20-second vertical video for TikTok and Instagram Reels, talking straight to one friend and playfully quizzing them.
 ### DIRECTOR'S NOTES
-Style: warm, relaxed and genuinely conversational, with a light smile in the voice. Real human pauses at commas and full stops. A little curious lift on the questions, gentle emphasis on the numbers. Never a news anchor, never sing-song.
-Pacing: natural everyday speaking pace.
+Style: upbeat, playful and genuinely conversational, with a smile in the voice. Real human pauses at commas and full stops; a teasing lift on the question, a small "wow" on the big number. Never a news anchor, never sing-song, never shouting.
+Pacing: lively everyday speaking pace.
 Accent: native Khalkha Mongolian.
 #### TRANSCRIPT
 ${text}`;

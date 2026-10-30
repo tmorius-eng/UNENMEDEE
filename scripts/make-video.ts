@@ -27,13 +27,11 @@ import { narration, priceVideoSpec, verifySpec } from "@/lib/video/price-video";
 import type { VideoMeta } from "@/lib/video/posts";
 import { analyseAudio, MAX_BYTES, renderVideo } from "@/lib/video/render";
 import { sceneHtml } from "@/lib/video/scene-html";
-import { plausibleTake, sentenceStarts } from "@/lib/video/timing";
+import { buildTimeline, plausibleTake, sentenceStarts, speechBounds } from "@/lib/video/timing";
 import { speak } from "@/lib/video/tts";
 
 /** The MP4 is kept this long for the platforms to fetch it from /reel, then cleared. */
 export const VIDEO_KEEP_DAYS = 3;
-/** Seconds the last frame stays after the voice ends. */
-const OUTRO_S = 1.0;
 
 const { values } = parseArgs({
   options: {
@@ -91,20 +89,27 @@ async function main() {
   const wav = await speak({ text, apiKey, guard: dbBudgetGuard(db), log: dry ? consoleUsageLogger : dbUsageLogger(db) });
   if (!dry) await syncLedgerAiCost(db);
   const { duration, silences } = await analyseAudio(wav);
-  const lead = silences.find((s) => s.start <= 0.05)?.end ?? 0;
-  const tail = [...silences].reverse().find((s) => s.end >= duration - 0.05)?.start ?? duration;
+  const { lead, tail } = speechBounds(silences, duration);
   if (!plausibleTake(text, tail - lead)) throw new Error(`Narration refused: ${(tail - lead).toFixed(1)} s of speech for ${text.length} characters`);
   const starts = sentenceStarts(
     spec.sentences.map((s) => s.say),
     silences,
     duration,
   );
-  const total = Math.round((duration + OUTRO_S) * 100) / 100;
-  console.log(`   voice ${duration.toFixed(1)} s · scenes at ${starts.join(", ")}`);
+  const timeline = buildTimeline(
+    spec.sentences.map((s) => s.scene),
+    starts,
+    { duration, tail },
+    spec.units?.count ?? null,
+  );
+  const total = timeline.total;
+  console.log(`   voice ${duration.toFixed(1)} s · scenes at ${timeline.starts.join(", ")} · ${total} s`);
 
-  const html = sceneHtml(spec, starts, { fontsDir: path.resolve("src/assets/fonts"), logo: path.resolve("public/icons/icon-192.png") });
-  let mp4 = await renderVideo({ html, wav, total });
-  if (mp4.length > MAX_BYTES) mp4 = await renderVideo({ html, wav, total, crf: 27 });
+  const html = sceneHtml(spec, timeline, { fontsDir: path.resolve("src/assets/fonts"), logo: path.resolve("public/icons/icon-192.png") });
+  // VIDEO_MUSIC=off drops the soft synthesized beat (the voice and the sound effects stay).
+  const music = process.env.VIDEO_MUSIC?.trim().toLowerCase() !== "off";
+  let mp4 = await renderVideo({ html, wav, timeline, music });
+  if (mp4.length > MAX_BYTES) mp4 = await renderVideo({ html, wav, timeline, music, crf: 27 });
   if (mp4.length > MAX_BYTES) throw new Error(`Video too big for /reel: ${mp4.length} bytes`);
   console.log(`   ✓ ${(mp4.length / 1e6).toFixed(2)} MB, ${total} s`);
 

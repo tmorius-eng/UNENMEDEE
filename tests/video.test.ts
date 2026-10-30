@@ -10,9 +10,10 @@ import { publishInstagram } from "@/lib/social/instagram";
 import { publishThreads, THREADS_MAX, threadsLength } from "@/lib/social/threads";
 import { numberWords, timesPhrase } from "@/lib/video/mn-numbers";
 import { facebookVideoText, instagramVideoCaption, threadsVideoText, type VideoMeta } from "@/lib/video/posts";
-import { narration, priceVideoSpec, SPOKEN, verifySpec } from "@/lib/video/price-video";
+import { narration, priceVideoSpec, quizOptions, SPOKEN, verifySpec } from "@/lib/video/price-video";
 import { sceneHtml } from "@/lib/video/scene-html";
-import { parseSilences, plausibleTake, sentenceStarts } from "@/lib/video/timing";
+import { audioFilter } from "@/lib/video/render";
+import { buildTimeline, captionWords, PAUSE_S, parseSilences, plausibleTake, sentenceStarts } from "@/lib/video/timing";
 import { pcmToWav, speak } from "@/lib/video/tts";
 
 const snap = parsePrices(JSON.parse(readFileSync("tests/fixtures/budget/nso-prices.json", "utf8")) as JsonStat2, GOODS.filter((g) => ["beef", "petrol", "canteen"].includes(g.key)));
@@ -43,20 +44,46 @@ describe("numbers as spoken Mongolian", () => {
 });
 
 describe("price video spec", () => {
-  it("beef: 15 years back, the real numbers, no digit in the voice, verified", () => {
+  it("beef: a guess, the reveal, now, what the money bought then, the year, a comment ask", () => {
     const spec = priceVideoSpec(snap, "beef")!;
     assert.equal(spec.key, "prices:beef:2026-09");
     assert.deepEqual(spec.then, { month: "2011-09", value: 4760, years: 15 });
     assert.deepEqual(spec.now, { month: "2026-09", value: 31210 });
     assert.equal(spec.yearPct, 50);
-    assert.equal(spec.ratioChip, "×6.6");
+    assert.deepEqual(spec.units, { count: 6.6, unit: "кг" });
+    assert.deepEqual(
+      spec.sentences.map((x) => x.scene),
+      ["quiz", "reveal", "now", "relate", "year", "cta"],
+    );
     assert.deepEqual(verifySpec(spec), []);
     const text = narration(spec);
     assert.ok(!/\d/.test(text));
-    assert.ok(text.includes("дөрвөн мянга долоон зуун жаран төгрөг байсан"));
+    assert.ok(text.startsWith("Таагаарай! Арван таван жилийн өмнө нэг кило үхрийн мах хэд байсан бэ?"));
+    assert.ok(text.includes("Дөрвөн мянга долоон зуун жаран төгрөг!"));
     assert.ok(text.includes("Гучин нэгэн мянга хоёр зуун арван төгрөг"));
-    assert.ok(text.includes("тавин хувиар үнэтэй болсон"));
-    assert.ok(spec.sentences[1].caption.includes("<em>4 760₮</em>"));
+    assert.ok(text.includes("зургаа гаруй кило мах"));
+    assert.ok(text.includes("тавин хувиар өссөн"));
+    assert.equal(spec.sentences[1].caption, "*4\u00a0760₮*");
+    assert.equal(spec.options.filter((o) => o.correct).length, 1);
+  });
+
+  it("the guess has one true answer and two round wrong ones, never equal to it", () => {
+    for (const then of [4760, 1560, 350, 31210]) {
+      for (let pos = 0; pos < 3; pos++) {
+        const o = quizOptions(then, pos);
+        assert.equal(o.length, 3);
+        assert.equal(o[pos].value, then);
+        assert.ok(o[pos].correct);
+        assert.ok(o.filter((x) => !x.correct).every((x) => x.value !== then && x.value > 0));
+      }
+    }
+  });
+
+  it("a word-by-word caption keeps a number with its unit as one highlighted word", () => {
+    assert.deepEqual(
+      captionWords("Энэ мөнгөөр тэр үед *6\u00a0гаруй\u00a0кг* авна").map((w) => [w.text, w.hl]),
+      [["Энэ", false], ["мөнгөөр", false], ["тэр", false], ["үед", false], ["6\u00a0гаруй\u00a0кг", true], ["авна", false]],
+    );
   });
 
   it("every good has its spoken name; unknown goods make no video", () => {
@@ -66,7 +93,7 @@ describe("price video spec", () => {
 
   it("refuses a caption with a number that is not from the snapshot", () => {
     const spec = priceVideoSpec(snap, "beef")!;
-    spec.sentences[2] = { ...spec.sentences[2], caption: "Одоо? <em>32 000₮</em>." };
+    spec.sentences[2] = { ...spec.sentences[2], caption: "Харин одоо? *32\u00a0000₮*" };
     assert.match(verifySpec(spec).join(), /32 000/);
     spec.sentences[0] = { ...spec.sentences[0], say: "Одоо 32000 төгрөг" };
     assert.match(verifySpec(spec).join(), /digits in the narration/);
@@ -75,7 +102,8 @@ describe("price video spec", () => {
   it("the scene page cannot be broken out of by its data", () => {
     const spec = priceVideoSpec(snap, "beef")!;
     spec.sentences[0] = { ...spec.sentences[0], caption: "</script><script>alert(1)</script>" };
-    const html = sceneHtml(spec, [0, 1, 2, 3, 4, 5, 6], { fontsDir: "/f", logo: "/l.png" });
+    const tl = buildTimeline(spec.sentences.map((x) => x.scene), [0, 5, 7, 10, 13, 15], { duration: 17, tail: 16.8 }, 6.6);
+    const html = sceneHtml(spec, tl, { fontsDir: "/f", logo: "/l.png" });
     assert.equal(html.match(/<\/script>/g)?.length, 1);
   });
 });
@@ -103,6 +131,19 @@ describe("timing", () => {
     assert.equal(starts[0], 0);
     assert.equal(starts[1], 1.12);
     for (let i = 1; i < starts.length; i++) assert.ok(starts[i] > starts[i - 1]);
+  });
+
+  it("inserts the 3-2-1 pause after the question and puts the sounds on the same clock", () => {
+    const tl = buildTimeline(["quiz", "reveal", "now", "relate", "year", "cta"], [0, 5, 7, 10, 13, 15], { duration: 17, tail: 16.8 }, 6.6);
+    assert.equal(tl.pause, PAUSE_S);
+    assert.deepEqual(tl.starts, [0, 5 + PAUSE_S, 7 + PAUSE_S, 10 + PAUSE_S, 13 + PAUSE_S, 15 + PAUSE_S]);
+    assert.equal(tl.sfx.filter((e) => e.kind === "tick").length, 3);
+    assert.equal(tl.sfx.find((e) => e.kind === "pop")?.at, 5 + PAUSE_S);
+    assert.equal(tl.sfx.filter((e) => e.kind === "block").length, 7);
+    assert.ok(tl.total > 17 + PAUSE_S);
+    const graph = audioFilter(tl, true);
+    assert.ok(graph.includes(`atrim=0:${tl.pauseAt}`) && graph.includes("sidechaincompress") && graph.endsWith("[a]"));
+    assert.ok(!audioFilter(tl, false).includes("[beat]"));
   });
 
   it("refuses a take that is far too fast or slow for its text", () => {
