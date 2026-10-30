@@ -194,7 +194,8 @@ export function verifySpec(spec: VideoSpec): string[] {
   allowed.add(String(Math.floor(ratio) + 1));
   allowed.add(String(Math.abs(Math.round((ratio - 1) * 100))));
   for (const s of spec.sentences) {
-    const text = s.caption.replace(/<[^>]+>/g, "");
+    // Our caption markup (<em>, <span class="nw">) holds no digits, so the numbers are read as they stand.
+    const text = s.caption;
     for (const m of text.matchAll(/\d[\d ]*\d|\d/g)) {
       const n = m[0].trim();
       // "1 кг", "1 л", "А-92": the unit and the grade, not a price.
