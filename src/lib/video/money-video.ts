@@ -128,8 +128,22 @@ function aboutCount(count: number, unitSay: string, unit: string): { say: string
   return { say: `${numberWords(whole, "nominative")} гаруй ${unitSay}`, caption: `${whole}${NBSP}гаруй${NBSP}${unit}` };
 }
 
+/**
+ * A headline that weighs or contrasts instead of reporting: the particles "ч" / "л" ("өссөн ч …
+ * 62% л өссөн"), "ердөө", "гэвч", "харин", "хэдий ч", "зөвхөн", or a charge ("хулгай", "авлига",
+ * "шүүмж", "буруутга", "үрэн таран", "дэмий"). Oct 31 2026 the first money video carried "Төсвийн
+ * зарлага 9-ээс 43.5 их наяд ₮ болж өссөн ч иргэдийн орлого 62% л өссөн": an opposition MP's
+ * argument in parliament, shown without his name as if it were the site's own finding. Such a
+ * story stays on the site, where the article says who said it; it never becomes a video.
+ */
+export function weighsOrAccuses(title: string): boolean {
+  const t = ` ${title.toLowerCase().replace(/[.,!?;:«»"“”()]/g, " ")} `;
+  return /\s(ч|л)\s/.test(t) || /(ердөө|гэвч|харин|хэдий ч|зөвхөн|хулгай|авлиг|шүүмж|буруутга|үрэн таран|дэмий)/.test(t);
+}
+
 /** The spec for one story, or null when its headline names no big ₮ amount the story also holds. */
 export function moneyVideoSpec(story: MoneyStory, prices: PricesSnapshot | null): MoneySpec | null {
+  if (weighsOrAccuses(story.title)) return null;
   const amount = headlineAmount(story.title, story.amounts);
   if (amount === null || amount < MONEY_VIDEO_MIN || amount >= 1e15) return null;
   const share = roundShare(amount / POPULATION.count);

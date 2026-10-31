@@ -11,7 +11,7 @@ import { publishThreads, THREADS_MAX, threadsLength } from "@/lib/social/threads
 import { numberWords, timesPhrase } from "@/lib/video/mn-numbers";
 import { facebookVideoText, instagramVideoCaption, threadsVideoText, type VideoMeta } from "@/lib/video/posts";
 import { moneyHtml } from "@/lib/video/money-html";
-import { amountWords, moneyNarration, moneyVideoSpec, roundShare, shareOptions, verifyMoneySpec } from "@/lib/video/money-video";
+import { amountWords, moneyNarration, moneyVideoSpec, roundShare, shareOptions, verifyMoneySpec, weighsOrAccuses } from "@/lib/video/money-video";
 import { dueSlot } from "@/lib/video/schedule";
 import { narration, priceVideoSpec, quizOptions, SPOKEN, verifySpec } from "@/lib/video/price-video";
 import { sceneHtml } from "@/lib/video/scene-html";
@@ -391,5 +391,29 @@ describe("video slots", () => {
     assert.equal(spec.shareLabel, "≈ 49 700₮");
     assert.ok(!spec.shareLabel.includes(" "));
     assert.deepEqual(verifyMoneySpec(spec), []);
+  });
+});
+
+describe("money video headlines", () => {
+  it("never turns a headline that weighs, contrasts or accuses into a video", () => {
+    const real = "Төсвийн зарлага 9-ээс 43.5 их наяд ₮ болж өссөн ч иргэдийн орлого 62% л өссөн";
+    assert.ok(weighsOrAccuses(real));
+    assert.equal(
+      moneyVideoSpec({ id: 2254, slug: "x", title: real, amounts: ["9.0 их наяд ₮", "43.5 их наяд ₮"], sourceName: "x", day: "2026-10-30", topic: null }, snap),
+      null,
+    );
+    assert.ok(weighsOrAccuses("Ердөө 3 тэрбум ₮ зарцуулжээ"));
+    assert.ok(weighsOrAccuses("Авлигын хэрэгт 5 тэрбум ₮"));
+  });
+
+  it("keeps plain decisions and figures", () => {
+    for (const t of [
+      "52 мянган төрийн албан хаагчийн цалин нэмэгдэж, 170.1 тэрбум ₮ зарцуулна",
+      "Оюу Толгойн 3 тэрбум ₮ ногдол ашгийг дэд бүтэцэд зарцуулах",
+      "Тоёота сэйлс Монголиа-д 9.1 тэрбум төгрөгийн торгууль оногдууллаа",
+      "Цахим залилантаас 28 тэрбум ₮ хохирол учирсан",
+      "Хөдөө аж ахуйн урамшуулалд 54.7 тэрбум, цөлжилттэй тэмцэхэд 2 тэрбум төгрөг хуваана",
+    ])
+      assert.equal(weighsOrAccuses(t), false, t);
   });
 });
