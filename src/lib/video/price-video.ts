@@ -90,7 +90,7 @@ export const SPOKEN: Record<string, Names> = {
   firewood: { caption: "1 шуудай мод", say: "нэг шуудай түлшний мод", title: "Түлшний мод", short: "мод", unitSay: "шуудай", unit: "шуудай", note: "" },
 };
 
-const NBSP = " ";
+const NBSP = "\u00a0";
 /** "31 210₮" with a no-break space, so the word-by-word captions never split a number. */
 const money = (n: number) => `${formatNumber(n).replace(/ /g, NBSP)}₮`;
 
@@ -232,7 +232,7 @@ export function verifySpec(spec: VideoSpec): string[] {
     ...(spec.yearPct !== null ? [String(Math.abs(spec.yearPct))] : []),
   ]);
   for (const s of spec.sentences) {
-    for (const m of s.caption.replace(/ /g, " ").matchAll(/\d[\d ]*\d|\d/g)) {
+    for (const m of s.caption.replace(/\u00a0/g, " ").matchAll(/\d[\d ]*\d|\d/g)) {
       const n = m[0].trim();
       if (n === "92") continue; // "А-92": the grade, not a price.
       if (!allowed.has(n)) problems.push(`caption number ${n} is not from the snapshot: ${s.caption}`);

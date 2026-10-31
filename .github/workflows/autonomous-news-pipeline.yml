@@ -254,9 +254,9 @@ jobs:
         continue-on-error: true
         run: npm run social:post -- --mode digest
 
-      # Fallback for .github/workflows/video.yml, whose scheduled runs GitHub can drop: when no video
-      # was made in 20 h (10:00–23:00 Ulaanbaatar), make one here, then post any video not yet posted.
-      - name: Make a video if the scheduled video runs were dropped
+      # The videos' main clock (GitHub starts video.yml hours late): inside a slot (12–16, 19–23
+      # Ulaanbaatar) with no video yet, make one here, then post any video not yet posted.
+      - name: Make the slot's video (12–16 money, 19–23 prices)
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' && steps.chromium.outcome == 'success' && vars.VIDEO_POSTING != 'off' && env.GEMINI_API_KEY != '' }}
         continue-on-error: true
         env:
@@ -264,7 +264,7 @@ jobs:
           GEMINI_TTS_VOICE: ${{ vars.GEMINI_TTS_VOICE }}
         run: |
           command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg)
-          npm run video:make -- --due
+          npm run video:make -- --slot
 
       - name: Post a video not yet posted (Facebook / Instagram Reels, Threads)
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' && vars.VIDEO_POSTING != 'off' && (env.FB_PAGE_TOKEN != '' || env.THREADS_TOKEN != '' || env.INSTAGRAM_TOKEN != '') }}

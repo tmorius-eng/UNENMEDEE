@@ -61,7 +61,7 @@ export interface MoneySpec {
   topic: string | null;
 }
 
-const NBSP = " ";
+const NBSP = "\u00a0";
 
 /** 3 significant digits: a share never looks more precise than a division by a census figure. */
 export function roundShare(v: number): number {
@@ -193,14 +193,14 @@ export function verifyMoneySpec(spec: MoneySpec): string[] {
   const problems: string[] = [];
   for (const s of spec.sentences) if (/\d/.test(s.say)) problems.push(`digits in the narration: ${s.say}`);
   const allowed = new Set<string>([
-    ...(spec.amountLabel.replace(/ /g, " ").match(/\d[\d.,]*/g) ?? []),
+    ...(spec.amountLabel.replace(/\u00a0/g, " ").match(/\d[\d.,]*/g) ?? []),
     formatNumber(spec.share),
     POPULATION_LABEL.split(" ")[0],
     "1",
   ]);
   if (spec.relate) for (const n of [Math.floor(spec.relate.count), Math.floor(spec.relate.count) + 1]) allowed.add(String(n));
   for (const s of spec.sentences) {
-    for (const m of s.caption.replace(/ /g, " ").matchAll(/\d[\d.,]*(?: \d{3})*/g)) {
+    for (const m of s.caption.replace(/\u00a0/g, " ").matchAll(/\d[\d.,]*(?: \d{3})*/g)) {
       const n = m[0].trim();
       if (!allowed.has(n)) problems.push(`caption number ${n} is not from the story: ${s.caption}`);
     }
