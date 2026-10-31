@@ -31,6 +31,9 @@ const DEFAULT_PRICES: Record<AIProvider, { input: number; output: number }> = {
   // Z.ai (Zhipu GLM): only the free "-flash" models are called (zaiModel); FlashX and others bill.
   zai: { input: 0, output: 0 },
   ollama: { input: 0, output: 0 },
+  // ElevenLabs (video narration only, src/lib/video/elevenlabs.ts) is a prepaid monthly plan billed
+  // in credits, not tokens: the call logs credits × plan price ÷ monthly credits itself (creditUsd).
+  elevenlabs: { input: 0, output: 0 },
 };
 
 /** The cheapest Gemini text model: the only one used on a billed key unless GEMINI_MODEL says otherwise. */

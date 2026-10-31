@@ -43,6 +43,8 @@ export function budgetConfig(env: Env = process.env): BudgetConfig {
       openrouter: num(env, "OPENROUTER_DAILY_MAX_CALLS", 45),
       zai: num(env, "ZAI_DAILY_MAX_CALLS", 900),
       ollama: num(env, "OLLAMA_DAILY_MAX_CALLS", 100_000),
+      // Video narration: two videos a day, a few retries at most. Credits are paced separately.
+      elevenlabs: num(env, "ELEVENLABS_DAILY_MAX_CALLS", 6),
     },
     requestsPerMinute: {
       // Gemini's free tier is limited per minute; stay under it instead of hitting 429s.

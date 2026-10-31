@@ -230,6 +230,9 @@ export function configuredProvider(provider: AIProvider, tier: Tier = "tier1"): 
     case "ollama":
       // Only when explicitly configured (dev machines). CI has no local Ollama.
       return env.OLLAMA_BASE_URL ? openaiProvider(provider, env.OLLAMA_MODEL || "qwen3.5:4b", env.OLLAMA_BASE_URL, "ollama") : null;
+    case "elevenlabs":
+      // A speech service for the video narration only (src/lib/video/elevenlabs.ts), never a text model.
+      return null;
   }
 }
 

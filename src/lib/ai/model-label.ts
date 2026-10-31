@@ -10,6 +10,7 @@ export const PROVIDER_NAMES: Record<string, string> = {
   openrouter: "OpenRouter",
   zai: "Z.ai GLM",
   ollama: "Ollama",
+  elevenlabs: "ElevenLabs",
 };
 
 /** "Google Gemini · gemini-flash-lite-latest", "NVIDIA NIM · gemma-4-31b-it". */

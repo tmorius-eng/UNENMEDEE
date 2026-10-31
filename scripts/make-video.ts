@@ -13,7 +13,9 @@
  * Price videos ("15 жилийн өмнө"): one per good and NSO data month, so they run out until NSO
  * publishes the next month. Money videos: one per story, the most important fresh story whose
  * headline names a ₮ amount of 1 тэрбум or more (last 48 h, else 7 days), so there is nearly always
- * one. Needs DATABASE_URL and GEMINI_API_KEY (the voice), ffmpeg and Playwright's Chromium. The voice call passes the AI budget guard and is logged
+ * one. Needs DATABASE_URL, a voice key, ffmpeg and Playwright's Chromium. The voice is ElevenLabs
+ * (ELEVENLABS_API_KEY, the owner's monthly plan) while the month's credits allow it at an even pace
+ * (`creditPlan`), else Gemini (GEMINI_API_KEY). The voice call passes the AI budget guard and is logged
  * with its cost; a take whose pace is implausible, a spec with a number not from the snapshot or a
  * file too big for /reel stops the run with nothing stored.
  */
@@ -36,6 +38,7 @@ import { analyseAudio, MAX_BYTES, renderVideo } from "@/lib/video/render";
 import { sceneHtml } from "@/lib/video/scene-html";
 import { dueSlot } from "@/lib/video/schedule";
 import { buildTimeline, plausibleTake, sentenceStarts, speechBounds, type Timeline } from "@/lib/video/timing";
+import { CreditsRefused, speakElevenLabs } from "@/lib/video/elevenlabs";
 import { speak } from "@/lib/video/tts";
 
 /** The MP4 is kept this long for the platforms to fetch it from /reel, then cleared. */
@@ -58,7 +61,8 @@ async function main() {
   if (!hasDatabase()) throw new Error("DATABASE_URL is not set");
   // A dry run may go through a proxy that adds the key itself (local previews).
   const apiKey = process.env.GEMINI_API_KEY?.trim() ?? "";
-  if (!apiKey && !dry) throw new Error("GEMINI_API_KEY is not set: the narration needs it");
+  const elevenKey = process.env.ELEVENLABS_API_KEY?.trim() ?? "";
+  if (!apiKey && !elevenKey && !dry) throw new Error("Neither ELEVENLABS_API_KEY nor GEMINI_API_KEY is set: the narration needs one");
   const db = getDb();
 
   if (!dry) {
@@ -93,12 +97,31 @@ async function main() {
   const text = job.text;
   console.log(`🎬 ${job.key}\n   ${text}`);
 
-  const wav = await speak({ text, apiKey, guard: dbBudgetGuard(db), log: dry ? consoleUsageLogger : dbUsageLogger(db) });
+  const guard = dbBudgetGuard(db);
+  const log = dry ? consoleUsageLogger : dbUsageLogger(db);
+  let voiced: { wav: Buffer; starts: number[] | null } | null = null;
+  if (elevenKey) {
+    try {
+      const out = await speakElevenLabs({ says: job.says, apiKey: elevenKey, guard, log });
+      console.log(`   🎙 ElevenLabs (${out.plan.reason})`);
+      voiced = out;
+    } catch (err) {
+      // Credits paced out or the API failed: Gemini voices this one, the video still goes out.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`${err instanceof CreditsRefused ? "   ℹ️" : "::warning::"} ${msg}; Gemini voices this video`);
+    }
+  }
+  if (!voiced) {
+    if (!apiKey && !dry) throw new Error("GEMINI_API_KEY is not set and ElevenLabs did not voice the video");
+    voiced = { wav: await speak({ text, apiKey, guard, log }), starts: null };
+  }
   if (!dry) await syncLedgerAiCost(db);
+  const wav = voiced.wav;
   const { duration, silences } = await analyseAudio(wav);
   const { lead, tail } = speechBounds(silences, duration);
   if (!plausibleTake(text, tail - lead)) throw new Error(`Narration refused: ${(tail - lead).toFixed(1)} s of speech for ${text.length} characters`);
-  const starts = sentenceStarts(job.says, silences, duration);
+  // ElevenLabs times every character, so its sentence starts are exact; Gemini's come from the pauses.
+  const starts = voiced.starts ?? sentenceStarts(job.says, silences, duration);
   const timeline = buildTimeline(job.scenes, starts, { duration, tail }, job.units);
   const total = timeline.total;
   console.log(`   voice ${duration.toFixed(1)} s · scenes at ${timeline.starts.join(", ")} · ${total} s`);

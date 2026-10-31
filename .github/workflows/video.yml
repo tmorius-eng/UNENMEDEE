@@ -79,6 +79,11 @@ jobs:
           GEMINI_FREE_TIER: ${{ vars.GEMINI_FREE_TIER }}
           GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL }}
           GEMINI_TTS_VOICE: ${{ vars.GEMINI_TTS_VOICE }}
+          # The voice: ElevenLabs (the owner's monthly plan, paced to last the month), else Gemini.
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          ELEVENLABS_RESERVE_CHARS: ${{ vars.ELEVENLABS_RESERVE_CHARS }}
+          ELEVENLABS_PLAN_USD: ${{ vars.ELEVENLABS_PLAN_USD }}
           AI_MONTHLY_BUDGET_USD: ${{ vars.AI_MONTHLY_BUDGET_USD }}
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
           # Inputs reach the script only through env vars (no injection).
