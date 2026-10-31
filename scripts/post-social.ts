@@ -186,7 +186,23 @@ const notPosted = (platform: string, kind: string, ref: unknown) =>
 async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz" | "weekly" | "video", refId: number, item: { preview: string; publish(): Promise<string> }) {
   console.log(`  → ${p.name} ${kind} #${refId}: ${item.preview.replace(/\n/g, "\n    ")}`);
   if (dry) return;
-  const [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
+  let [row] = await db.insert(socialPosts).values({ platform: p.name, kind, refId }).onConflictDoNothing().returning({ id: socialPosts.id });
+  let tries = 0;
+  if (!row && kind === "video") {
+    // A video the platform refused before ("failed:n"): claim the row for one more try, atomically.
+    const [prev] = await db
+      .select({ postId: socialPosts.postId })
+      .from(socialPosts)
+      .where(and(eq(socialPosts.platform, p.name), eq(socialPosts.kind, kind), eq(socialPosts.refId, refId)));
+    tries = failedTries(prev?.postId);
+    if (tries > 0 && tries < VIDEO_MAX_TRIES) {
+      [row] = await db
+        .update(socialPosts)
+        .set({ postId: null })
+        .where(and(eq(socialPosts.platform, p.name), eq(socialPosts.kind, kind), eq(socialPosts.refId, refId), eq(socialPosts.postId, `failed:${tries}`)))
+        .returning({ id: socialPosts.id });
+    }
+  }
   if (!row) return console.log("    already posted, skipped");
   let id: string;
   try {
@@ -196,6 +212,14 @@ async function post(db: Db, p: Platform, kind: "digest" | "article" | "quiz" | "
       await db.update(socialPosts).set({ postId: "unknown" }).where(eq(socialPosts.id, row.id));
       console.error(`::warning::${p.name} ${kind} #${refId}: no answer (${err instanceof Error ? err.message : err}); kept as posted, check the page by hand.`);
       return;
+    }
+    if (kind === "video") {
+      // A refused reel is retried at most VIDEO_MAX_TRIES times, not every 30 min for 48 h
+      // (each Facebook try leaves an unpublished upload on the Page).
+      const n = tries + 1;
+      await db.update(socialPosts).set({ postId: `failed:${n}` }).where(eq(socialPosts.id, row.id));
+      if (n >= VIDEO_MAX_TRIES) console.error(`::error::${p.name} video #${refId} refused ${n} times; not tried again.`);
+      throw err;
     }
     await db.delete(socialPosts).where(eq(socialPosts.id, row.id));
     throw err;
@@ -362,6 +386,10 @@ async function postWeekly(db: Db, p: Platform, w: WeeklyTop) {
   await post(db, p, "weekly", w.week, p.weekly(w));
 }
 
+/** A video a platform refused is tried this many times in all (`social_posts.post_id` = "failed:n"). */
+const VIDEO_MAX_TRIES = 3;
+const failedTries = (postId: string | null | undefined) => Number(/^failed:(\d+)$/.exec(postId ?? "")?.[1] ?? 0);
+
 /** Videos older than this are not posted any more (their file is cleared after VIDEO_KEEP_DAYS). */
 const VIDEO_POST_WITHIN_H = 48;
 
@@ -371,7 +399,15 @@ async function postVideo(db: Db, p: Platform) {
   const [v] = await db
     .select({ id: videos.id, meta: videos.meta })
     .from(videos)
-    .where(and(isNotNull(videos.mp4), gte(videos.createdAt, new Date(Date.now() - VIDEO_POST_WITHIN_H * 3_600_000)), notPosted(p.name, "video", videos.id)))
+    .where(
+      and(
+        isNotNull(videos.mp4),
+        gte(videos.createdAt, new Date(Date.now() - VIDEO_POST_WITHIN_H * 3_600_000)),
+        // Not posted, or refused fewer than VIDEO_MAX_TRIES times.
+        sql`not exists (select 1 from ${socialPosts} where ${socialPosts.platform} = ${p.name} and ${socialPosts.kind} = 'video' and ${socialPosts.refId} = ${videos.id}
+          and (${socialPosts.postId} is null or ${socialPosts.postId} not like 'failed:%' or split_part(${socialPosts.postId}, ':', 2)::int >= ${VIDEO_MAX_TRIES}))`,
+      ),
+    )
     .orderBy(desc(videos.createdAt))
     .limit(1);
   if (!v) return console.log(`🎬 ${p.name}: no new video to post.`);

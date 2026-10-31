@@ -80,4 +80,9 @@ describe("press blindspot", () => {
     assert.ok(!isPressBlindspot({ ...base, dateUnknown: true }, later));
     assert.ok(!isPressBlindspot({ ...base, publishedAt: new Date(PRESS_TRACKING_FROM.getTime() - day) }, later));
   });
+  it("never claims «not found» when a feed was not read while the story was fresh", () => {
+    assert.ok(isPressBlindspot(base, later, 3));
+    assert.ok(!isPressBlindspot(base, later, 2));
+    assert.ok(!isPressBlindspot(base, later, 0));
+  });
 });

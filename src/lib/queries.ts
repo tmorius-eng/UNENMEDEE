@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, lt, lte, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb, hasDatabase } from "@/db";
@@ -574,11 +574,22 @@ export async function getArticleBySlug(slug: string): Promise<ArticleDetail | nu
           .limit(6)
       : [];
     const item = toListItem(r);
+    // The clock is read inside this 'use cache' function, so the page stays static.
+    const now = new Date();
+    let pressBlindspot = isPressBlindspot(item, now);
+    if (pressBlindspot && item.publishedAt) {
+      // "Not found in the press" only holds if every feed was actually read while the story was fresh.
+      const until = new Date(item.publishedAt.getTime() + 48 * 3_600_000);
+      const [seen] = await getDb()
+        .select({ outlets: sql<number>`count(distinct ${pressItems.outlet})::int` })
+        .from(pressItems)
+        .where(and(gte(pressItems.foundAt, item.publishedAt), lte(pressItems.foundAt, until)));
+      pressBlindspot = isPressBlindspot(item, now, Number(seen?.outlets ?? 0));
+    }
     return {
       ...item,
       press,
-      // The clock is read inside this 'use cache' function, so the page stays static.
-      pressBlindspot: isPressBlindspot(item, new Date()),
+      pressBlindspot,
       originalUrl: r.originalUrl,
       contentHash: r.contentHash,
       cleanContent: r.cleanContent,

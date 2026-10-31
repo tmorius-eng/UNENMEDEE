@@ -30,8 +30,14 @@ export const BLINDSPOT_AFTER_HOURS = 24;
  * An important story none of the outlets we read wrote about (Ground News' "blindspot"). Worded on
  * the page as "we did not find it", never "the press ignored it": we read three newsrooms' feeds.
  */
-export function isPressBlindspot(a: { importanceScore: number | null; publishedAt: Date | null; pressCount: number; dateUnknown?: boolean }, now: Date): boolean {
+export function isPressBlindspot(
+  a: { importanceScore: number | null; publishedAt: Date | null; pressCount: number; dateUnknown?: boolean },
+  now: Date,
+  /** How many of OUTLETS gave us new headlines in the story's first 48 h (a broken feed is not "not found"). */
+  outletsRead: number = OUTLETS.length,
+): boolean {
   if (a.pressCount > 0 || a.dateUnknown || !a.publishedAt) return false;
+  if (outletsRead < OUTLETS.length) return false;
   if ((a.importanceScore ?? 0) < BLINDSPOT_MIN_IMPORTANCE) return false;
   if (a.publishedAt < PRESS_TRACKING_FROM) return false;
   return now.getTime() - a.publishedAt.getTime() >= BLINDSPOT_AFTER_HOURS * 3_600_000;

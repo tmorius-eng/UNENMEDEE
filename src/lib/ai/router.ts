@@ -342,10 +342,21 @@ const isTransportFailure = (err: unknown, message: string) =>
 /**
  * 400 / 413 / 422 are about this request (Groq's 413 "Request too large" for one big digest
  * prompt on Oct 29 2026), not about the provider: the next call can work, so they never trip it.
+ * Except a retired or unknown model: free model ids are retired every few months and providers
+ * answer that with a 400 / 404 ("model_decommissioned", "does not exist", "no endpoints"), which
+ * would otherwise fail every call silently (no tokens, no log line) while the load moved to the
+ * billed key. That one trips the provider and prints the warning like any outage.
  */
-function isRequestSpecific(err: unknown): boolean {
+export function isRequestSpecific(err: unknown): boolean {
   const status = err instanceof GeminiError || err instanceof OpenAI.APIError ? err.status : undefined;
-  return status === 400 || status === 413 || status === 422;
+  if (status !== 400 && status !== 413 && status !== 422) return false;
+  return !isRetiredModel(err);
+}
+
+const RETIRED_MODEL = /decommission|deprecat|no longer (available|supported)|model.{0,40}(not found|does not exist|not exist|unknown|invalid)|(unknown|invalid) model|no endpoints/i;
+
+export function isRetiredModel(err: unknown): boolean {
+  return err instanceof Error && RETIRED_MODEL.test(err.message);
 }
 
 function isRetryableRateLimit(err: unknown): boolean {
