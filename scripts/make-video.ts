@@ -5,10 +5,11 @@
  *   npm run video:make                           # a price video, else a money video
  *   npm run video:make -- --prefer money         # a money video, else a price video (the midday run)
  *   npm run video:make -- --kind money           # only a money video ("ХҮН БҮРТ ХУВААВАЛ")
+ *   npm run video:make -- --kind impact          # only a "ЧАМД ХАМААТАЙ ЮУ?" video (a fresh decision)
  *   npm run video:make -- --good beef            # this good's price video (skipped if made, unless --force)
  *   npm run video:make -- --dry-run --out x.mp4  # render to a file, store nothing (the voice is still billed)
  *   npm run video:make -- --slot                 # only inside a slot with no video yet (VIDEO_SLOTS: 12–16 money
- *                                                # first, 19–23 prices first); the pipeline and video.yml use it
+ *                                                # first, 19–23 "Чамд хамаатай юу?" first); the pipeline and video.yml use it
  *
  * Price videos ("15 жилийн өмнө"): one per good and NSO data month, so they run out until NSO
  * publishes the next month. Money videos: one per story, the most important fresh story whose
@@ -30,13 +31,15 @@ import { closeDb, type DB, getDb, hasDatabase } from "@/db";
 import { articles, indicatorSnapshots, sources, videos } from "@/db/schema";
 import { consoleUsageLogger, dbBudgetGuard, dbUsageLogger, syncLedgerAiCost } from "@/lib/ai/usage-log";
 import { GOODS, type PricesSnapshot } from "@/lib/budget/prices";
+import { impactHtml } from "@/lib/video/impact-html";
+import { IMPACT_MIN_IMPORTANCE, impactNarration, type ImpactSpec, impactVideoSpec, verifyImpactSpec } from "@/lib/video/impact-video";
 import { moneyHtml } from "@/lib/video/money-html";
 import { MONEY_MIN_IMPORTANCE, moneyNarration, type MoneySpec, moneyVideoSpec, verifyMoneySpec } from "@/lib/video/money-video";
 import { narration, priceVideoSpec, type Scene, type VideoSpec, verifySpec } from "@/lib/video/price-video";
 import type { VideoMeta } from "@/lib/video/posts";
 import { analyseAudio, MAX_BYTES, renderVideo } from "@/lib/video/render";
 import { sceneHtml } from "@/lib/video/scene-html";
-import { dueSlot } from "@/lib/video/schedule";
+import { dueSlot, kindsFor, type VideoSlot } from "@/lib/video/schedule";
 import { buildTimeline, plausibleTake, sentenceStarts, speechBounds, type Timeline } from "@/lib/video/timing";
 import { CreditsRefused, speakElevenLabs } from "@/lib/video/elevenlabs";
 import { speak } from "@/lib/video/tts";
@@ -74,7 +77,7 @@ async function main() {
     if (cleared.length) console.log(`🧹 cleared ${cleared.length} posted video file(s) older than ${VIDEO_KEEP_DAYS} days`);
   }
 
-  let prefer = values.prefer;
+  let prefer = values.prefer as VideoSlot["prefer"];
   if (values.slot) {
     const [last] = await db.select({ at: videos.createdAt }).from(videos).orderBy(desc(videos.createdAt)).limit(1);
     const slot = dueSlot(new Date(), last?.at ?? null);
@@ -85,13 +88,14 @@ async function main() {
   const [row] = await db.select({ data: indicatorSnapshots.data }).from(indicatorSnapshots).where(eq(indicatorSnapshots.key, "prices_nso"));
   const prices = row ? (row.data as PricesSnapshot) : null;
 
-  const kinds = values.good || values.kind === "prices" ? ["prices"] : values.kind === "money" ? ["money"] : prefer === "money" ? ["money", "prices"] : ["prices", "money"];
+  const explicit = values.good ? "prices" : ["money", "prices", "impact"].includes(values.kind) ? (values.kind as VideoSlot["prefer"]) : null;
+  const kinds = explicit ? [explicit] : kindsFor(prefer);
   let job: Job | null = null;
   for (const kind of kinds) {
-    job = kind === "money" ? await moneyJob(db, prices) : await priceJob(db, prices);
+    job = kind === "money" ? await moneyJob(db, prices) : kind === "impact" ? await impactJob(db) : await priceJob(db, prices);
     if (job) break;
   }
-  if (!job) return console.log("🎬 Nothing new to make: every good has a video for this NSO month and no fresh story names a big ₮ amount.");
+  if (!job) return console.log("🎬 Nothing new to make: no fresh decision, no fresh story naming a big ₮ amount, and every good has a video for this NSO month.");
 
   if (job.problems.length) throw new Error(`Spec refused:\n- ${job.problems.join("\n- ")}`);
   const text = job.text;
@@ -131,6 +135,8 @@ async function main() {
   const music = process.env.VIDEO_MUSIC?.trim().toLowerCase() !== "off";
   let mp4 = await renderVideo({ html, wav, timeline, music });
   if (mp4.length > MAX_BYTES) mp4 = await renderVideo({ html, wav, timeline, music, crf: 27 });
+  // A long, busy take (≈ 30 s of moving colour) can still be over: one more step down.
+  if (mp4.length > MAX_BYTES) mp4 = await renderVideo({ html, wav, timeline, music, crf: 31 });
   if (mp4.length > MAX_BYTES) throw new Error(`Video too big for /reel: ${mp4.length} bytes`);
   console.log(`   ✓ ${(mp4.length / 1e6).toFixed(2)} MB, ${total} s`);
 
@@ -184,6 +190,61 @@ function moneyJobFrom(spec: MoneySpec, sourceName: string): Job {
     html: (tl, assets) => moneyHtml(spec, tl, assets),
     meta: { kind: "money", articleId: spec.articleId, headline: spec.headline, amountLabel: spec.amountLabel, shareLabel: spec.shareLabel, sourceName, topic: spec.topic, link: spec.link },
   };
+}
+
+function impactJobFrom(spec: ImpactSpec, sourceName: string): Job {
+  return {
+    key: spec.key,
+    text: impactNarration(spec),
+    says: spec.sentences.map((s) => s.say),
+    scenes: spec.sentences.map((s) => s.scene),
+    units: null,
+    problems: verifyImpactSpec(spec),
+    html: (tl, assets) => impactHtml(spec, tl, assets),
+    meta: { kind: "impact", articleId: spec.articleId, headline: spec.headline, ...spec.impact, sourceName, topic: spec.topic, link: spec.link },
+  };
+}
+
+/**
+ * The most important fresh decision with a grounded "Танд хамаатай юу?" (who / what changes / when /
+ * what to do), not yet a video of any kind, from a news source (opendata listings excluded).
+ */
+async function impactJob(db: DB): Promise<Job | null> {
+  const title = sql<string>`coalesce(${articles.readerTitle}, ${articles.title})`;
+  for (const hours of [36, 4 * 24]) {
+    const rows = await db
+      .select({
+        id: articles.id,
+        slug: articles.slug,
+        title,
+        impact: articles.readerImpact,
+        topic: articles.topic,
+        sourceName: sources.name,
+        day: sql<string>`to_char(${articles.publishedAt} at time zone 'Asia/Ulaanbaatar', 'YYYY-MM-DD')`,
+      })
+      .from(articles)
+      .innerJoin(sources, eq(sources.id, articles.sourceId))
+      .where(
+        and(
+          eq(articles.isPublished, true),
+          isNotNull(articles.readerImpact),
+          eq(articles.summaryFallback, false),
+          gte(articles.publishedAt, new Date(Date.now() - hours * 3_600_000)),
+          gte(articles.importanceScore, IMPACT_MIN_IMPORTANCE),
+          sql`${sources.domain} <> 'opendata.gov.mn'`,
+          sql`coalesce((${articles.scrapeMeta}->>'date_unknown')::boolean, false) = false`,
+          sql`not exists (select 1 from ${videos} where ${videos.key} in ('impact:' || ${articles.id}, 'money:' || ${articles.id}))`,
+        ),
+      )
+      .orderBy(desc(articles.importanceScore), desc(articles.publishedAt))
+      .limit(40);
+    for (const r of rows) {
+      const spec = impactVideoSpec({ id: r.id, slug: r.slug, title: r.title, impact: r.impact, sourceName: r.sourceName, day: r.day, topic: r.topic });
+      if (spec && !verifyImpactSpec(spec).length) return impactJobFrom(spec, r.sourceName);
+    }
+  }
+  console.log("🎬 No fresh decision with a usable «Танд хамаатай юу?»: no impact video.");
+  return null;
 }
 
 /** The next good without a video for the latest NSO month (or --good). */

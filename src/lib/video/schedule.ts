@@ -8,14 +8,25 @@ export interface VideoSlot {
   /** Ulaanbaatar hours [from, to). */
   from: number;
   to: number;
-  prefer: "money" | "prices";
+  prefer: "money" | "prices" | "impact";
 }
 
-/** Lunch and evening scrolling time, Ulaanbaatar. */
+/**
+ * Lunch and evening scrolling time, Ulaanbaatar. The evening is "ТАНД ХАМААТАЙ ЮУ?" since Oct 31
+ * 2026 (the owner's choice: fresh civic news over price quizzes); a price video only when no
+ * fresh decision qualifies.
+ */
 export const VIDEO_SLOTS: VideoSlot[] = [
   { from: 12, to: 16, prefer: "money" },
-  { from: 19, to: 23, prefer: "prices" },
+  { from: 19, to: 23, prefer: "impact" },
 ];
+
+/** The kinds a slot tries, in order, until one has something new to make. */
+export function kindsFor(prefer: VideoSlot["prefer"]): VideoSlot["prefer"][] {
+  if (prefer === "money") return ["money", "prices"];
+  if (prefer === "impact") return ["impact", "prices", "money"];
+  return ["prices", "money"];
+}
 
 const UB_MS = 8 * 3_600_000;
 

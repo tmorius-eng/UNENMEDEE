@@ -110,14 +110,15 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
 
 `.github/workflows/video.yml` өдөр бүр хоёр удаа богино видео хийж, Facebook Reels, Instagram Reels, Threads
 руу тавина: 12:41-д «ХҮН БҮРТ ХУВААВАЛ» (шинэ мэдээний том ₮ дүнг хүн амд хуваасан таавар), 19:41-д
-«ҮНЭ ТААГААРАЙ» (нэг барааны 15 жилийн үнэ). Аль нэг нь гарах зүйлгүй бол нөгөөг нь хийнэ. GitHub товлосон
+«ЧАМД ХАМААТАЙ ЮУ?» (залуучуудад зориулсан: шинэ шийдвэр хэнд, юу өөрчлөгдөх, хэзээнээс, чи юу хийх вэ).
+Шинэ шийдвэр олдохгүй өдөр «ҮНЭ ТААГААРАЙ» (нэг барааны 15 жилийн үнэ) гарна. GitHub товлосон
 ажлыг хэдэн цаг хоцроодог тул цагийг «цонх» шийднэ: 12–16, 19–23 цагт тухайн цонхонд видео гараагүй бол
 30 минут тутмын pipeline эсвэл video.yml (аль нь түрүүлж ажилласан нь) хийж тавина. Шөнө гарахгүй. Шинэ secret хэрэггүй: дээрх `FB_PAGE_TOKEN`, `INSTAGRAM_TOKEN`,
 `THREADS_TOKEN` ба `GEMINI_API_KEY` (дуу хоолой) хангалттай; ElevenLabs хоолойд `ELEVENLABS_API_KEY` (доор). Facebook Reels нь `pages_manage_posts`
 эрхтэй Page токеноор тавигдана.
 
 - Түр зогсоох: **Settings → Secrets and variables → Actions → Variables** → `VIDEO_POSTING` = `off`.
-- Одоо хийх: **Actions → Daily video → Run workflow**; `kind` = `money` (мэдээний видео), `prices`, эсвэл
+- Одоо хийх: **Actions → Daily video → Run workflow**; `kind` = `impact` («Чамд хамаатай юу?»), `money` (мэдээний ₮ видео), `prices`, эсвэл
   `good` = `beef` гэх мэт.
 - Урьдчилж үзэх: `dry_run` = `true`. Видео нь ажлын **Artifacts** (video-preview) хэсэгт гарна, юу ч тавигдахгүй.
 - Хоолой солих: `GEMINI_TTS_VOICE` хувьсагч (анхдагч нь `Aoede`).
