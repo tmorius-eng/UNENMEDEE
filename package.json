@@ -104,6 +104,7 @@
     },
     "@vercel/cli-config": {
       "zod": "^4.6.7"
-    }
+    },
+    "minimatch": "^11.0.3"
   }
 }
