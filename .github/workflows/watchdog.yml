@@ -44,6 +44,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AI_DAILY_BUDGET_USD: ${{ vars.AI_DAILY_BUDGET_USD }}
           # Which platforms are set up: booleans only, the secrets themselves never reach this job.
+          VIDEO_POSTING: ${{ vars.VIDEO_POSTING || 'on' }}
           SOCIAL_FACEBOOK: ${{ secrets.FB_PAGE_TOKEN != '' }}
           SOCIAL_THREADS: ${{ secrets.THREADS_TOKEN != '' }}
           SOCIAL_INSTAGRAM: ${{ secrets.INSTAGRAM_TOKEN != '' }}

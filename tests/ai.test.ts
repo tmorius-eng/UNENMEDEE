@@ -5,7 +5,8 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { analyzeArticle, formatDeepAnalysis, shouldResynthesize } from "@/lib/ai/analyze";
 import { CLUSTER_THRESHOLD, findBestMatch, similarity, stems, type ClusterDoc } from "@/lib/ai/clustering";
 import { estimateCostUsd, getPrice, isTextModel } from "@/lib/ai/pricing";
-import { AIUnavailableError, callAIWithFallback, PROVIDER_TRIP, resetProviderTrips, type UsageRecord } from "@/lib/ai/router";
+import { AIUnavailableError, callAIWithFallback, isRequestSpecific, PROVIDER_TRIP, resetProviderTrips, type UsageRecord } from "@/lib/ai/router";
+import { GeminiError } from "@/lib/ai/gemini";
 import { parseJsonLoose, Tier1Schema, Tier2Schema } from "@/lib/ai/schemas";
 
 import { startMockLLM, TIER1_OK, TIER2_OK } from "./helpers/mock-llm";
@@ -105,6 +106,19 @@ describe("router with a mock OpenAI-compatible server", () => {
     for (let i = 0; i < PROVIDER_TRIP + 1; i++) await call();
     // Grok is still tried every time.
     assert.deepEqual(mock.calls.map((c) => c.model).filter((m) => m === "mock-grok").length, PROVIDER_TRIP + 1);
+  });
+
+  it("a retired model's 400 trips the provider like an outage; a plain 400 does not", () => {
+    assert.equal(isRequestSpecific(new GeminiError("Invalid JSON payload received", 400)), true);
+    assert.equal(isRequestSpecific(new GeminiError("Request too large for model", 413)), true);
+    for (const msg of [
+      "The model `qwen/qwen3-32b` has been decommissioned and is no longer supported.",
+      "models/gemini-2.5-flash-lite is no longer available to new users",
+      "No endpoints found for nvidia/nemotron:free",
+      "The model `glm-4.7-flash` does not exist",
+      "Invalid model: gemma-4-31b-it",
+    ])
+      assert.equal(isRequestSpecific(new GeminiError(msg, 400)), false, msg);
   });
 
   it("repairs invalid JSON once on the same provider and logs both calls", async () => {

@@ -30,6 +30,8 @@ import { PROGRAMME_END } from "@/lib/promises/programme";
 import { PROJECTS_VERIFIED_THROUGH } from "@/lib/projects/data";
 import { PRODUCTION_URL } from "@/lib/site";
 import { RATES_CHECKED } from "@/lib/tax/receipt";
+import { TARIFFS_VERIFIED_THROUGH } from "@/lib/budget/tariffs";
+import { OUTLETS } from "@/lib/press/outlets";
 
 type Row = Record<string, unknown>;
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
@@ -105,7 +107,7 @@ async function social() {
   const out: Partial<Record<SocialPlatform, SocialSnapshot>> = {};
   for (const p of SOCIAL_PLATFORMS) out[p] = { hoursSinceOk: null, unknown7d: 0 };
   const result = await rows(sql`select platform,
-    extract(epoch from now() - max(created_at) filter (where post_id is not null and post_id <> 'unknown')) / 3600 as h,
+    extract(epoch from now() - max(created_at) filter (where post_id is not null and post_id <> 'unknown' and post_id not like 'failed:%')) / 3600 as h,
     (count(*) filter (where post_id = 'unknown' and created_at > now() - interval '7 days'))::int as unknown
     from social_posts group by platform`);
   for (const r of result) {
@@ -115,8 +117,22 @@ async function social() {
   return out;
 }
 
+async function videosAndPress() {
+  const [v] = await rows(sql`select extract(epoch from now() - max(created_at)) / 3600 as h from videos`);
+  const hoursSincePost: Partial<Record<SocialPlatform, number | null>> = {};
+  for (const r of await rows(sql`select platform, extract(epoch from now() - max(created_at)) / 3600 as h
+    from social_posts where kind = 'video' and post_id is not null and post_id <> 'unknown' and post_id not like 'failed:%' group by platform`)) {
+    hoursSincePost[String(r.platform) as SocialPlatform] = num(r.h);
+  }
+  const press: Record<string, number | null> = Object.fromEntries(OUTLETS.map((o) => [o.domain, null]));
+  for (const r of await rows(sql`select outlet, extract(epoch from now() - max(found_at)) / 3600 as h from press_items group by outlet`)) {
+    if (String(r.outlet) in press) press[String(r.outlet)] = num(r.h);
+  }
+  return { videos: { hoursSinceVideo: num(v?.h), hoursSincePost }, press };
+}
+
 async function settings() {
-  const result = await rows(sql`select key, value from app_settings where key in ('threads', 'instagram', 'prune_state', 'backup_last_at', 'pipeline_started_at')`);
+  const result = await rows(sql`select key, value from app_settings where key in ('threads', 'instagram', 'prune_state', 'backup_last_at', 'pipeline_started_at', 'github_dispatch_token_expires')`);
   const byKey = new Map(result.map((r) => [String(r.key), String(r.value)]));
   const jsonDate = (key: string, field: string): Date | null => {
     const raw = byKey.get(key);
@@ -137,6 +153,7 @@ async function settings() {
   return {
     tokens: { threads: jsonDate("threads", "refreshedAt"), instagram: jsonDate("instagram", "refreshedAt") },
     maintenance: { pruneAt: jsonDate("prune_state", "ranAt"), backupAt: plainDate("backup_last_at"), pipelineAt: plainDate("pipeline_started_at") },
+    dispatchTokenExpires: plainDate("github_dispatch_token_expires"),
   };
 }
 
@@ -225,6 +242,7 @@ async function main() {
     "өгөгдлийн хэсгүүд": indicators,
     "opendata.mn": opendata,
     "сошиал пост": social,
+    "видео, хэвлэл": videosAndPress,
     "тохиргоо": settings,
     "сайт (сүлжээ)": skipNetwork ? null : network,
     "GitHub workflow": skipNetwork || !token || !repo ? null : () => workflows(token, repo),
@@ -250,6 +268,9 @@ async function main() {
     network: got("сайт (сүлжээ)"),
     workflows: got("GitHub workflow"),
     bundledCerts: got("гэрчилгээ"),
+    videos: got<Awaited<ReturnType<typeof videosAndPress>>>("видео, хэвлэл")?.videos,
+    press: got<Awaited<ReturnType<typeof videosAndPress>>>("видео, хэвлэл")?.press,
+    dispatchTokenExpires: s?.dispatchTokenExpires,
   };
   const flag = (v: string | undefined) => v === "true";
   const config: HealthConfig = {
@@ -261,7 +282,8 @@ async function main() {
       discord: flag(process.env.SOCIAL_DISCORD),
     },
     backupConfigured: process.env.BACKUP_CONFIGURED === undefined ? undefined : flag(process.env.BACKUP_CONFIGURED),
-    dated: { governmentsVerified: GOVERNMENTS_VERIFIED_THROUGH, programmeEnd: PROGRAMME_END, populationYear: POPULATION.year, ratesChecked: RATES_CHECKED, projectsVerified: PROJECTS_VERIFIED_THROUGH },
+    videoPosting: process.env.VIDEO_POSTING === undefined ? undefined : process.env.VIDEO_POSTING.trim().toLowerCase() !== "off",
+    dated: { governmentsVerified: GOVERNMENTS_VERIFIED_THROUGH, programmeEnd: PROGRAMME_END, populationYear: POPULATION.year, ratesChecked: RATES_CHECKED, projectsVerified: PROJECTS_VERIFIED_THROUGH, tariffsVerified: TARIFFS_VERIFIED_THROUGH },
   };
 
   const problems = evaluateHealth(snapshot, config);

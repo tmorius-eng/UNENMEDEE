@@ -105,6 +105,12 @@ export interface HealthSnapshot {
   bundledCerts?: { file: string; validTo: Date }[];
   /** NSO's newest population figure (indicator_snapshots `population`). */
   population?: { year: number; count: number } | null;
+  /** Hours since the newest video was made, and since each platform last got one (null = never). */
+  videos?: { hoursSinceVideo: number | null; hoursSincePost: Partial<Record<SocialPlatform, number | null>> };
+  /** Hours since each press outlet last gave a new headline (null = never). */
+  press?: Record<string, number | null>;
+  /** When the Supabase pipeline-fallback GitHub token expires (`app_settings` github_dispatch_token_expires). */
+  dispatchTokenExpires?: Date | null;
 }
 
 export interface HealthConfig {
@@ -112,6 +118,8 @@ export interface HealthConfig {
   socialConfigured: Partial<Record<SocialPlatform, boolean>>;
   /** Whether the BACKUP_AGE_PUBLIC_KEY secret is set (undefined = not checked, e.g. a local run). */
   backupConfigured?: boolean;
+  /** Daily videos are on (`VIDEO_POSTING` is not "off"; undefined = not checked). */
+  videoPosting?: boolean;
   /** Dated facts in the code that someone has to re-check by hand. */
   dated: {
     /** The Prime Minister list was last verified on this day (`GOVERNMENTS_VERIFIED_THROUGH`). */
@@ -124,6 +132,8 @@ export interface HealthConfig {
     ratesChecked: string;
     /** Every /projects entry's sources were last re-read on this day (`PROJECTS_VERIFIED_THROUGH`). */
     projectsVerified: string;
+    /** The hand-typed ERC / УСУГ tariffs on /prices were last checked on this day (`TARIFFS_VERIFIED_THROUGH`). */
+    tariffsVerified?: string;
   };
 }
 
@@ -186,6 +196,22 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
     }
   }
 
+  // Videos: every slot makes one, so a day and a half without one means the step is failing
+  // quietly (both pipeline video steps are continue-on-error); news posts would hide it otherwise.
+  if (config.videoPosting && s.videos) {
+    if (olderThan(s.videos.hoursSinceVideo, 36)) out.push(`Өдөр тутмын видео ${h(s.videos.hoursSinceVideo)} хийгдээгүй (pipeline-ийн "Make the slot's video" алхам, Daily video workflow-ийн лог).`);
+    for (const platform of ["facebook", "instagram", "threads"] as const) {
+      if (!config.socialConfigured[platform]) continue;
+      const age = s.videos.hoursSincePost[platform];
+      if (olderThan(age ?? null, 48)) out.push(`${platform}: видео ${h(age ?? null)} тавигдаагүй (social:post --mode video-ийн лог).`);
+    }
+  }
+  // The article page's "not found in the press" note depends on these feeds.
+  for (const [outlet, age] of Object.entries(s.press ?? {})) {
+    if (olderThan(age, 24)) out.push(`Хэвлэлийн RSS ${outlet}: ${h(age)} шинэ гарчиг ирээгүй (press:sync-ийн лог; хаяг, бүтэц өөрчлөгдсөн эсэх).`);
+  }
+  if (s.dispatchTokenExpires && daysUntil(s.dispatchTokenExpires, now) < 30) out.push(`Pipeline-ийн нөөц эхлүүлэгчийн GitHub токен ${ymd(s.dispatchTokenExpires)}-нд дуусна: шинэ токен үүсгээд Supabase Vault-д солих (docs/PIPELINE-FALLBACK.md).`);
+
   const m = s.maintenance;
   if (m?.pruneAt && daysSince(m.pruneAt, now) > 3) out.push(`Өгөгдлийн сангийн цэвэрлэгээ (db:prune) ${Math.round(daysSince(m.pruneAt, now))} хоног ажиллаагүй.`);
   if (config.backupConfigured === false) out.push(`Нөөц хуулбар хийгдэхгүй байна: BACKUP_AGE_PUBLIC_KEY secret алга (docs/BACKUP.md-ийн 1-р алхам).`);
@@ -218,6 +244,7 @@ export function evaluateHealth(s: HealthSnapshot, config: HealthConfig, now = ne
   if (s.population && s.population.year > d.populationYear) out.push(`ҮСХ ${s.population.year} оны хүн амын тоог (${s.population.count.toLocaleString("en-US")}) нийтэлсэн: src/lib/per-person.ts POPULATION-ийг шинэчлэх (одоо ${d.populationYear} оных).`);
   else if (!s.population && now.getTime() >= Date.UTC(d.populationYear + 2, 3, 1)) out.push(`Хүн амын тоо ${d.populationYear} оных (src/lib/per-person.ts POPULATION): ҮСХ-ны шинэ тоог оруулах.`);
   if (daysSince(d.ratesChecked, now) > 395) out.push(`Татварын хувь хэмжээг ${d.ratesChecked}-нээс хойш шалгаагүй (src/lib/tax/receipt.ts RATES_CHECKED).`);
+  if (d.tariffsVerified && daysSince(d.tariffsVerified, now) > 395) out.push(`Цахилгаан, усны тарифыг ${d.tariffsVerified}-нээс хойш шалгаагүй (src/lib/budget/tariffs.ts TARIFFS_VERIFIED_THROUGH; ЭХЗХ-ны шинэ шийдвэр гарсан эсэх).`);
   if (daysSince(d.projectsVerified, now) > 180) out.push(`Төслүүдийн хуудсын (/projects) эх сурвалжуудыг ${d.projectsVerified}-нээс хойш дахин уншаагүй (src/lib/projects/data.ts PROJECTS_VERIFIED_THROUGH).`);
   return out;
 }

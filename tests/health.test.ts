@@ -145,4 +145,30 @@ describe("watchdog rules", () => {
     assert.ok(!dated("2027-04-20T00:00:00Z").some((l) => /Төслүүдийн/.test(l)));
     assert.ok(dated("2027-05-01T00:00:00Z").some((l) => /Төслүүдийн/.test(l)));
   });
+
+  it("tariffs ask for a re-check 13 months after they were verified", () => {
+    const config = { ...CONFIG, dated: { ...CONFIG.dated, tariffsVerified: "2026-10-29" } };
+    const tariffs = (iso: string) => evaluateHealth(healthy(), config, new Date(iso)).filter((l) => /тарифыг/.test(l));
+    assert.deepEqual(tariffs("2027-11-20T00:00:00Z"), []);
+    assert.equal(tariffs("2027-12-01T00:00:00Z").length, 1);
+  });
+
+  it("videos: a quiet day and a half, or a platform with no video for two days", () => {
+    const config = { ...CONFIG, videoPosting: true };
+    const fresh = { hoursSinceVideo: 6, hoursSincePost: { facebook: 5, threads: 5 } };
+    assert.deepEqual(only((s) => (s.videos = fresh), config), []);
+    assert.equal(only((s) => (s.videos = { ...fresh, hoursSinceVideo: 40 }), config).filter((l) => /видео/.test(l)).length, 1);
+    assert.equal(only((s) => (s.videos = { ...fresh, hoursSincePost: { facebook: 60, threads: 5 } }), config).filter((l) => /facebook: видео/.test(l)).length, 1);
+    // Instagram is not configured in CONFIG: never reported; videos off: nothing at all.
+    assert.deepEqual(only((s) => (s.videos = { ...fresh, hoursSincePost: { facebook: 5, threads: 5, instagram: null } }), config), []);
+    assert.deepEqual(only((s) => (s.videos = { hoursSinceVideo: null, hoursSincePost: {} }), { ...CONFIG, videoPosting: false }), []);
+  });
+
+  it("press feeds and the pipeline-fallback token", () => {
+    assert.deepEqual(only((s) => (s.press = { "ikon.mn": 2, "sonin.mn": 3 })), []);
+    assert.equal(only((s) => (s.press = { "ikon.mn": 2, "news.mn": 30 })).length, 1);
+    assert.equal(only((s) => (s.press = { "ikon.mn": null })).length, 1);
+    assert.deepEqual(only((s) => (s.dispatchTokenExpires = new Date(NOW.getTime() + 90 * 86_400_000))), []);
+    assert.equal(only((s) => (s.dispatchTokenExpires = new Date(NOW.getTime() + 10 * 86_400_000))).length, 1);
+  });
 });
