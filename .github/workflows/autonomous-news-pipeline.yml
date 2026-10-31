@@ -262,6 +262,11 @@ jobs:
         env:
           GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL }}
           GEMINI_TTS_VOICE: ${{ vars.GEMINI_TTS_VOICE }}
+          # The voice: ElevenLabs (the owner's monthly plan, paced to last the month), else Gemini.
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          ELEVENLABS_RESERVE_CHARS: ${{ vars.ELEVENLABS_RESERVE_CHARS }}
+          ELEVENLABS_PLAN_USD: ${{ vars.ELEVENLABS_PLAN_USD }}
         run: |
           command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg)
           npm run video:make -- --slot

@@ -155,6 +155,13 @@
       "when": 1793334171559,
       "tag": "0021_videos",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793460677207,
+      "tag": "0022_elevenlabs_provider",
+      "breakpoints": true
     }
   ]
 }

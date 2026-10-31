@@ -113,7 +113,7 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
 «ҮНЭ ТААГААРАЙ» (нэг барааны 15 жилийн үнэ). Аль нэг нь гарах зүйлгүй бол нөгөөг нь хийнэ. GitHub товлосон
 ажлыг хэдэн цаг хоцроодог тул цагийг «цонх» шийднэ: 12–16, 19–23 цагт тухайн цонхонд видео гараагүй бол
 30 минут тутмын pipeline эсвэл video.yml (аль нь түрүүлж ажилласан нь) хийж тавина. Шөнө гарахгүй. Шинэ secret хэрэггүй: дээрх `FB_PAGE_TOKEN`, `INSTAGRAM_TOKEN`,
-`THREADS_TOKEN` ба `GEMINI_API_KEY` (дуу хоолой) хангалттай. Facebook Reels нь `pages_manage_posts`
+`THREADS_TOKEN` ба `GEMINI_API_KEY` (дуу хоолой) хангалттай; ElevenLabs хоолойд `ELEVENLABS_API_KEY` (доор). Facebook Reels нь `pages_manage_posts`
 эрхтэй Page токеноор тавигдана.
 
 - Түр зогсоох: **Settings → Secrets and variables → Actions → Variables** → `VIDEO_POSTING` = `off`.
@@ -121,6 +121,22 @@ Messenger-тэй адил бот (AI-гүй, сайтын мэдээ, холбо
   `good` = `beef` гэх мэт.
 - Урьдчилж үзэх: `dry_run` = `true`. Видео нь ажлын **Artifacts** (video-preview) хэсэгт гарна, юу ч тавигдахгүй.
 - Хоолой солих: `GEMINI_TTS_VOICE` хувьсагч (анхдагч нь `Aoede`).
+
+### ElevenLabs хоолой (сарын төлбөртэй багц)
+
+Видеоны дууг эхлээд ElevenLabs (`eleven_v4`, Sarah хоолой) уншина; кредит хүрэхгүй эсвэл алдаа гарвал Gemini уншина,
+тиймээс видео хэзээ ч алгасахгүй.
+
+1. elevenlabs.io → **Developers → API Keys → Create** (хуучин, чатад харагдсан түлхүүрийг **устгана**). Эрх: Text to
+   Speech + User (read) хангалттай.
+2. GitHub → **Settings → Secrets and variables → Actions → New repository secret** → нэр `ELEVENLABS_API_KEY`,
+   утга нь шинэ түлхүүр. Түлхүүрийг чат, файл, commit-д хэзээ ч бүү бич.
+3. Сонголтоор (**Variables**): `ELEVENLABS_VOICE_ID` (өөр хоолой), `ELEVENLABS_RESERVE_CHARS` (өөртөө үлдээх кредит,
+   анхдагч 10 000), `ELEVENLABS_PLAN_USD` (багцын үнэ, анхдагч 6; /transparency дээрх зардлыг тооцоход).
+
+Кредитийн хуваарь: сар бүр шинэчлэгдэх хүртэлх өдрүүдэд үлдсэн кредитийг (нөөцөөс бусад) өдөрт 2 видеонд жигд
+хуваана. Нэг видео ≈ 100–230 кредит, сард ≈ 60 видео тул Starter багцын 40 000-д багтана. Та өөрөө сайт дээр
+кредит их зарцуулбал видео бүрийн хувь багасч, хүрэхгүй үед тухайн видеог Gemini уншина.
 
 ## Telegram суваг
 

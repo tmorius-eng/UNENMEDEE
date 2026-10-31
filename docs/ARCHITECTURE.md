@@ -48,7 +48,7 @@ database is the only shared state between the two halves.
 | Source discovery | weekly | `sources:discover` | `sources` |
 | Source re-check | weekly | `sources:recheck` | `articles.source_status`, `source_diff` |
 | Social posts | after each pipeline / digest run | `social:post` (news, digest, quiz, weekly) | `social_posts` |
-| Videos | slots 12–16 / 19–23 Ulaanbaatar (`video.yml` + pipeline, `--slot`) | `video:make` (midday: a fresh story's ₮ amount ÷ population; evening: NSO prices; → Gemini voice → Playwright frames → ffmpeg MP4), then `social:post --mode video` (Facebook / Instagram Reels, Threads) | `videos`, `social_posts`, `ai_usage_logs` |
+| Videos | slots 12–16 / 19–23 Ulaanbaatar (`video.yml` + pipeline, `--slot`) | `video:make` (midday: a fresh story's ₮ amount ÷ population; evening: NSO prices; → ElevenLabs voice paced by the monthly credits, else Gemini → Playwright frames → ffmpeg MP4), then `social:post --mode video` (Facebook / Instagram Reels, Threads) | `videos`, `social_posts`, `ai_usage_logs` |
 | Watchdog | daily | `npm run health` | a GitHub issue when something is stale |
 | Vercel cleanup | daily | `vercel:cleanup` | deletes old Vercel deployments (10 GB Hobby storage) |
 | Keepalive | monthly | GitHub API | re-enables scheduled workflows |

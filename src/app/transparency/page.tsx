@@ -55,6 +55,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   openrouter: "OpenRouter · үнэгүй загварууд",
   zai: "Z.ai · GLM Flash (үнэгүй)",
   ollama: "Ollama (локал, 0$)",
+  elevenlabs: "ElevenLabs · видеоны дуу (сарын багц)",
 };
 
 /** Every donation as it reached the account: day, name as the donor allowed, amount. */

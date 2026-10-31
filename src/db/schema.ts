@@ -26,7 +26,7 @@ import type { VideoMeta } from "@/lib/video/posts";
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 export const sourceCategory = pgEnum("source_category", ["portal", "ministry", "agency", "local"]);
-export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai"]);
+export const aiProvider = pgEnum("ai_provider", ["deepseek", "grok", "ollama", "gemini", "nvidia", "groq", "requesty", "mistral", "openrouter", "zai", "elevenlabs"]);
 
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),

@@ -1,4 +1,4 @@
-import { eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, ne, sql } from "drizzle-orm";
 
 import type { DB } from "@/db";
 import { aiUsageLogs, transparencyLedger } from "@/db/schema";
@@ -65,14 +65,19 @@ export async function syncLedgerAiCost(db: DB, month: string = monthKey()): Prom
   return total;
 }
 
-/** Current month / UTC-day spend and today's call counts per provider, from ai_usage_logs. */
+/**
+ * Current month / UTC-day spend and today's call counts per provider, from ai_usage_logs. The
+ * ElevenLabs narration is left out of the USD sums: it is a prepaid monthly plan with its own
+ * credit pacing (src/lib/video/elevenlabs.ts), and the text models' pay-as-you-go budget
+ * (AI_MONTHLY_BUDGET_USD) must not shrink because a video was voiced.
+ */
 export async function loadUsageSnapshot(db: DB): Promise<UsageSnapshot> {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const [[month], perProvider] = await Promise.all([
     // gte() maps the Date through the column type; a raw sql`` param would reach the driver as a Date and fail.
-    db.select({ usd: sql<string>`coalesce(sum(${aiUsageLogs.estimatedCostUsd}), 0)` }).from(aiUsageLogs).where(gte(aiUsageLogs.createdAt, monthStart)),
+    db.select({ usd: sql<string>`coalesce(sum(${aiUsageLogs.estimatedCostUsd}), 0)` }).from(aiUsageLogs).where(and(gte(aiUsageLogs.createdAt, monthStart), ne(aiUsageLogs.provider, "elevenlabs"))),
     db
       .select({
         provider: aiUsageLogs.provider,
@@ -87,7 +92,7 @@ export async function loadUsageSnapshot(db: DB): Promise<UsageSnapshot> {
   let dayUsd = 0;
   for (const r of perProvider) {
     dayCalls[r.provider] = r.calls;
-    dayUsd += Number(r.usd);
+    if (r.provider !== "elevenlabs") dayUsd += Number(r.usd);
   }
   return { monthUsd: Number(month?.usd ?? 0), dayUsd, dayCalls };
 }
