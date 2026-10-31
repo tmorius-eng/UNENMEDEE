@@ -27,6 +27,11 @@ describe("creditPlan: the month's credits last until the reset", () => {
     assert.equal(p.ok, false);
     assert.match(p.reason, /outrun the month/);
   });
+  it("refuses when the reset date is missing, past or too far away", () => {
+    assert.equal(creditPlan({ ...sub(0), next_character_count_reset_unix: undefined }, 10, NOW, {}).ok, false);
+    assert.equal(creditPlan(sub(0, -1), 10, NOW, {}).ok, false);
+    assert.equal(creditPlan(sub(0, 60), 10, NOW, {}).ok, false);
+  });
   it("on the last day the rest may be used", () => {
     assert.equal(creditPlan(sub(29_400, 0.2), 230, NOW, {}).ok, true);
   });

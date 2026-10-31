@@ -9,7 +9,7 @@ import { cut, THREADS_MAX, threadsLength } from "@/lib/social/threads";
 import { POPULATION_LABEL } from "@/lib/per-person";
 import { PRODUCTION_URL } from "@/lib/site";
 
-export type VideoMeta = PriceVideoMeta | MoneyVideoMeta;
+export type VideoMeta = PriceVideoMeta | MoneyVideoMeta | ImpactVideoMeta;
 
 export interface PriceVideoMeta {
   kind: "prices";
@@ -36,9 +36,36 @@ export interface MoneyVideoMeta {
   link: string;
 }
 
+/** "ЧАМД ХАМААТАЙ ЮУ?" (impact-video.ts): one decision as the site's "Танд хамаатай юу?" block reads it. */
+export interface ImpactVideoMeta {
+  kind: "impact";
+  articleId: number;
+  headline: string;
+  who: string | null;
+  change: string;
+  when: string | null;
+  action: string | null;
+  sourceName: string;
+  topic: string | null;
+  /** "iltodmedee.mn/article/<slug>" */
+  link: string;
+}
+
 const monthLabel = (m: string) => `${m.slice(0, 4)} оны ${Number(m.slice(5, 7))}-р сар`;
 
 function core(v: VideoMeta): string[] {
+  if (v.kind === "impact")
+    return [
+      `📌 ${v.headline}`,
+      "",
+      ...(v.who ? [`👥 Хэнд: ${v.who}`] : []),
+      `🔄 Юу өөрчлөгдөх: ${v.change}`,
+      ...(v.when ? [`📅 Хэзээнээс: ${v.when}`] : []),
+      ...(v.action ? [`✅ Чи юу хийх: ${v.action}`] : []),
+      "",
+      `Эх сурвалж: ${v.sourceName}. «Танд хамаатай юу?» хэсгийг AI эх мэдээнээс товчилсон.`,
+      "Чамд хамаатай юу? Коммент бич 👇 Хэрэгтэй найздаа илгээ 📲",
+    ];
   if (v.kind === "money")
     return [
       `💸 ${v.headline}`,
@@ -55,8 +82,8 @@ function core(v: VideoMeta): string[] {
   ];
 }
 
-const topicOf = (v: VideoMeta) => (v.kind === "money" ? v.topic : "prices");
-const more = (v: VideoMeta) => (v.kind === "money" ? "Дэлгэрэнгүй" : "13 барааны 15 жилийн үнэ");
+const topicOf = (v: VideoMeta) => (v.kind === "prices" ? "prices" : v.topic);
+const more = (v: VideoMeta) => (v.kind === "prices" ? "13 барааны 15 жилийн үнэ" : "Дэлгэрэнгүй");
 
 const url = (v: VideoMeta, site: string) => `${site}/${v.link.replace(/^iltodmedee\.mn\//, "")}`;
 
@@ -65,7 +92,7 @@ export function facebookVideoText(v: VideoMeta, site = PRODUCTION_URL): string {
 }
 
 export function instagramVideoCaption(v: VideoMeta): string {
-  const tail = v.kind === "money" ? "Мэдээний дэлгэрэнгүй: iltodmedee.mn (холбоос bio-д)" : "13 барааны 15 жилийн үнэ, аймаг бүрээр: iltodmedee.mn (холбоос bio-д)";
+  const tail = v.kind !== "prices" ? "Мэдээний дэлгэрэнгүй: iltodmedee.mn (холбоос bio-д)" : "13 барааны 15 жилийн үнэ, аймаг бүрээр: iltodmedee.mn (холбоос bio-д)";
   return [...core(v), "", tail, "", hashtags("instagram", topicOf(v))].join("\n");
 }
 

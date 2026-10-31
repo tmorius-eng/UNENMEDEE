@@ -58,6 +58,9 @@ jobs:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+      # Only whether the video voice key exists (a boolean, not the secret): the video step needs
+      # ElevenLabs or Gemini, and a step cannot see its own env in its `if`.
+      HAS_ELEVENLABS: ${{ secrets.ELEVENLABS_API_KEY != '' }}
       # Paid (optional). Capped by the budget variables below.
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
@@ -256,8 +259,8 @@ jobs:
 
       # The videos' main clock (GitHub starts video.yml hours late): inside a slot (12–16, 19–23
       # Ulaanbaatar) with no video yet, make one here, then post any video not yet posted.
-      - name: Make the slot's video (12–16 money, 19–23 prices)
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && steps.chromium.outcome == 'success' && vars.VIDEO_POSTING != 'off' && env.GEMINI_API_KEY != '' }}
+      - name: Make the slot's video (12–16 money, 19–23 «Чамд хамаатай юу?»)
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' && steps.chromium.outcome == 'success' && vars.VIDEO_POSTING != 'off' && (env.GEMINI_API_KEY != '' || env.HAS_ELEVENLABS == 'true') }}
         continue-on-error: true
         env:
           GEMINI_TTS_MODEL: ${{ vars.GEMINI_TTS_MODEL }}

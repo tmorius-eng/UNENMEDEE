@@ -58,7 +58,11 @@ function envNumber(env: Record<string, string | undefined>, name: string, fallba
 export function creditPlan(sub: Subscription, chars: number, now: Date = new Date(), env: Record<string, string | undefined> = process.env): CreditPlan {
   const reserve = envNumber(env, "ELEVENLABS_RESERVE_CHARS", 10_000);
   const resetMs = (sub.next_character_count_reset_unix ?? 0) * 1000;
-  const daysLeft = Math.max(1, Math.ceil((resetMs - now.getTime()) / 86_400_000));
+  const untilReset = (resetMs - now.getTime()) / 86_400_000;
+  // No reset date, one in the past or more than a month away (a lapsed plan, an API change): the
+  // pace cannot be computed, and a guess of "1 day left" would spend half the rest on one video.
+  if (!(untilReset > 0 && untilReset <= 32)) return { ok: false, reason: `no usable reset date (${sub.next_character_count_reset_unix ?? "none"})`, perVideo: 0, available: 0, daysLeft: 0 };
+  const daysLeft = Math.max(1, Math.ceil(untilReset));
   const available = Math.max(0, sub.character_limit - sub.character_count - reserve);
   const perVideo = Math.floor(available / (daysLeft * VIDEOS_PER_DAY));
   const head = `${sub.character_count.toLocaleString("en")}/${sub.character_limit.toLocaleString("en")} used, ${daysLeft} d to reset, ≤ ${perVideo} a video`;
@@ -118,7 +122,8 @@ export async function speakElevenLabs(opts: {
   const model = opts.model ?? ELEVENLABS_MODEL;
 
   const subRes = await doFetch(`${API}/v1/user/subscription`, { headers, signal: AbortSignal.timeout(30_000) });
-  if (!subRes.ok) throw new SpeechError(`ElevenLabs subscription ${subRes.status}`);
+  // 401/403 here usually means the key was made without the "User: Read" permission.
+  if (!subRes.ok) throw new SpeechError(`ElevenLabs subscription ${subRes.status}${subRes.status === 401 || subRes.status === 403 ? " (give the API key the User: Read permission)" : ""}`);
   const sub = (await subRes.json()) as Subscription;
   const plan = creditPlan(sub, text.length, opts.now);
   if (!plan.ok) throw new CreditsRefused(`ElevenLabs credits: ${plan.reason}`);

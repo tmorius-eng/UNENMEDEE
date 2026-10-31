@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: "auto = price video, else money video; money = only «ХҮН БҮРТ ХУВААВАЛ»; prices = only a price video"
+        description: "auto = price video, else money video; impact = only «ТАНД ХАМААТАЙ ЮУ?»; money = only «ХҮН БҮРТ ХУВААВАЛ»; prices = only a price video"
         required: false
         default: "auto"
       good:
@@ -96,7 +96,7 @@ jobs:
           # A scheduled run (often hours late) makes a video only inside a slot that has none yet;
           # the slot decides the kind (src/lib/video/schedule.ts). Manual runs make one at once.
           if [ -n "$IN_SCHEDULE" ]; then args+=(--slot); fi
-          case "$IN_KIND" in money|prices) args+=(--kind "$IN_KIND") ;; esac
+          case "$IN_KIND" in money|prices|impact) args+=(--kind "$IN_KIND") ;; esac
           case "$IN_GOOD" in ''|*[!a-z0-9]*) ;; *) args+=(--good "$IN_GOOD") ;; esac
           if [ "$IN_DRY" = "true" ]; then args+=(--dry-run --out video.mp4); fi
           npm run video:make -- "${args[@]}"

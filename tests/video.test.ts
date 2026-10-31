@@ -368,10 +368,10 @@ describe("video slots", () => {
   // Ulaanbaatar = UTC+8.
   const ub = (iso: string) => new Date(`${iso}+08:00`);
 
-  it("makes the midday video once, money first, and the evening one once, prices first", () => {
+  it("makes the midday video once, money first, and the evening one once, «Танд хамаатай юу?» first", () => {
     assert.equal(dueSlot(ub("2026-10-31T12:10:00"), ub("2026-10-31T01:12:00"))?.prefer, "money");
     assert.equal(dueSlot(ub("2026-10-31T13:40:00"), ub("2026-10-31T12:17:00")), null);
-    assert.equal(dueSlot(ub("2026-10-31T19:05:00"), ub("2026-10-31T12:17:00"))?.prefer, "prices");
+    assert.equal(dueSlot(ub("2026-10-31T19:05:00"), ub("2026-10-31T12:17:00"))?.prefer, "impact");
     assert.equal(dueSlot(ub("2026-10-31T22:59:00"), ub("2026-10-31T19:20:00")), null);
     assert.equal(dueSlot(ub("2026-11-01T12:00:00"), null)?.prefer, "money");
   });
