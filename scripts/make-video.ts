@@ -7,8 +7,8 @@
  *   npm run video:make -- --kind money           # only a money video ("ХҮН БҮРТ ХУВААВАЛ")
  *   npm run video:make -- --good beef            # this good's price video (skipped if made, unless --force)
  *   npm run video:make -- --dry-run --out x.mp4  # render to a file, store nothing (the voice is still billed)
- *   npm run video:make -- --due                  # only when no video was made in DUE_AFTER_H (the pipeline's
- *                                                # fallback when GitHub dropped the scheduled video runs)
+ *   npm run video:make -- --slot                 # only inside a slot with no video yet (VIDEO_SLOTS: 12–16 money
+ *                                                # first, 19–23 prices first); the pipeline and video.yml use it
  *
  * Price videos ("15 жилийн өмнө"): one per good and NSO data month, so they run out until NSO
  * publishes the next month. Money videos: one per story, the most important fresh story whose
@@ -34,20 +34,19 @@ import { narration, priceVideoSpec, type Scene, type VideoSpec, verifySpec } fro
 import type { VideoMeta } from "@/lib/video/posts";
 import { analyseAudio, MAX_BYTES, renderVideo } from "@/lib/video/render";
 import { sceneHtml } from "@/lib/video/scene-html";
+import { dueSlot } from "@/lib/video/schedule";
 import { buildTimeline, plausibleTake, sentenceStarts, speechBounds, type Timeline } from "@/lib/video/timing";
 import { speak } from "@/lib/video/tts";
 
 /** The MP4 is kept this long for the platforms to fetch it from /reel, then cleared. */
 export const VIDEO_KEEP_DAYS = 3;
-/** --due makes a video only when none was made this long, between 10:00 and 23:00 Ulaanbaatar. */
-export const DUE_AFTER_H = 20;
 
 const { values } = parseArgs({
   options: {
     good: { type: "string" },
     kind: { type: "string", default: "auto" },
     prefer: { type: "string", default: "prices" },
-    due: { type: "boolean", default: false },
+    slot: { type: "boolean", default: false },
     force: { type: "boolean", default: false },
     "dry-run": { type: "boolean", default: false },
     out: { type: "string", default: "video.mp4" },
@@ -72,12 +71,11 @@ async function main() {
   }
 
   let prefer = values.prefer;
-  if (values.due) {
-    const ubHour = (new Date().getUTCHours() + 8) % 24;
-    if (ubHour < 10 || ubHour >= 23) return console.log("🎬 --due: outside 10:00–23:00 Ulaanbaatar, no video now.");
-    const [recent] = await db.select({ id: videos.id }).from(videos).where(gte(videos.createdAt, new Date(Date.now() - DUE_AFTER_H * 3_600_000))).limit(1);
-    if (recent) return console.log(`🎬 --due: a video was made in the last ${DUE_AFTER_H} h, nothing to do.`);
-    prefer = ubHour < 16 ? "money" : "prices";
+  if (values.slot) {
+    const [last] = await db.select({ at: videos.createdAt }).from(videos).orderBy(desc(videos.createdAt)).limit(1);
+    const slot = dueSlot(new Date(), last?.at ?? null);
+    if (!slot) return console.log("🎬 --slot: not inside a video slot, or this slot already has its video.");
+    prefer = slot.prefer;
   }
 
   const [row] = await db.select({ data: indicatorSnapshots.data }).from(indicatorSnapshots).where(eq(indicatorSnapshots.key, "prices_nso"));

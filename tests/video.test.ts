@@ -12,6 +12,7 @@ import { numberWords, timesPhrase } from "@/lib/video/mn-numbers";
 import { facebookVideoText, instagramVideoCaption, threadsVideoText, type VideoMeta } from "@/lib/video/posts";
 import { moneyHtml } from "@/lib/video/money-html";
 import { amountWords, moneyNarration, moneyVideoSpec, roundShare, shareOptions, verifyMoneySpec } from "@/lib/video/money-video";
+import { dueSlot } from "@/lib/video/schedule";
 import { narration, priceVideoSpec, quizOptions, SPOKEN, verifySpec } from "@/lib/video/price-video";
 import { sceneHtml } from "@/lib/video/scene-html";
 import { audioFilter } from "@/lib/video/render";
@@ -360,5 +361,35 @@ describe("«ХҮН БҮРТ ХУВААВАЛ» money video", () => {
     const html = moneyHtml(spec, tl, { fontsDir: "/f", logo: "/l.png" });
     assert.ok(!html.includes("<img src=x"));
     assert.match(html, /\\u003cimg src=x/);
+  });
+});
+
+describe("video slots", () => {
+  // Ulaanbaatar = UTC+8.
+  const ub = (iso: string) => new Date(`${iso}+08:00`);
+
+  it("makes the midday video once, money first, and the evening one once, prices first", () => {
+    assert.equal(dueSlot(ub("2026-10-31T12:10:00"), ub("2026-10-31T01:12:00"))?.prefer, "money");
+    assert.equal(dueSlot(ub("2026-10-31T13:40:00"), ub("2026-10-31T12:17:00")), null);
+    assert.equal(dueSlot(ub("2026-10-31T19:05:00"), ub("2026-10-31T12:17:00"))?.prefer, "prices");
+    assert.equal(dueSlot(ub("2026-10-31T22:59:00"), ub("2026-10-31T19:20:00")), null);
+    assert.equal(dueSlot(ub("2026-11-01T12:00:00"), null)?.prefer, "money");
+  });
+
+  it("never makes one outside the slots, however late GitHub starts the run", () => {
+    assert.equal(dueSlot(ub("2026-10-31T01:12:00"), ub("2026-10-30T18:07:00")), null);
+    assert.equal(dueSlot(ub("2026-10-31T16:00:00"), ub("2026-10-30T19:30:00")), null);
+    assert.equal(dueSlot(ub("2026-10-31T23:00:00"), null), null);
+    assert.equal(dueSlot(ub("2026-10-31T09:00:00"), null), null);
+  });
+
+  it("keeps numbers whole with a real no-break space", () => {
+    const spec = moneyVideoSpec(
+      { id: 1940, slug: "x", title: "Ажилтнуудад 170.1 тэрбум ₮ зарцуулна", amounts: ["170.1 тэрбум ₮"], sourceName: "x", day: "2026-10-28", topic: null },
+      snap,
+    )!;
+    assert.equal(spec.shareLabel, "≈ 49 700₮");
+    assert.ok(!spec.shareLabel.includes(" "));
+    assert.deepEqual(verifyMoneySpec(spec), []);
   });
 });
